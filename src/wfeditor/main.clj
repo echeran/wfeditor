@@ -1,5 +1,11 @@
-(ns wfeditor.main
-  (:gen-class))
+(ns wfeditor.main)
+
+(import
+ 'org.eclipse.jface.window.ApplicationWindow
+ 'org.eclipse.swt.SWT
+ 'org.eclipse.swt.layout.FillLayout
+ '(org.eclipse.swt.widgets Display Shell Label)
+ )
 
 
 ;; (import 'org.eclipse.swt.SWT
@@ -120,54 +126,53 @@
 
 
 
-(import 'org.eclipse.jface.window.ApplicationWindow
-        'org.eclipse.swt.SWT
-        'org.eclipse.swt.layout.FillLayout
-        '(org.eclipse.swt.widgets Display Shell Label))
-
-;; (defn proxy-handler []
-;;   (proxy [ApplicationWindow]
-;;       [nil]  ;; ApplicationWindow constructor (i.e., the call to
-;;     ;; super).  note, not using proxy-super method, but good to know about
-;;       (run []
-;;         ((. this setBlockOnOpen) true)
-;;         (. this open)
-;;         (.. Display getCurrent dispose))
-;;       (createContents [parent]
-;;         (let [label2 (Label. parent  SWT/CENTER)]
-;;           (doto label2
-;;             (.setText "Hello, World"))))))
 
 
-;; (gen-class
-;;  :name MainJfaceClojureRunner
-;;  :extends org.eclipse.jface.window.ApplicationWindow
-;;  :impl-ns wfeditor.main)
+(defn proxy-handler []
+  (proxy [ApplicationWindow]
+      [nil]  ;; ApplicationWindow constructor (i.e., the call to
+    ;; super).  note, not using proxy-super method, but good to know about
+      (createContents [parent]
+        (let [label2 (Label. parent  SWT/CENTER)]
+          (doto label2
+            (.setText "Hello, World"))))))
 
-(defn -run [this]
-  ((. this setBlockOnOpen) true)
-  (. this open)
-  (.. Display getCurrent dispose))
+(let [app-win (proxy-handler)]
+  ;;   (. shell open)
+  ;;   (while (not (. shell isDisposed))
+  ;;     (if (not (. display readAndDispatch)) (. display sleep)))
+  ;;   (. display dispose)
+  (. app-win setBlockOnOpen true)
+  (. app-win open)
+  (.dispose (. Display getCurrent))
+  )
 
-(defn -createContents [this parent]
-  (let [label2 (Label. parent  SWT/CENTER)]
-    (doto label2
-      (.setText "Hello, World"))))
 
-;; (defn createContents [parent]
-;;   (let [label2 (Label. parent  SWT/CENTER)]
-;;     (doto label2
-;;       (.setText "Hello, World"))))
 
-;; (let [app-win (proxy-handler)]
-;;   (. shell open)
-;;   (while (not (. shell isDisposed))
-;;     (if (not (. display readAndDispatch)) (. display sleep)))
-;;   (. display dispose)
-;;   (.run app-win))
 
-;; (let [app-win (new MainJfaceClojureRunner)]
-;;   app-win)
+;; ;; (gen-class
+;; ;;  :name MainJfaceClojureRunner
+;; ;;  :extends org.eclipse.jface.window.ApplicationWindow
+;; ;;  :impl-ns wfeditor.main)
 
-(defn -main [& args]
-  (println "Hello, World!"))
+;; ;; (defn -run [this]
+;; ;;   ((. this setBlockOnOpen) true)
+;; ;;   (. this open)
+;; ;;   (.. org.eclipse.swt.widgets.Display getCurrent dispose))
+
+;; ;; (defn -createContents [this parent]
+;; ;;   (let [label2 (org.eclipse.swt.widgets.Label. parent  org.eclipse.swt.SWT/CENTER)]
+;; ;;     (doto label2
+;; ;;       (.setText "Hello, World"))))
+
+;; ;; (defn createContents [parent]
+;; ;;   (let [label2 (Label. parent  SWT/CENTER)]
+;; ;;     (doto label2
+;; ;;       (.setText "Hello, World"))))
+
+
+;; ;; (let [app-win (new MainJfaceClojureRunner)]
+;; ;;   app-win)
+
+;; ;; (defn -main [& args]
+;;   (println "Hello, World!"))

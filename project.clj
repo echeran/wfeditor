@@ -5,5 +5,4 @@
                  [org.clojure/clojure-contrib "1.2.0"]]
   :disable-deps-clean true
   :aot [wfeditor.main]
-  :jvm-opts ["-XstartOnFirstThread"]
-  :main "wfeditor.main")
+  :jvm-opts ["-XstartOnFirstThread"])
