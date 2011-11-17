@@ -5,7 +5,7 @@
   org.eclipse.jface.window.ApplicationWindow
   org.eclipse.swt.SWT
   org.eclipse.swt.layout.FillLayout
-  (org.eclipse.swt.widgets Display Shell Label Button)))
+  (org.eclipse.swt.widgets Display Shell Label Button Sash Composite)))
 
 (defmacro new-widget [widget-class parent style]
   `(do (new ~widget-class ~parent ~style)))
@@ -17,6 +17,29 @@
 (defn create-buttons-with-names [parent  style names]
   (dorun (map #(.setText (Button. parent style) %1) names))
   )
+
+(defn ui-editor-left [parent]
+  (let [label2 (Label. parent  SWT/CENTER)]
+    (do
+      (.setLayout parent (FillLayout. SWT/VERTICAL)))
+    (doto label2
+      (.setText "Hello, World")
+      (.setBounds (.getClientArea parent)))
+    (create-widgets-with-names parent Button SWT/PUSH ["one" "two" "three"])))
+
+(defn ui-editor [parent]
+  (let [comp-left (Composite. parent SWT/NONE)
+        sash (new Sash parent SWT/VERTICAL)
+        label1 (new Label parent SWT/RIGHT)]
+    (do
+      (.setLayout parent (FillLayout. SWT/HORIZONTAL))
+      (ui-editor-left comp-left)
+      (create-widgets-with-names parent Button SWT/RADIO ["Radio 1" "Radio 2" "Radio 3"])
+      (create-widgets-with-names parent Button SWT/TOGGLE ["Tog 1" "Tog 2" "Tog 3"]))
+    (doto label1
+      (.setText "hw 2.1"))
+    (do
+      (create-widgets-with-names parent Button SWT/CHECK [ "Check one" "...two" "...three"]))))
 
 ;; JFace way of creating a window is to subclass ApplicationWindow and
 ;; override createContents
@@ -33,21 +56,7 @@
     ;; should be applied to the instance of the extended class
     ;; returned by proxy
     (createContents [parent]
-      (let [label2 (Label. parent  SWT/CENTER)
-            layout (FillLayout. SWT/VERTICAL)
-            label1 (new Label parent SWT/LEFT)]
-        (do
-          (create-widgets-with-names parent Button SWT/PUSH ["one" "two" "three"])
-          (create-widgets-with-names parent Button SWT/RADIO ["Radio 1" "Radio 2" "Radio 3"])
-          (create-widgets-with-names parent Button SWT/TOGGLE ["Tog 1" "Tog 2" "Tog 3"]))
-        (doto label2
-          (.setText "Hello, World")
-          (.setBounds (.getClientArea parent)))
-        (doto label1
-          (.setText "hw 2.1"))
-        (do
-          (.setLayout parent layout)
-          (create-widgets-with-names parent Button SWT/CHECK [ "Check one" "...two" "...three"]))))))
+      (ui-editor parent))))
 
 ;; The JFace idiomatic way of displaying a window.  As it seems, using
 ;; the "plain SWT" idiom for displaying a window doesn't work for
