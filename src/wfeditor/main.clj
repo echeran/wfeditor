@@ -27,19 +27,24 @@
       (.setBounds (.getClientArea parent)))
     (create-widgets-with-names parent Button SWT/PUSH ["one" "two" "three"])))
 
+(defn ui-editor-right [parent]
+  (let [label1 (new Label parent SWT/RIGHT)]
+    (do
+      (.setLayout parent (FillLayout. SWT/HORIZONTAL))
+      (create-widgets-with-names parent Button SWT/RADIO ["Radio 1" "Radio 2" "Radio 3"])
+      (create-widgets-with-names parent Button SWT/TOGGLE ["Tog 1" "Tog 2" "Tog 3"])
+      (create-widgets-with-names parent Button SWT/CHECK [ "Check one" "...two" "...three"]))
+    (doto label1
+      (.setText "hw 2.1"))))
+
 (defn ui-editor [parent]
   (let [comp-left (Composite. parent SWT/NONE)
         sash (new Sash parent SWT/VERTICAL)
-        label1 (new Label parent SWT/RIGHT)]
+        comp-right (Composite. parent SWT/NONE)]
     (do
       (.setLayout parent (FillLayout. SWT/HORIZONTAL))
       (ui-editor-left comp-left)
-      (create-widgets-with-names parent Button SWT/RADIO ["Radio 1" "Radio 2" "Radio 3"])
-      (create-widgets-with-names parent Button SWT/TOGGLE ["Tog 1" "Tog 2" "Tog 3"]))
-    (doto label1
-      (.setText "hw 2.1"))
-    (do
-      (create-widgets-with-names parent Button SWT/CHECK [ "Check one" "...two" "...three"]))))
+      (ui-editor-right comp-right))))
 
 ;; JFace way of creating a window is to subclass ApplicationWindow and
 ;; override createContents
