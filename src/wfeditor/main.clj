@@ -7,9 +7,6 @@
   org.eclipse.swt.layout.FillLayout
   (org.eclipse.swt.widgets Display Shell Label Button)))
 
-(defmacro triple-do [form]
-  (list 'do form form form))
-
 (defmacro new-widget [widget-class parent style]
   `(do (new ~widget-class ~parent ~style)))
 
@@ -38,13 +35,7 @@
     (createContents [parent]
       (let [label2 (Label. parent  SWT/CENTER)
             layout (FillLayout. SWT/VERTICAL)
-            ;; b1 (Button. parent SWT/PUSH)
-            ;; b2 (Button. parent SWT/PUSH)
-            ;; b3 (Button. parent SWT/PUSH)
-            label1 (new Label parent SWT/LEFT)
-            ;; rad-buts (create-buttons-with-names parent SWT/RADIO ["Radio 1" "Radio 2" "Radio 3"])
-            ;; toggle-buts (create-widgets-with-names parent Button SWT/TOGGLE ["Tog 1" "Tog 2" "Tog 3"])
-            ]
+            label1 (new Label parent SWT/LEFT)]
         (do
           (create-widgets-with-names parent Button SWT/PUSH ["one" "two" "three"])
           (create-widgets-with-names parent Button SWT/RADIO ["Radio 1" "Radio 2" "Radio 3"])
@@ -56,11 +47,7 @@
           (.setText "hw 2.1"))
         (do
           (.setLayout parent layout)
-          ;; (dorun (map #(.setText %1 %2) [b1 b2 b3] ["one" "two" "three"]))
-          ;; (triple-do (Button. parent SWT/CHECK))
-          (create-widgets-with-names parent Button SWT/CHECK [ "Check one" "...two" "...three"])
-          ;; (new-widget Button parent SWT/TOGGLE)
-          )))))
+          (create-widgets-with-names parent Button SWT/CHECK [ "Check one" "...two" "...three"]))))))
 
 ;; The JFace idiomatic way of displaying a window.  As it seems, using
 ;; the "plain SWT" idiom for displaying a window doesn't work for
