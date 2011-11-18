@@ -5,7 +5,9 @@
   org.eclipse.jface.window.ApplicationWindow
   org.eclipse.swt.SWT
   (org.eclipse.swt.layout FillLayout FormLayout FormData FormAttachment)
-  (org.eclipse.swt.widgets Display Shell Label Button Sash Composite)))
+  (org.eclipse.swt.widgets Display Shell Label Button Sash Composite)
+  org.eclipse.swt.events.SelectionEvent
+  org.eclipse.swt.events.SelectionAdapter))
 
 (defmacro new-widget [widget-class parent style]
   `(do (new ~widget-class ~parent ~style)))
@@ -103,7 +105,18 @@
       (set! (. comp-right-fdata bottom) (FormAttachment. 100 0))
       (set! (. comp-right-fdata left) (FormAttachment. sash 0))
       (set! (. comp-right-fdata right) (FormAttachment. 100 0))
-      (.setLayoutData comp-right comp-right-fdata))))
+      (.setLayoutData comp-right comp-right-fdata))
+    (do
+      (.addSelectionListener sash (proxy [SelectionAdapter]
+                                      [] ;; do not call the
+                                    ;; super-class constructor w/o
+                                    ;; reason to, but provide it for
+                                    ;; proxy's syntax's sake
+                                    (widgetSelected [event]
+                                      (set! (. (^FormData . sash getLayoutData) left) (FormAttachment. 0 (. event x)))
+                                      (dorun
+                                        (.. sash getParent layout)))
+                                      )))))
 
 ;; JFace way of creating a window is to subclass ApplicationWindow and
 ;; override createContents
