@@ -78,8 +78,10 @@
 (defn ui-editor-create [parent]
   (let [
         sash (Sash. parent (bit-or SWT/VERTICAL SWT/BORDER SWT/SMOOTH))
-        comp-left (Composite. parent SWT/NONE)
-        comp-right (Composite. parent SWT/NONE)
+        ;; have to make the style of the elements next to Sash have
+        ;; BORDER so that Sash is drawn identifiably
+        comp-left (Composite. parent SWT/BORDER)
+        comp-right (Composite. parent SWT/BORDER)
         ;; sash (create-sash parent comp-left comp-right)
         sash-fdata (FormData.)
         comp-left-fdata (FormData.)
