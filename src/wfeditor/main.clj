@@ -77,7 +77,7 @@
 
 (defn ui-editor-create [parent]
   (let [
-        sash (Sash. parent SWT/VERTICAL)
+        sash (Sash. parent (bit-or SWT/VERTICAL SWT/BORDER SWT/SMOOTH))
         comp-left (Composite. parent SWT/NONE)
         comp-right (Composite. parent SWT/NONE)
         ;; sash (create-sash parent comp-left comp-right)
