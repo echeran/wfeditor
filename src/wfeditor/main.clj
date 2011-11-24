@@ -10,7 +10,8 @@
   (org.eclipse.swt.layout FillLayout FormLayout FormData FormAttachment)
   (org.eclipse.swt.widgets Display Shell Label Button Sash Composite)
   org.eclipse.swt.events.SelectionEvent
-  org.eclipse.swt.events.SelectionAdapter))
+  org.eclipse.swt.events.SelectionAdapter)
+  (:use clojure.tools.cli))
 
 (defmacro new-widget [widget-class parent style]
   `(do (new ~widget-class ~parent ~style)))
@@ -115,8 +116,9 @@
 
 
 (defn ui-create
-  "The entry point to building the entire UI.  Uses a JFace idiom to do this, so UI code comes from an extended (proxie) ApplicationWindow"
-  []
+  "The entry point to building the entire UI.  Uses a JFace idiom to do this, so UI code comes from an extended (proxied) ApplicationWindow.
+TODO: handle options and args coming in from the CLI"
+  [options args]
   ;; The JFace idiomatic way of displaying a window.  As it seems, using
   ;; the "plain SWT" idiom for displaying a window doesn't work for
   ;; situations like a simple Label attached to the Shell, in the
@@ -127,12 +129,46 @@
   ;; subclass constructor, that should go somewhere here, where the
   ;; instance is actually being returned and manipulated
   (let [app-win (app-win-proxy)]
+    ;; TODO: use CLI options and args to modify the UI here, which is
+    ;; after its instantiation
     (. app-win setBlockOnOpen true)
     (. app-win open)
     (.dispose (. Display getCurrent))))
 
+(defn cli-execute
+  "The entry point for executing the CLI version of the program"
+  [options args]
+  ;; TODO: create functionality of program!
+  )
+
+(defn parse-args
+  "parse the command-line arguments and, as the clojure.tools.cli provides, returns a vector containing 3 elements: 1) the parsed options, 2) remaining arguments, and 3) a help banner. works well with user-args as a list of the command-line arguments"
+  [user-args]
+  (let [[options arguments banner] (cli user-args
+                                        ["-g" "--[no-]gui" "Run the GUI frontend with the program" :default true :flag true]
+                                        ["-h" "--help" "Display the command-line help statement" :default false :flag true])]
+    (when (:help options)
+      (println banner)
+      (System/exit 0))
+    [options arguments banner]))
+
+(defn test-args
+  "a simple test method to test how cli args and the cli parser work"
+  [args]
+  (println args)
+  (let [[options arguments banner] (cli args
+                                        ["-p" "--port" "Listen on this port" :parse-fn #(Integer. %)] 
+                                        ["-h" "--host" "The hostname" :default "localhost"]
+                                        ["-v" "--[no-]verbose" :default true]
+                                        ["-l" "--log-directory" :default "/some/path"])]
+    (println (apply str "options = " options))
+    (println (apply str "arguments = " arguments))
+    (println (apply str "banner = " banner))))
 
 (defn -main
-  "main method for the entire WFE"
+  "main method (i.e., entry point) for the entire WFE"
   [ & args]
-  (ui-create))
+  (let [[options arguments banner] (parse-args args)]
+    (cond
+     (false? (:gui options))  (cli-execute options args)
+     :else (ui-create options args))))
