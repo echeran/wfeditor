@@ -6,4 +6,5 @@
   :disable-deps-clean true
   :aot [wfeditor.main]
   ;:jvm-opts ["-XstartOnFirstThread"]
+  :main wfeditor.main
   )

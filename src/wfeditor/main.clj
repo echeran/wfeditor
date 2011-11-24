@@ -110,16 +110,26 @@
     (createContents [parent]
       (ui-editor-create parent))))
 
-;; The JFace idiomatic way of displaying a window.  As it seems, using
-;; the "plain SWT" idiom for displaying a window doesn't work for
-;; situations like a simple Label attached to the Shell, in the
-;; following way: no Label widgets are painted on the Shell until the
-;; user resizes the Shell.  The JFace style of doing things works
-;; properly as expected.
-;; If there is any code that should've gone in what would've been a
-;; subclass constructor, that should go somewhere here, where the
-;; instance is actually being returned and manipulated
-(let [app-win (app-win-proxy)]
-  (. app-win setBlockOnOpen true)
-  (. app-win open)
-  (.dispose (. Display getCurrent)))
+
+(defn ui-create
+  "The entry point to building the entire UI.  Uses a JFace idiom to do this, so UI code comes from an extended (proxie) ApplicationWindow"
+  []
+  ;; The JFace idiomatic way of displaying a window.  As it seems, using
+  ;; the "plain SWT" idiom for displaying a window doesn't work for
+  ;; situations like a simple Label attached to the Shell, in the
+  ;; following way: no Label widgets are painted on the Shell until the
+  ;; user resizes the Shell.  The JFace style of doing things works
+  ;; properly as expected.
+  ;; If there is any code that should've gone in what would've been a
+  ;; subclass constructor, that should go somewhere here, where the
+  ;; instance is actually being returned and manipulated
+  (let [app-win (app-win-proxy)]
+    (. app-win setBlockOnOpen true)
+    (. app-win open)
+    (.dispose (. Display getCurrent))))
+
+
+(defn -main
+  "main method for the entire WFE"
+  [ & args]
+  (ui-create))
