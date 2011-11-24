@@ -7,4 +7,9 @@
   :aot [wfeditor.main]
   ;:jvm-opts ["-XstartOnFirstThread"]
   :main wfeditor.main
+  ;; need to put in an uberjar-exclusion to prevent "lein uberjar"
+  ;; from putting in a .sf file in the standalone .jar that causes a
+  ;; security exception when run.  This is as according to the SO info
+  ;; at http://stackoverflow.com/questions/7892244/leiningen-has-problems-building-a-working-uberjar
+  :uberjar-exclusions [#"ECLIPSEF.SF"]
   )

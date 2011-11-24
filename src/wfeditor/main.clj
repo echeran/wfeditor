@@ -1,4 +1,7 @@
 (ns wfeditor.main
+  ;; tells Clojure to generate a Java class out of this namespace --
+  ;; this allows a standalone uberjar to be run by Java
+  (:gen-class)
   ;; putting the import statement in the ns form is the preferred way
   ;; of importing Java classes in Clojure (see http://pragprog.com/magazines/2010-11/getting-clojure)
   (:import
