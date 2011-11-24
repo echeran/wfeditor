@@ -13,12 +13,10 @@
   `(do (new ~widget-class ~parent ~style)))
 
 (defmacro create-widgets-with-names [parent widget-class style names]
-  `(dorun (map #(.setText (new ~widget-class ~parent ~style) %1) ~names))
-  )
+  `(dorun (map #(.setText (new ~widget-class ~parent ~style) %1) ~names)))
 
 (defn create-buttons-with-names [parent  style names]
-  (dorun (map #(.setText (Button. parent style) %1) names))
-  )
+  (dorun (map #(.setText (Button. parent style) %1) names)))
 
 (defn ui-editor-left-create [parent]
   (let [label2 (Label. parent  SWT/CENTER)]
@@ -50,30 +48,6 @@
       (set! (. data left) (FormAttachment. 50 0))
       (.setLayoutData sash data))
     sash))
-
-;; (defn create-sash [parent left right]
-;;   (let [sash (Sash. parent SWT/VERTICAL)
-;;         sash-fdata (FormData.)
-;;         left-fdata (FormData.)
-;;         right-fdata (FormData.)]
-;;     (do
-;;       (set! (. sash-fdata top) (FormAttachment. 0 0))
-;;       (set! (. sash-fdata bottom) (FormAttachment. 100 0))
-;;       (set! (. sash-fdata left) (FormAttachment. 50 0))
-;;       (.setLayoutData sash sash-fdata))
-;;     (do
-;;       (set! (. left-fdata top) (FormAttachment. 0 0))
-;;       (set! (. left-fdata bottom) (FormAttachment. 100 0))
-;;       (set! (. left-fdata left) (FormAttachment. 0 0))
-;;       (set! (. left-fdata right) (FormAttachment. sash 0))
-;;       (.setLayoutData left left-fdata))
-;;     (do
-;;       (set! (. right-fdata top) (FormAttachment. 0 0))
-;;       (set! (. right-fdata bottom) (FormAttachment. 100 0))
-;;       (set! (. right-fdata left) (FormAttachment. sash 0))
-;;       (set! (. right-fdata right) (FormAttachment. 100 0))
-;;       (.setLayoutData right right-fdata))
-;;     sash))
 
 (defn ui-editor-create [parent]
   (let [
@@ -117,8 +91,7 @@
                                     (widgetSelected [event]
                                       (set! (. (^FormData . sash getLayoutData) left) (FormAttachment. 0 (. event x)))
                                       (dorun
-                                        (.. sash getParent layout)))
-                                      )))))
+                                       (.. sash getParent layout))))))))
 
 ;; JFace way of creating a window is to subclass ApplicationWindow and
 ;; override createContents
@@ -149,5 +122,4 @@
 (let [app-win (app-win-proxy)]
   (. app-win setBlockOnOpen true)
   (. app-win open)
-  (.dispose (. Display getCurrent))
-  )
+  (.dispose (. Display getCurrent)))
