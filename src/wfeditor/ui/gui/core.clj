@@ -5,10 +5,16 @@
   (:import
    org.eclipse.jface.window.ApplicationWindow
    org.eclipse.swt.SWT
-   (org.eclipse.swt.layout FillLayout FormLayout FormData FormAttachment)
-   (org.eclipse.swt.widgets Display Shell Label Button Sash Composite)
-   org.eclipse.swt.events.SelectionEvent
-   org.eclipse.swt.events.SelectionAdapter))
+   (org.eclipse.swt.layout FillLayout FormLayout FormData FormAttachment GridLayout GridData)
+   (org.eclipse.swt.widgets Display Shell Label Button Sash Composite Canvas)
+   (org.eclipse.swt.events SelectionEvent SelectionAdapter)
+   (org.eclipse.draw2d Figure XYLayout ColorConstants LightweightSystem RectangleFigure ToolbarLayout)
+   (org.eclipse.draw2d.geometry Rectangle Point)
+   ;; (org.eclipse.swt.graphics Rectangle Point) have to comment this
+   ;; out since it conflicts with the draw2d import statements
+   ;; according to Clojure compiler
+   ;; TODO: refactor draw2d canvas to a separate namespace
+   ))
 
 (defmacro new-widget [widget-class parent style]
   `(do (new ~widget-class ~parent ~style)))
@@ -19,17 +25,51 @@
 (defn create-buttons-with-names [parent  style names]
   (dorun (map #(.setText (Button. parent style) %1) names)))
 
+(defn create-person-figure
+  "create a figure representing a person"
+  [name]
+  (let [rectangle-figure (RectangleFigure.)]
+    (doto rectangle-figure
+      (.setBackgroundColor ColorConstants/lightGray)
+      (.setLayoutManager (ToolbarLayout.))
+      (.setPreferredSize 100 100)
+      (.add (org.eclipse.draw2d.Label. name)))))
+
+(defn create-diagram
+  "create and return a canvas with basic draw2d figures"
+  [parent]
+  (let [root (Figure.)
+        layout (XYLayout.)
+        canvas (Canvas. parent SWT/DOUBLE_BUFFERED)
+        lws (LightweightSystem. canvas)
+        andy (create-person-figure "Andy")
+        betty (create-person-figure "Betty")
+        carl (create-person-figure "Carl")]
+    (doto root
+      (.setFont (.getFont parent))
+      (.setLayoutManager layout)
+      (.add andy)
+      (.add betty)
+      (.add carl))
+    (doto layout
+      (.setConstraint andy (Rectangle. (Point. 10 10) (.getPreferredSize andy)))
+      (.setConstraint betty (Rectangle. (Point. 230 10) (.getPreferredSize betty)))
+      (.setConstraint carl (Rectangle. (Point. 120 120) (.getPreferredSize carl))))
+    (doto canvas
+      (.setBackground ColorConstants/white)
+      (.setSize 365 280)
+      (.setLayoutData (GridData. GridData/FILL_BOTH)))
+    (.setContents lws root)))
+
 (defn ui-editor-left-create [parent]
-  (let [label2 (Label. parent  SWT/CENTER)]
+  (let [label2 (Label. parent  SWT/CENTER)
+        label1 (new Label parent SWT/RIGHT)]
     (do
       (.setLayout parent (FillLayout. SWT/VERTICAL)))
     (doto label2
       (.setText "Hello, World")
       (.setBounds (.getClientArea parent)))
-    (create-widgets-with-names parent Button SWT/PUSH ["one" "two" "three"])))
-
-(defn ui-editor-right-create [parent]
-  (let [label1 (new Label parent SWT/RIGHT)]
+    (create-widgets-with-names parent Button SWT/PUSH ["one" "two" "three"])
     (do
       (.setLayout parent (FillLayout. SWT/VERTICAL))
       (create-widgets-with-names parent Button SWT/RADIO ["Radio 1" "Radio 2" "Radio 3"])
@@ -37,6 +77,11 @@
       (create-widgets-with-names parent Button SWT/CHECK [ "Check one" "...two" "...three"]))
     (doto label1
       (.setText "hw 2.1"))))
+
+(defn ui-editor-right-create [parent]
+  (let []
+    (create-diagram parent)
+    (.setLayout parent (GridLayout.))))
 
 ;; assume FormLayout of the parent widget to which the returned sash
 ;; will be attached
