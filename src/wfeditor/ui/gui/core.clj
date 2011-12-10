@@ -110,4 +110,21 @@
     ;; should be applied to the instance of the extended class
     ;; returned by proxy
     (createContents [parent]
-      (ui-editor-create parent))))
+      (ui-editor-create parent))
+    (getInitialSize []
+      ;; override default implementation (documented in Javadoc) with
+      ;; one that ensures the window is "maximized"
+      ;; note: a display can encompass multiple monitors, so get just
+      ;; primary monitor in order not to be a screen-hog on a
+      ;; multi-display setup
+      ;; I wouldn't be doing this if I could get
+      ;; shell.setMaximized(true) to work in Clojure easily, but I
+      ;; can't.  I haven't tested doing an all-out gen-class for a
+      ;; subclass of ApplicationWindow (instead of this proxy), but
+      ;; that would be the next step.  For now, at least, this
+      ;; workaround of setMaximized(true) is fine by me.
+      (let [shell (.getShell this)
+            display (.getDisplay shell)
+            prim-mon (.getPrimaryMonitor display)
+            client-area (.getClientArea prim-mon)]
+        (.computeSize shell (. client-area width) (. client-area height) true)))))
