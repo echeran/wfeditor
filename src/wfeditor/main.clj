@@ -25,7 +25,8 @@ TODO: handle options and args coming in from the CLI"
     ;; after its instantiation
     (. app-win setBlockOnOpen true)
     (. app-win open)
-    (.dispose (. Display getCurrent))))
+    (when-let [display (. Display getCurrent)]
+        (.dispose display))))
 
 (defn cli-execute
   "The entry point for executing the CLI version of the program"
