@@ -81,14 +81,12 @@
       (set! (. sash-fdata top) (FormAttachment. 0 0))
       (set! (. sash-fdata bottom) (FormAttachment. 100 0))
       (set! (. sash-fdata left) (FormAttachment. 50 0))
-      (.setLayoutData sash sash-fdata))
-    (do
+      (.setLayoutData sash sash-fdata)
       (set! (. comp-left-fdata top) (FormAttachment. 0 0))
       (set! (. comp-left-fdata bottom) (FormAttachment. 100 0))
       (set! (. comp-left-fdata left) (FormAttachment. 0 0))
       (set! (. comp-left-fdata right) (FormAttachment. sash 0))
-      (.setLayoutData comp-left comp-left-fdata))
-    (do
+      (.setLayoutData comp-left comp-left-fdata)
       (set! (. comp-right-fdata top) (FormAttachment. 0 0))
       (set! (. comp-right-fdata bottom) (FormAttachment. 100 0))
       (set! (. comp-right-fdata left) (FormAttachment. sash 0))
