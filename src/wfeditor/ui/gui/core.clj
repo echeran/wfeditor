@@ -4,7 +4,7 @@
   ;; of importing Java classes in Clojure (see
   ;; http://pragprog.com/magazines/2010-11/getting-clojure)
   ;; (:require wfeditor.ui.gui.d2dcanvas)
-  (:require wfeditor.ui.gui.zcanvas)
+  (:require wfeditor.ui.gui.zest.canvas)
   (:import
    org.eclipse.jface.window.ApplicationWindow
    org.eclipse.swt.SWT
@@ -49,7 +49,7 @@
   (let []
     
     ;; (wfeditor.ui.gui.d2dcanvas/create-diagram parent)
-    (wfeditor.ui.gui.zcanvas/graph-viewer-create parent)
+    (wfeditor.ui.gui.zest.canvas/graph-viewer-create parent)
 
     (.setLayout parent (GridLayout.))))
 

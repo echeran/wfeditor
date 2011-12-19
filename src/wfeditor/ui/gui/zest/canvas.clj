@@ -1,14 +1,14 @@
-(ns wfeditor.ui.gui.zcanvas
+(ns wfeditor.ui.gui.zest.canvas
+  (:require
+   wfeditor.ui.gui.zest.types
+   [wfeditor.ui.gui.zest.providers :as zproviders])
   (:import
+   [wfeditor.ui.gui.zest.types MyNode MyConnection]
    org.eclipse.zest.core.viewers.GraphViewer
    org.eclipse.swt.SWT
    org.eclipse.zest.layouts.algorithms.TreeLayoutAlgorithm
    org.eclipse.zest.layouts.LayoutStyles
-      org.eclipse.swt.layout.GridData))
-
-(defrecord MyNode [id name connected-to])
-
-(defrecord MyConnection [id label source destination])
+   org.eclipse.swt.layout.GridData))
 
 (defn get-node-by-id
   "returns first node containing the provided id"
@@ -37,7 +37,7 @@ This function should be re-done or eliminated, since it is just a port of OOP/im
   "get the initial input for the Zest graphviewer"
   []
   (let [new-mynode-fn (fn [[id name]] (MyNode. id name ()))
-        init-nodes (map new-mynode-fn [["1" "Hamburg"] ["2" "Frankfurt"] ["3" "Berlin"] ["4" "Munich"] ["5" "Eppelheim"]])
+        init-nodes (map new-mynode-fn [["1" "Hamburg"] ["2" "Frankfurt"] ["3" "Berlin"] ["4" "Munich"] ["5" "Eppelheim"] ["6" "Ahrensboek"]])
         new-connection-fn (fn [[id label src-id dest-id]]
                             (let [src-node (get-node-by-id init-nodes src-id)
                                   dest-node (get-node-by-id init-nodes dest-id)]
@@ -55,10 +55,16 @@ This function should be re-done or eliminated, since it is just a port of OOP/im
   "create (but don't return?) the Zest GraphViewer object creating the whole Zest canvas"
   [parent]
   (let [viewer (GraphViewer. parent SWT/BORDER)
+        content-provider (zproviders/node-content-provider-proxy)
+        label-provider (zproviders/label-provider-proxy)
+        init-input (graph-initial-input)
         layout (graph-viewer-layout)
         parent-grid-data (GridData. (GridData/FILL_BOTH))]
     (.setLayoutData (.getControl viewer) parent-grid-data)
     (doto viewer
+      (.setContentProvider content-provider)
+      (.setLabelProvider label-provider)
+      (.setInput init-input)
       (.setLayoutAlgorithm layout true)
       (.applyLayout))
     ))
