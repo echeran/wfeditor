@@ -1,4 +1,4 @@
-(ns wfeditor.ui.gui.canvas
+(ns wfeditor.ui.gui.d2dcanvas
   (:import
    org.eclipse.swt.SWT
    org.eclipse.swt.widgets.Canvas

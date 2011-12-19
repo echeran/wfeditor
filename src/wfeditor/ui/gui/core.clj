@@ -3,7 +3,8 @@
   ;; putting the import statement in the ns form is the preferred way
   ;; of importing Java classes in Clojure (see
   ;; http://pragprog.com/magazines/2010-11/getting-clojure)
-  (:require wfeditor.ui.gui.canvas)
+  ;; (:require wfeditor.ui.gui.d2dcanvas)
+  (:require wfeditor.ui.gui.zcanvas)
   (:import
    org.eclipse.jface.window.ApplicationWindow
    org.eclipse.swt.SWT
@@ -46,7 +47,10 @@
 
 (defn ui-editor-right-create [parent]
   (let []
-    (wfeditor.ui.gui.canvas/create-diagram parent)
+    
+    ;; (wfeditor.ui.gui.d2dcanvas/create-diagram parent)
+    (wfeditor.ui.gui.zcanvas/graph-viewer-create parent)
+
     (.setLayout parent (GridLayout.))))
 
 ;; assume FormLayout of the parent widget to which the returned sash
