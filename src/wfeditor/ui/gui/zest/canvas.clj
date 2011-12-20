@@ -20,14 +20,17 @@
   (let [viewer (GraphViewer. parent SWT/BORDER)
         content-provider (zproviders/node-content-provider-proxy)
         label-provider (zproviders/label-provider-proxy)
-        init-input (zgraph/graph-initial-input)
+        init-input (first (zgraph/graph))
+        ;; have to convert the Clojure seq into a Java array to make
+        ;; the Java classes of GEF/Zest happy
+        jarr-init-input (into-array init-input)        
         layout (graph-viewer-layout)
         parent-grid-data (GridData. (GridData/FILL_BOTH))]
     (.setLayoutData (.getControl viewer) parent-grid-data)
     (doto viewer
       (.setContentProvider content-provider)
       (.setLabelProvider label-provider)
-      (.setInput init-input)
+      (.setInput jarr-init-input)
       (.setLayoutAlgorithm layout true)
       (.applyLayout))
     ))
