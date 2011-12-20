@@ -1,10 +1,10 @@
 (ns wfeditor.ui.gui.zest.providers
-  (:require wfeditor.ui.gui.zest.types)
+  (:require wfeditor.ui.gui.zest.graph)
   ;; need to import the Clojure defrecord, etc. (Java-interop types)
   ;; as according to
   ;; http://dbostwick.posterous.com/using-clojures-deftype-and-defrecord-and-name
   (:import
-   [wfeditor.ui.gui.zest.types MyNode MyConnection]
+   [wfeditor.ui.gui.zest.graph MyNode MyConnection]
    org.eclipse.jface.viewers.LabelProvider
    org.eclipse.zest.core.viewers.EntityConnectionData
    org.eclipse.jface.viewers.ArrayContentProvider
