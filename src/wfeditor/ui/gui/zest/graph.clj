@@ -9,9 +9,11 @@
 ;; be this catch 22 cyclic dependency for the compiler that happens (like in C++).
 ;; Unlike C++, I'm not sure if a forward declarataion would work.
 
-(defrecord MyNode [id name connected-to])
+;; unique identifier for MyNode = id
+(defrecord MyNode [id name])
 
-(defrecord MyConnection [id label source destination])
+;; unique identifier(s) for MyConnection = [src dest]
+(defrecord MyConnection [src dest label])
 
 ;;
 ;; refs
@@ -28,49 +30,46 @@
 
 (defn get-node-by-id
   "returns first node containing the provided id"
-  [nodes id]
-  (when (seq nodes)
-      (first (filter (fn [node] (= id (:id node))) nodes))))
+  ([id]
+     (get-node-by-id @nodes id))
+  ([nodes id]
+      (when (seq nodes)
+        (first (filter (fn [node] (= id (:id node))) nodes)))))
 
-;; (defn nodes-connected-to
-;;   "Returns a list of MyNodes where the connected-to info is set for the nodes.
-;; This function should be re-done or eliminated, since it is just a port of OOP/imperative code, and just for the purposes of testing the Zest+JFace/SWT graphics in the program"
-;;   [orig-nodes orig-connections]
-;;   (loop [nodes orig-nodes
-;;          cnxns orig-connections]
-;;     (if (empty? cnxns)
-;;       nodes
-;;       (let [cnxn (first cnxns)
-;;             src-id (:id (:source cnxn))
-;;             dest-id (:id (:destination cnxn))
-;;             src-node (get-node-by-id nodes src-id)
-;;             dest-node (get-node-by-id nodes dest-id)
-;;             connected-nodes (:connected-to src-node)
-;;             replace-node (assoc src-node :connected-to (conj connected-nodes dest-node))]
-;;         (recur (replace {src-node replace-node} nodes) (rest cnxns))))))
-
-(defn new-mynode-fn [[id name]]
-  (MyNode. id name ()))
-
-;; (defn graph-initial-input
-;;   "get the initial input for the Zest graphviewer"
-;;   []
-;;   (let [init-nodes (map new-mynode-fn [["1" "Hamburg"] ["2" "Frankfurt"] ["3" "Berlin"] ["4" "Munich"] ["5" "Eppelheim"] ["6" "Ahrensboek"]])
-;;         new-connection-fn (fn [[id label src-id dest-id]]
-;;                             (let [src-node (get-node-by-id init-nodes src-id)
-;;                                   dest-node (get-node-by-id init-nodes dest-id)]
-;;                               (MyConnection. id label src-node dest-node)))
-;;         connections (map new-connection-fn [["1" "1" "1" "2"] ["2" "2" "1" "5"] ["3" "3" "3" "2"] ["4" "3" "2" "4"]])
-;;         nodes (nodes-connected-to init-nodes connections)]
-;;     nodes))
+(defn new-mynode-fn
+  "return a new node record / object"
+  [[id name]]
+  (MyNode. id name))
 
 (defn new-connection-fn
-  "return a sequence of the initial connections"
-  ([[id label src dest]]
-     (MyConnection. id label src dest)))
+  "return a new connection record / object"
+  ([[src dest label]]
+     (MyConnection. src dest label)))
 
+(defn connections-map
+  "return a map indicating which nodes are connected to which other nodes"
+  ([]
+     (connections-map @connections))
+  ([connections]
+     (let [to-from-pair-maps (for [c connections] {(:src c) [(:dest c)]})
+           merged-maps (reduce (partial merge-with #(into %1 %2)) to-from-pair-maps)]
+       merged-maps)))
 
+(defn graph
+  "return the current state of the graph as a vector of @nodes and @connections, in that order"
+  []
+  [@nodes @connections])
 
+(defn connected-to
+  "return the node objects that are connected to the provided node ojb  based on the current state of the graph"
+  [node]
+  (let [node-id (:id node)
+        [nodes conns] (graph)
+        conn-map (connections-map conns)
+        conn-node-ids (get conn-map node-id)
+        conn-node-ids-seq (seq conn-node-ids)
+        conn-nodes (for [node-id conn-node-ids-seq] (get-node-by-id nodes node-id))]
+    conn-nodes))
 
 (defn- initial-nodes
   "return a sequence of the initial nodes (sans connected-to info)"
@@ -81,7 +80,7 @@
 (defn- initial-connections
   "return a sequence of the initial connections"
   []
-  (let [init-cnxns (map new-connection-fn [[0 "0" 0 1] [1 "1" 0 4] [2 "2" 2 1] [3 "3" 1 3]])]
+  (let [init-cnxns (map new-connection-fn [[0 1 "0"] [0 4 "1"] [2 1 "2"] [1 3 "3"]])]
     init-cnxns))
 
 (defn set-init-graph
@@ -92,30 +91,6 @@
     (dosync
      (ref-set nodes init-nodes)
      (ref-set connections init-cnxns))))
-
-(defn connections-map
-  "return a map indicating which nodes are connected to which other nodes"
-  [connections]
-  (let [cnxns connections
-        to-from-pair-maps (for [c cnxns] {(:source c) [(:destination c)]})
-        merged-maps (reduce (partial merge-with #(into %1 %2)) to-from-pair-maps)]
-    merged-maps))
-
-(defn connected-to
-  "return the MyNode's that are connected to the provided MyNode based on the current state of @connections"
-  [node]
-  (let [cnxns-map (connections-map @connections)
-        nodes @nodes
-        node-id (:id node)
-        conn-node-ids (get cnxns-map node-id)
-        conn-node-ids-seq (seq conn-node-ids)
-        conn-nodes (for [node-id conn-node-ids-seq] (get-node-by-id nodes node-id))]
-    conn-nodes))
-
-(defn graph
-  "return the current state of the graph as a vector of @nodes and @connections, in that order"
-  []
-  [@nodes @connections])
 
 ;;
 ;; initializing routines (setting state)
