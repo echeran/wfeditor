@@ -5,14 +5,21 @@
   (:import
    org.eclipse.zest.core.viewers.GraphViewer
    org.eclipse.swt.SWT
-   org.eclipse.zest.layouts.algorithms.TreeLayoutAlgorithm
+   org.eclipse.zest.layouts.LayoutAlgorithm
+   org.eclipse.zest.layouts.algorithms.DirectedGraphLayoutAlgorithm
+   org.eclipse.zest.layouts.algorithms.HorizontalShift
+   org.eclipse.zest.layouts.algorithms.CompositeLayoutAlgorithm
    org.eclipse.zest.layouts.LayoutStyles
    org.eclipse.swt.layout.GridData))
 
 (defn graph-viewer-layout
   "create and return the layout algorithm used for the graph viewer"
   []
-  (TreeLayoutAlgorithm. LayoutStyles/NO_LAYOUT_NODE_RESIZING))
+  (let [style LayoutStyles/NO_LAYOUT_NODE_RESIZING
+        dag-layout ^LayoutAlgorithm (DirectedGraphLayoutAlgorithm. style)
+        hshift-layout ^LayoutAlgorithm (HorizontalShift. style)]
+    (CompositeLayoutAlgorithm. style (into-array LayoutAlgorithm [dag-layout hshift-layout]))
+    ))
 
 (defn graph-viewer-create
   "create (but don't return?) the Zest GraphViewer object creating the whole Zest canvas"
