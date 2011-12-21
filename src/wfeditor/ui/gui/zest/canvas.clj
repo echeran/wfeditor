@@ -7,6 +7,7 @@
    org.eclipse.swt.SWT
    org.eclipse.zest.layouts.LayoutAlgorithm
    org.eclipse.zest.layouts.algorithms.DirectedGraphLayoutAlgorithm
+   org.eclipse.zest.layouts.algorithms.TreeLayoutAlgorithm
    org.eclipse.zest.layouts.algorithms.HorizontalShift
    org.eclipse.zest.layouts.algorithms.CompositeLayoutAlgorithm
    org.eclipse.zest.layouts.LayoutStyles
@@ -17,8 +18,9 @@
   []
   (let [style LayoutStyles/NO_LAYOUT_NODE_RESIZING
         dag-layout ^LayoutAlgorithm (DirectedGraphLayoutAlgorithm. style)
-        hshift-layout ^LayoutAlgorithm (HorizontalShift. style)]
-    (CompositeLayoutAlgorithm. style (into-array LayoutAlgorithm [dag-layout hshift-layout]))
+        hshift-layout ^LayoutAlgorithm (HorizontalShift. style)
+        tree-layout ^LayoutAlgorithm (TreeLayoutAlgorithm. style)]
+    (CompositeLayoutAlgorithm. style (into-array LayoutAlgorithm [tree-layout ]))
     ))
 
 (defn graph-viewer-create
