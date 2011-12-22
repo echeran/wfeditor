@@ -1,5 +1,14 @@
-(ns wfeditor.ui.gui.zest.graph)
+(ns wfeditor.ui.gui.zest.graph
+  (:require [clojure.contrib.graph :as contrib-graph]))
 
+
+;;
+;; refs (declarations here, initial bindings below)
+;;
+
+
+(declare nodes connections)
+;; (def g (ref (struct-map contrib-graph/)))
 
 ;;
 ;; records
@@ -15,13 +24,6 @@
 ;; unique identifier(s) for MyConnection = [src dest]
 (defrecord MyConnection [src dest label])
 
-;;
-;; refs
-;;
-
-(def nodes (ref nil))
-
-(def connections (ref nil))
 
 ;;
 ;; functions
@@ -93,7 +95,9 @@
      (ref-set connections init-cnxns))))
 
 ;;
-;; initializing routines (setting state)
+;; refs - binding initial values
 ;;
 
-(set-init-graph)
+(def nodes (ref (initial-nodes)))
+
+(def connections (ref (initial-connections)))
