@@ -1,11 +1,10 @@
 (ns wfeditor.ui.gui.zest.graph
-  (:require [clojure.contrib.graph :as contrib-graph]))
+  (:use [clojure.contrib.graph :as contrib-graph]))
 
 
 ;;
 ;; refs (declarations here, initial bindings below)
 ;;
-
 
 (declare nodes connections)
 ;; (def g (ref (struct-map contrib-graph/)))
@@ -28,7 +27,6 @@
 ;;
 ;; functions
 ;;
-
 
 (defn get-node-by-id
   "returns first node containing the provided id"
@@ -94,6 +92,22 @@
      (ref-set nodes init-nodes)
      (ref-set connections init-cnxns))))
 
+(defn- node-adj
+  "return a map that (due to Clojure rules for maps) serves as a function returning which nodes are adjacent to the input node.  the input is an adjacency map of ids to lists of ids"
+  [node-adj-map]
+  (for [[key vals] node-adj-map]
+    {(get-node-by-id key) [(for [v vals] (get-node-by-id v))]}))
+
+(set-init-graph)
+
+(defn- init-clj-graph
+  "create the initial value of the graph struct object (as used by clojure.contrib.graph) for the graph"
+  []
+  (let [nodes (into #{} (initial-nodes))
+        id-adj-map {0 [1 4], 1 3, 2 1}
+        adj-map (node-adj id-adj-map)]
+    (struct directed-graph nodes adj-map)))
+
 ;;
 ;; refs - binding initial values
 ;;
@@ -101,3 +115,6 @@
 (def nodes (ref (initial-nodes)))
 
 (def connections (ref (initial-connections)))
+
+
+(def g (ref (init-clj-graph)))
