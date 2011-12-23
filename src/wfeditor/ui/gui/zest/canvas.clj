@@ -1,7 +1,7 @@
 (ns wfeditor.ui.gui.zest.canvas
   (:require
    [wfeditor.ui.gui.zest.providers :as zproviders]
-   [wfeditor.ui.gui.zest.graph :as zgraph])
+   [wfeditor.model.workflow :as wflow])
   (:import
    org.eclipse.zest.core.viewers.GraphViewer
    org.eclipse.swt.SWT
@@ -29,7 +29,7 @@
   (let [viewer (GraphViewer. parent SWT/BORDER)
         content-provider (zproviders/node-content-provider-proxy)
         label-provider (zproviders/label-provider-proxy)
-        init-input (:nodes (zgraph/graph))
+        init-input (:nodes (wflow/graph))
         ;; have to convert the Clojure seq into a Java array to make
         ;; the Java classes of GEF/Zest happy
         jarr-init-input (into-array init-input)        

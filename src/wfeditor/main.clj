@@ -4,7 +4,7 @@
   (:gen-class)
   (:require clojure.tools.cli)
   (:require wfeditor.ui.gui.core
-            [wfeditor.ui.gui.zest.graph :as zgraph])
+            [wfeditor.model.workflow :as wflow])
   (:import
    org.eclipse.swt.widgets.Display))
 
@@ -13,8 +13,8 @@
   [options args]
   (if (:graph options)
     (let [new-graph (:graph options)
-          new-node-adj-map (zgraph/node-adj-map (:graph options))] 
-      (dosync (alter zgraph/g assoc :neighbors new-node-adj-map)))))
+          new-job-dep-map (wflow/job-dep-map (:graph options))]
+      (dosync (alter wflow/g assoc :neighbors new-job-dep-map)))))
 
 (defn ui-create
   "The entry point to building the entire UI.  Uses a JFace idiom to do this, so UI code comes from an extended (proxied) ApplicationWindow.

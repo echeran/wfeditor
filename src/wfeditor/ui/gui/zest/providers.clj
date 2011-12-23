@@ -1,10 +1,10 @@
 (ns wfeditor.ui.gui.zest.providers
-  (:require [wfeditor.ui.gui.zest.graph :as zgraph])
+  (:require [wfeditor.model.workflow :as wflow])
   ;; need to import the Clojure defrecord, etc. (Java-interop types)
   ;; as according to
   ;; http://dbostwick.posterous.com/using-clojures-deftype-and-defrecord-and-name
   (:import
-   [wfeditor.ui.gui.zest.graph MyNode MyConnection]
+   [wfeditor.model.workflow Job Dependency]
    org.eclipse.jface.viewers.LabelProvider
    org.eclipse.zest.core.viewers.EntityConnectionData
    org.eclipse.jface.viewers.ArrayContentProvider
@@ -16,8 +16,8 @@
   (proxy [LabelProvider] []
     (getText [element]
       (condp = (class element)
-        MyNode (:name element)
-        MyConnection (:label element)
+        Job (:name element)
+        Dependency (:label element)
         EntityConnectionData ""
         (str "Wrong type: " (str (class element)))))))
 
@@ -29,5 +29,5 @@
       (condp = (class entity)
         ;; have to convert the Clojure seq into a Java array to make
         ;; the Java classes of GEF/Zest happy
-        MyNode (to-array (zgraph/connected-to entity))
+        Job (to-array (wflow/dependent-upon entity))
         (RuntimeException. "Type not supported")))))
