@@ -62,7 +62,7 @@
 (defn- initial-nodes
   "return a sequence of the initial nodes (sans connected-to info)"
   []
-  (let [init-nodes (map new-mynode-fn [[0 "Hamburg"] [1 "Frankfurt"] [2 "Berlin"] [3 "Munich"] [4 "Eppelheim"] [5 "Ahrensboek"]])]
+  (let [init-nodes (map new-mynode-fn [[:0 "Hamburg"] [:1 "Frankfurt"] [:2 "Berlin"] [:3 "Munich"] [:4 "Eppelheim"] [:5 "Ahrensboek"]])]
     init-nodes))
 
 (defn node-adj-map
@@ -78,7 +78,7 @@
   "create the initial value of the graph struct object (as used by clojure.contrib.graph) for the graph. Note: the second value of the struct is a function that returns adjacent nodes given a node as input.  I'm following the example of the provided test code and using a map since in Clojure, maps are functions of their keys"
   []
   (let [nodes (into #{} (initial-nodes))
-        id-adj-map {0 [1 4], 1 [3], 2 [1]}
+        id-adj-map {:0 [:1 :4], :1 [:3], :2 [:1]}
         adj-map (node-adj-map nodes id-adj-map)]
     (Graph. nodes adj-map)))
 
