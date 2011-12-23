@@ -52,7 +52,7 @@ TODO: handle options and args coming in from the CLI"
   (let [[options arguments banner] (clojure.tools.cli/cli user-args
                                         ["-g" "--[no-]gui" "Run the GUI frontend with the program" :default true :flag true]
                                         ["-h" "--help" "Display the command-line help statement" :default false :flag true]
-                                        ["--graph" "An initial job dependency graph as a map of int -> nested vector of ints(Ex:  {0 [1 4], 1 [3], 2 [1]})" :default nil :parse-fn load-string])]
+                                        ["--graph" "An initial job dependency graph as a map of keywords -> nested vector of keywords (Ex:  {:0 [:1 :4], :1 [:3], :2 [:1]})" :default nil :parse-fn load-string])]
     (when (:help options)
       (println banner)
       (System/exit 0))
