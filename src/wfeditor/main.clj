@@ -61,7 +61,7 @@ TODO: handle options and args coming in from the CLI"
 (defn -main
   "main method (i.e., entry point) for the entire WFE"
   [ & args]
-  (let [[options arguments banner] (parse-args args)]
+  (let [[options parsed-args banner] (parse-args args)]
     (cond
-     (false? (:gui options))  (cli-execute options args)
-     :else (ui-create options args))))
+     (false? (:gui options))  (cli-execute options parsed-args)
+     :else (ui-create options parsed-args))))
