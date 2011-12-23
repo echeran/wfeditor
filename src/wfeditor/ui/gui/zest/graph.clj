@@ -6,8 +6,7 @@
 ;; refs (declarations here, initial bindings below)
 ;;
 
-(declare nodes connections)
-;; (def g (ref (struct-map contrib-graph/)))
+(declare g)
 
 ;;
 ;; records
@@ -23,6 +22,10 @@
 ;; unique identifier(s) for MyConnection = [src dest]
 (defrecord MyConnection [src dest label])
 
+;; replacement for the defstruct declaration of graphs in
+;; clojure.contrib.graph
+(defrecord Graph [nodes neighbors])
+
 
 ;;
 ;; functions
@@ -31,7 +34,7 @@
 (defn get-node-by-id
   "returns first node containing the provided id"
   ([id]
-     (get-node-by-id @nodes id))
+     (get-node-by-id (:nodes @g) id))
   ([nodes id]
       (when (seq nodes)
         (first (filter (fn [node] (= id (:id node))) nodes)))))
@@ -46,30 +49,15 @@
   ([[src dest label]]
      (MyConnection. src dest label)))
 
-(defn connections-map
-  "return a map indicating which nodes are connected to which other nodes"
-  ([]
-     (connections-map @connections))
-  ([connections]
-     (let [to-from-pair-maps (for [c connections] {(:src c) [(:dest c)]})
-           merged-maps (reduce (partial merge-with #(into %1 %2)) to-from-pair-maps)]
-       merged-maps)))
-
 (defn graph
   "return the current state of the graph as a vector of @nodes and @connections, in that order"
   []
-  [@nodes @connections])
+  @g)
 
 (defn connected-to
-  "return the node objects that are connected to the provided node ojb  based on the current state of the graph"
+  "return the node objects that are connected to the provided node job based on the current state of the graph"
   [node]
-  (let [node-id (:id node)
-        [nodes conns] (graph)
-        conn-map (connections-map conns)
-        conn-node-ids (get conn-map node-id)
-        conn-node-ids-seq (seq conn-node-ids)
-        conn-nodes (for [node-id conn-node-ids-seq] (get-node-by-id nodes node-id))]
-    conn-nodes))
+  (get (:neighbors @g) node))
 
 (defn- initial-nodes
   "return a sequence of the initial nodes (sans connected-to info)"
@@ -77,44 +65,26 @@
   (let [init-nodes (map new-mynode-fn [[0 "Hamburg"] [1 "Frankfurt"] [2 "Berlin"] [3 "Munich"] [4 "Eppelheim"] [5 "Ahrensboek"]])]
     init-nodes))
 
-(defn- initial-connections
-  "return a sequence of the initial connections"
-  []
-  (let [init-cnxns (map new-connection-fn [[0 1 "0"] [0 4 "1"] [2 1 "2"] [1 3 "3"]])]
-    init-cnxns))
-
-(defn set-init-graph
-  "set the initial refs containing the nodes and connections"
-  []
-  (let [init-nodes (initial-nodes)
-        init-cnxns (initial-connections)]
-    (dosync
-     (ref-set nodes init-nodes)
-     (ref-set connections init-cnxns))))
-
-(defn- node-adj
-  "return a map that (due to Clojure rules for maps) serves as a function returning which nodes are adjacent to the input node.  the input is an adjacency map of ids to lists of ids"
-  [node-adj-map]
-  (for [[key vals] node-adj-map]
-    {(get-node-by-id key) [(for [v vals] (get-node-by-id v))]}))
-
-(set-init-graph)
+(defn node-adj-map
+  "return a map that (due to Clojure rules for maps) serves as a function returning which nodes are adjacent to the input node.  the input is an adjacency list implemented as a map of ids to lists of ids"
+  ([id-adj-map]
+     (node-adj-map (:nodes @g) id-adj-map))
+  ([nodes id-adj-map]
+     (into {}
+           (for [[key vals] id-adj-map]
+             [(get-node-by-id nodes key) (for [v vals] (get-node-by-id nodes v))]))))
 
 (defn- init-clj-graph
-  "create the initial value of the graph struct object (as used by clojure.contrib.graph) for the graph"
+  "create the initial value of the graph struct object (as used by clojure.contrib.graph) for the graph. Note: the second value of the struct is a function that returns adjacent nodes given a node as input.  I'm following the example of the provided test code and using a map since in Clojure, maps are functions of their keys"
   []
   (let [nodes (into #{} (initial-nodes))
-        id-adj-map {0 [1 4], 1 3, 2 1}
-        adj-map (node-adj id-adj-map)]
-    (struct directed-graph nodes adj-map)))
+        id-adj-map {0 [1 4], 1 [3], 2 [1]}
+        adj-map (node-adj-map nodes id-adj-map)]
+    (Graph. nodes adj-map)))
 
 ;;
 ;; refs - binding initial values
 ;;
-
-(def nodes (ref (initial-nodes)))
-
-(def connections (ref (initial-connections)))
 
 
 (def g (ref (init-clj-graph)))
