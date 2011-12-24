@@ -69,20 +69,20 @@
 
 (defn job-dep-map
   "return a map that (due to Clojure rules for maps) serves as a function returning which jobs are dependent upon the input job / key.  the input is an adjacency list implemented as a map of ids to lists of ids"
-  ([id-adj-map]
-     (job-dep-map (:nodes @g) id-adj-map))
-  ([jobs id-adj-map]
+  ([id-dep-map]
+     (job-dep-map (:nodes @g) id-dep-map))
+  ([jobs id-dep-map]
      (into {}
-           (for [[key vals] id-adj-map]
+           (for [[key vals] id-dep-map]
              [(get-job-by-id jobs key) (for [v vals] (get-job-by-id jobs v))]))))
 
 (defn- init-clj-graph
   "create the initial value of the graph struct object (as used by clojure.contrib.graph) for the graph. Note: the second value of the struct is a function that returns dependent jobs given a job as input.  I'm following the example of the provided test code and using a map since in Clojure, maps are functions of their keys"
   []
   (let [jobs (into #{} (initial-jobs))
-        id-adj-map {:0 [:1 :4], :1 [:3], :2 [:1]}
-        adj-map (job-adj-map jobs id-adj-map)]
-    (Graph. jobs adj-map)))
+        id-dep-map {:0 [:1 :4], :1 [:3], :2 [:1]}
+        dep-map (job-dep-map jobs id-dep-map)]
+    (Graph. jobs dep-map)))
 
 ;;
 ;; refs - binding initial values
