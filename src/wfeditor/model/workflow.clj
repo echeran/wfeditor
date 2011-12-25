@@ -36,10 +36,8 @@
   ([id]
      (get-job-by-id (:nodes @g) id))
   ([jobs id]
-     ;; TODO make this much simpler by taking advantage of value equality
-     ;; in Clojure datatypes
       (when (seq jobs)
-        (first (filter (fn [job] (= id (:id job))) jobs)))))
+        (some #(when (= id (:id %)) %) jobs))))
 
 (defn new-job-fn
   "return a new job record / object"
