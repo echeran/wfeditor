@@ -17,6 +17,7 @@
 ;; Unlike C++, I'm not sure if a forward declarataion would work.
 
 ;; unique identifier for Job = id
+;; for a listing of required and optional arguments, see new-job-fn
 (defrecord Job [id name desc prog-name prog-ver prog-exec-loc prog-exec-ver prog-args prog-opts std-out-file std-err-file deps])
 
 ;; unique identifier(s) for Dependency = [src dest]
@@ -79,7 +80,7 @@ id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file deps"
   "return a sequence of the initial jobs (sans dependent-upon info)"
   []
   (let [init-jobs (map #(eval (cons 'new-job-fn %))
-                       [["dir-contents" "ls" [] {"-l" nil}]
+                       [["dir-contents" "ls" ["~echeran"] {"-l" nil}]
                         ["filter-size" "awk" ["'{if (NF > 4) {print $5;}}'"] {}]
                         ["build-sum-commands" "awk" ["'{print \"a = a + \" $1} END {print \"a\";}'"] {}]
                         ["compute-sum" "bc" [] {}]] )]

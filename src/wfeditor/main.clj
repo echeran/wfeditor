@@ -4,7 +4,8 @@
   (:gen-class)
   (:require clojure.tools.cli)
   (:require wfeditor.ui.gui.core
-            [wfeditor.model.workflow :as wflow])
+            [wfeditor.model.workflow :as wflow]
+            [wfeditor.model.execution :as exec])
   (:import
    org.eclipse.swt.widgets.Display))
 
@@ -14,7 +15,8 @@
   (if (:graph options)
     (let [new-graph (:graph options)
           new-job-dep-map (wflow/job-dep-map (:graph options))]
-      (dosync (alter wflow/g assoc :neighbors new-job-dep-map)))))
+      (dosync (alter wflow/g assoc :neighbors new-job-dep-map))))
+  (exec/run-workflow (wflow/graph)))
 
 (defn ui-create
   "The entry point to building the entire UI.  Uses a JFace idiom to do this, so UI code comes from an extended (proxied) ApplicationWindow.
@@ -33,7 +35,7 @@ TODO: handle options and args coming in from the CLI"
 
     ;; TODO: use CLI options and args to modify the UI here, which is
     ;; after its instantiation 
-    (handle-common-args options args)
+
     
     (. app-win setBlockOnOpen true)
     (. app-win open)
@@ -75,6 +77,7 @@ TODO: handle options and args coming in from the CLI"
   "main method (i.e., entry point) for the entire WFE"
   [ & args]
   (let [[options parsed-args banner] (parse-args args)]
+    (handle-common-args options args)
     (cond
      (false? (:gui options))  (cli-execute options parsed-args)
      :else (ui-create options parsed-args))))
