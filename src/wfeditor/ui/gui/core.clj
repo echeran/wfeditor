@@ -30,12 +30,18 @@
 
 (defn ui-editor-left-create [parent]
   (let [label2 (Label. parent  SWT/CENTER)
-        label1 (new Label parent SWT/RIGHT)]
+        label1 (new Label parent SWT/RIGHT)
+        save-wf-button (new-widget Button parent SWT/PUSH)
+        load-wf-button (new-widget Button parent SWT/PUSH)]
     (do
       (.setLayout parent (FillLayout. SWT/VERTICAL)))
     (doto label2
       (.setText "Hello, World")
       (.setBounds (.getClientArea parent)))
+    (doto save-wf-button
+      (.setText "Save workflow? (not working)"))
+    (doto load-wf-button
+      (.setText "Load workflow? (not working)"))
     (create-widgets-with-names parent Button SWT/PUSH ["one" "two" "three"])
     (do
       (.setLayout parent (FillLayout. SWT/VERTICAL))
@@ -84,7 +90,7 @@
     (do
       (set! (. sash-fdata top) (FormAttachment. 0 0))
       (set! (. sash-fdata bottom) (FormAttachment. 100 0))
-      (set! (. sash-fdata left) (FormAttachment. 50 0))
+      (set! (. sash-fdata left) (FormAttachment. 25 0))
       (.setLayoutData sash sash-fdata)
       (set! (. comp-left-fdata top) (FormAttachment. 0 0))
       (set! (. comp-left-fdata bottom) (FormAttachment. 100 0))
