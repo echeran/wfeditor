@@ -15,7 +15,7 @@
   (if (:graph options)
     (let [new-graph (:graph options)
           new-job-dep-map (wflow/job-dep-map (:graph options))]
-      (dosync (alter wflow/g assoc :neighbors new-job-dep-map))))
+      (wflow/set-dependent-upon new-job-dep-map)))
   (exec/run-workflow (wflow/graph)))
 
 (defn ui-create

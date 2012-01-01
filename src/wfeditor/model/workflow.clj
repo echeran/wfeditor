@@ -76,6 +76,11 @@ id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file deps"
   [job]
   (get (:neighbors @g) job))
 
+(defn set-dependent-upon
+  "set the map indicating which jobs are dependent on which jobs"
+  [job-dep-map]
+  (dosync (alter g assoc :neighbors job-dep-map)))
+
 (defn- initial-jobs
   "return a sequence of the initial jobs (sans dependent-upon info)"
   []
