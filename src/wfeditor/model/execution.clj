@@ -68,7 +68,14 @@ TODO: figure out how to enable multiple brances in the depenedency graph"
     (println "wf-command=" wf-comm)
     (let [proc (popen ["/bin/sh" "-c" wf-comm])
           output (slurp (stdout proc))
-          is-running (running? proc)]
+          is-running (running? proc)
+          is-running-fn (fn [] (println "wf command(s) still running?=" (running? proc)) (Thread/sleep 500))]
+      (dotimes [i 2]
+        (.start
+         (Thread. is-running-fn)))
       (println "output of wf command(s)=")
       (println output)
-      (println "wf command(s) still running?=" is-running))))
+      (dotimes [i 2]
+        (.start
+         (Thread. is-running-fn)))
+      )))
