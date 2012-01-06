@@ -4,7 +4,9 @@
   ;; of importing Java classes in Clojure (see
   ;; http://pragprog.com/magazines/2010-11/getting-clojure)
   ;; (:require wfeditor.ui.gui.d2dcanvas)
-  (:require wfeditor.ui.gui.zest.canvas)
+  (:require wfeditor.ui.gui.zest.canvas
+            [wfeditor.model.workflow :as wflow]
+            [wfeditor.model.execution :as mexec])
   (:import
    org.eclipse.jface.window.ApplicationWindow
    org.eclipse.swt.SWT
@@ -29,15 +31,22 @@
 
 
 (defn ui-editor-left-create [parent]
-  (let [label2 (Label. parent  SWT/CENTER)
-        label1 (new Label parent SWT/RIGHT)
+  (let [label1 (new Label parent SWT/CENTER)
+        run-wf-button (new-widget Button parent SWT/PUSH)
+        label2 (Label. parent  SWT/LEFT)
         save-wf-button (new-widget Button parent SWT/PUSH)
         load-wf-button (new-widget Button parent SWT/PUSH)]
     (do
       (.setLayout parent (FillLayout. SWT/VERTICAL)))
-    (doto label2
-      (.setText "Hello, World")
+    (doto label1
+      (.setText "Working button(s)")
       (.setBounds (.getClientArea parent)))
+    (doto run-wf-button
+      (.setText "Run workflow")
+      (.addSelectionListener (proxy [SelectionAdapter]
+                                 []
+                               (widgetSelected [event]
+                                 (mexec/run-workflow (wflow/graph))))))
     (doto save-wf-button
       (.setText "Save workflow? (not working)"))
     (doto load-wf-button
@@ -48,8 +57,8 @@
       (create-widgets-with-names parent Button SWT/RADIO ["Radio 1" "Radio 2" "Radio 3"])
       (create-widgets-with-names parent Button SWT/TOGGLE ["Tog 1" "Tog 2" "Tog 3"])
       (create-widgets-with-names parent Button SWT/CHECK [ "Check one" "...two" "...three"]))
-    (doto label1
-      (.setText "hw 2.1"))))
+    (doto label2
+      (.setText "Testing/non-working button(s)"))))
 
 (defn ui-editor-right-create [parent]
   (let []
