@@ -5,18 +5,18 @@
   (:require clojure.tools.cli)
   (:require wfeditor.ui.gui.core
             [wfeditor.model.workflow :as wflow]
-            [wfeditor.model.execution :as exec])
+            [wfeditor.model.execution :as mexec])
   (:import
    org.eclipse.swt.widgets.Display))
 
 (defn handle-common-args
   "handle arguments and options that are common for the entire program, whether the program is eventually run in command-line mode, gui mode, or etc."
   [options args]
+  ;; set the workflow if the user has inputed one
   (if (:graph options)
     (let [new-graph (:graph options)
           new-job-dep-map (wflow/job-dep-map (:graph options))]
-      (wflow/set-dependent-upon new-job-dep-map)))
-  (exec/run-workflow (wflow/graph)))
+      (wflow/set-dependent-upon new-job-dep-map))))
 
 (defn ui-create
   "The entry point to building the entire UI.  Uses a JFace idiom to do this, so UI code comes from an extended (proxied) ApplicationWindow.
