@@ -33,7 +33,7 @@
 (defn ui-editor-left-create [parent]
   (let [label1 (new Label parent SWT/CENTER)
         run-wf-button (new-widget Button parent SWT/PUSH)
-        label2 (Label. parent  SWT/LEFT)
+        label2 (Label. parent  SWT/CENTER)
         save-wf-button (new-widget Button parent SWT/PUSH)
         load-wf-button (new-widget Button parent SWT/PUSH)]
     (do
@@ -47,18 +47,18 @@
                                  []
                                (widgetSelected [event]
                                  (mexec/run-workflow (wflow/graph))))))
+    (doto label2
+      (.setText "Testing/non-working button(s)"))
     (doto save-wf-button
-      (.setText "Save workflow? (not working)"))
+      (.setText "Save workflow?"))
     (doto load-wf-button
-      (.setText "Load workflow? (not working)"))
+      (.setText "Load workflow?"))
     (create-widgets-with-names parent Button SWT/PUSH ["one" "two" "three"])
     (do
       (.setLayout parent (FillLayout. SWT/VERTICAL))
       (create-widgets-with-names parent Button SWT/RADIO ["Radio 1" "Radio 2" "Radio 3"])
       (create-widgets-with-names parent Button SWT/TOGGLE ["Tog 1" "Tog 2" "Tog 3"])
-      (create-widgets-with-names parent Button SWT/CHECK [ "Check one" "...two" "...three"]))
-    (doto label2
-      (.setText "Testing/non-working button(s)"))))
+      (create-widgets-with-names parent Button SWT/CHECK [ "Check one" "...two" "...three"]))))
 
 (defn ui-editor-right-create [parent]
   (let []
