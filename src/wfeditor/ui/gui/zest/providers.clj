@@ -1,5 +1,6 @@
 (ns wfeditor.ui.gui.zest.providers
-  (:require [wfeditor.model.workflow :as wflow])
+  (:require [wfeditor.model.workflow :as wflow]
+            [wfeditor.model.execution :as mexec])
   ;; need to import the Clojure defrecord, etc. (Java-interop types)
   ;; as according to
   ;; http://dbostwick.posterous.com/using-clojures-deftype-and-defrecord-and-name
@@ -8,21 +9,44 @@
    org.eclipse.jface.viewers.LabelProvider
    org.eclipse.zest.core.viewers.EntityConnectionData
    org.eclipse.jface.viewers.ArrayContentProvider
-   org.eclipse.zest.core.viewers.IGraphEntityContentProvider))
+   [org.eclipse.zest.core.viewers IGraphEntityContentProvider IEntityStyleProvider]
+   org.eclipse.draw2d.Label))
 
 (defn label-provider-proxy
-  "Return a proxy (anon. impl.) of a label provider for the Zest+JFace MVC setup"
+  "Return a proxy (anon. impl.) of a label provider for a GraphViewer of the Zest+JFace MVC setup"
   []
-  (proxy [LabelProvider] []
+  (proxy [LabelProvider IEntityStyleProvider] []
+    ;; LabelProvider methods
     (getText [element]
       (condp = (class element)
         Job (:name element)
         Dependency (:label element)
         EntityConnectionData ""
-        (str "Wrong type: " (str (class element)))))))
+        (str "Wrong type: " (str (class element)))))
+    ;; IEntityStyleProvider methods
+    ;; take defaults for most methods using the values that trigger
+    ;; the defaults, as according to the documentation
+    (getNodeHighlightColor [entity]
+      nil)
+    (getBorderColor [entity]
+      nil)
+    (getBorderHighlightColor [entity]
+      nil)
+    (getBorderWidth [entity]
+      -1)
+    (getBackgroundColour [entity]
+      nil)
+    (getForegroundColour [entity]
+      nil)
+    (getTooltip [entity]
+      (if (= (class entity) wfeditor.model.workflow.Job)
+        (Label. (mexec/job-command entity))
+        nil))
+    (fisheyeNode [entity]
+      false)))
 
 (defn node-content-provider-proxy
-  "Return a proxy (anon. impl.) of a content provider for the Zest+JFace MVC setup"
+  "Return a proxy (anon. impl.) of a content provider for a GraphViewer of the Zest+JFace MVC setup"
   []
   (proxy [ArrayContentProvider IGraphEntityContentProvider] []
     (getConnectedTo [entity]
