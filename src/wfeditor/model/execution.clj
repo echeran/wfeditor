@@ -59,6 +59,14 @@ TODO: extend this to handle a dependency graph with branches"
         wf-comm (string/join job-comm-sep (map (comp job-command first) dep-levels))]
     wf-comm))
 
+(defn print-still-running
+  "run a function for the provided number of times in a row (reps), where the function prints whether the provided popen process (proc) is still running"
+  [proc reps]
+  (let [is-running-fn (fn [] (println "wf command(s) still running?=" (running? proc)) (Thread/sleep 500))]
+    (dotimes [_ reps]
+      (.start
+       (Thread. is-running-fn)))))
+
 (defn run-workflow
   "run a workflow of jobs.  supplied as type Graph
 Note: currently assumes only one path through the dependency graph
@@ -67,15 +75,6 @@ TODO: figure out how to enable multiple brances in the depenedency graph"
   (let [wf-comm (wf-command wf)]
     (println "wf-command=" wf-comm)
     (let [proc (popen ["/bin/sh" "-c" wf-comm])
-          output (slurp (stdout proc))
-          is-running (running? proc)
-          is-running-fn (fn [] (println "wf command(s) still running?=" (running? proc)) (Thread/sleep 500))]
-      (dotimes [i 2]
-        (.start
-         (Thread. is-running-fn)))
+          output (slurp (stdout proc))]
       (println "output of wf command(s)=")
-      (println output)
-      (dotimes [i 2]
-        (.start
-         (Thread. is-running-fn)))
-      )))
+      (println output))))
