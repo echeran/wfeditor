@@ -9,13 +9,14 @@
    org.eclipse.jface.viewers.LabelProvider
    org.eclipse.zest.core.viewers.EntityConnectionData
    org.eclipse.jface.viewers.ArrayContentProvider
-   [org.eclipse.zest.core.viewers IGraphEntityContentProvider IEntityStyleProvider]
-   org.eclipse.draw2d.Label))
+   [org.eclipse.zest.core.viewers IGraphEntityContentProvider IEntityStyleProvider IEntityConnectionStyleProvider]
+   org.eclipse.draw2d.Label
+   org.eclipse.zest.core.widgets.ZestStyles))
 
 (defn label-provider-proxy
   "Return a proxy (anon. impl.) of a label provider for a GraphViewer of the Zest+JFace MVC setup"
   []
-  (proxy [LabelProvider IEntityStyleProvider] []
+  (proxy [LabelProvider IEntityStyleProvider IEntityConnectionStyleProvider] []
     ;; LabelProvider methods
     (getText [element]
       (condp = (class element)
@@ -43,7 +44,19 @@
         (Label. (mexec/job-command entity))
         nil))
     (fisheyeNode [entity]
-      false)))
+      false)
+    ;; IEntityConnectionStyleProvider methods
+    (getConnectionStyle [src dest]
+      ZestStyles/CONNECTIONS_DIRECTED)
+    (getColor [src dest]
+      nil)
+    (getHighlightColor [src dest]
+      nil)
+    (getLineWidth [src dest]
+      -1)
+    (selfStyleConnection [entity connection]
+      nil)
+    ))
 
 (defn node-content-provider-proxy
   "Return a proxy (anon. impl.) of a content provider for a GraphViewer of the Zest+JFace MVC setup"
