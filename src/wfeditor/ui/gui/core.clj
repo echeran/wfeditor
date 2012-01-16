@@ -6,7 +6,8 @@
   ;; (:require wfeditor.ui.gui.d2dcanvas)
   (:require wfeditor.ui.gui.zest.canvas
             [wfeditor.model.workflow :as wflow]
-            [wfeditor.model.execution :as mexec])
+            [wfeditor.model.execution :as mexec]
+            [wfeditor.io.file.wfeformat :as fformat])
   (:import
    org.eclipse.jface.window.ApplicationWindow
    org.eclipse.swt.SWT
@@ -33,6 +34,7 @@
 (defn ui-editor-left-create [parent]
   (let [label1 (new Label parent SWT/CENTER)
         run-wf-button (new-widget Button parent SWT/PUSH)
+        print-wf-button (new-widget Button parent SWT/PUSH)
         label2 (Label. parent  SWT/CENTER)
         save-wf-button (new-widget Button parent SWT/PUSH)
         load-wf-button (new-widget Button parent SWT/PUSH)]
@@ -47,6 +49,12 @@
                                  []
                                (widgetSelected [event]
                                  (mexec/run-workflow (wflow/graph))))))
+    (doto print-wf-button
+      (.setText "Print workflow")
+      (.addSelectionListener (proxy [SelectionAdapter]
+                                 []
+                               (widgetSelected [event]
+                                 (println (fformat/workflow-to-string))))))
     (doto label2
       (.setText "Testing/non-working button(s)"))
     (doto save-wf-button

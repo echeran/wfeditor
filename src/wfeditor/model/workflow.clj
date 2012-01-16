@@ -71,6 +71,13 @@ id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file deps"
   []
   @g)
 
+(defn depends-upon
+  "return the obects that this job depends upon based on the state of the graph"
+  [job]
+  ;; TODO: make the dependency relation go in the opposite direction
+  ;; for all other relevant functions in this namespace
+  (get (:neighbors @g) job))
+
 (defn dependent-upon
   "return the job objects that are dependent upon the provided job based on the current state of the graph"
   [job]
@@ -107,6 +114,15 @@ id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file deps"
         id-dep-map {"dir-contents" ["filter-size"] "filter-size" ["build-sum-commands"] "build-sum-commands" ["compute-sum"]}
         dep-map (job-dep-map jobs id-dep-map)]
     (Graph. jobs dep-map)))
+
+(defn wf-job-seq
+  "return a sequence of jobs in the workflow graph in a topological order, where if job B depends on job A, then B will follow A in the returned sequence"
+  [wf]
+  (let [dep-graph (contrib-graph/reverse-graph wf)
+        dep-levels (contrib-graph/dependency-list dep-graph)]
+    (for [level dep-levels job level] job)))
+
+
 
 ;;
 ;; refs - binding initial values
