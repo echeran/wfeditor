@@ -14,17 +14,13 @@
 
 ;; refactored the defrecord types to this class so that there wouldn't
 ;; be this catch 22 cyclic dependency for the compiler that happens (like in C++).
-;; Unlike C++, I'm not sure if a forward declarataion would work.
 
-;; unique identifier for Job = id
+;; proposed unique identifier for Job = id
 ;; for a listing of required and optional arguments, see new-job-fn
 (defrecord Job [id name desc prog-name prog-ver prog-exec-loc prog-exec-ver prog-args prog-opts std-out-file std-err-file deps])
 
-;; unique identifier(s) for Dependency = [src dest]
-;; Dependency is defined as: dest _depends on_ src
-;; Dependency more represents the directed flow of information as far
-;; as direction (src, dest) is concerned, but the name "Dependency"
-;; conveys the follow-up work necessary better than the name "Flow" would
+;; proposed unique identifier(s) for Dependency = [src dest]
+;; Dependency is defined as: src _depends on_ dest
 (defrecord Dependency [src dest label])
 
 ;; replacement for the defstruct declaration of graphs in
@@ -66,27 +62,32 @@ id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file deps"
   ([[src dest label]]
      (Dependency. src dest label)))
 
-(defn graph
-  "return the current state of the workflow graph, i.e. job dependency graph, i.e. Job objs and Dependency objs"
+(defn dep-graph
+  "return the current state of the workflow graph, i.e. job dependency graph, i.e. Job objs as nodes and dependencies represented as the function"
   []
   @g)
+
+(defn flow-graph
+  "return the reverse of the workflow graph, i.e., representing the 'flow' of data between jobs instead of dependencies between jobs.
+note: this is the reverse of the dep-graph"
+  []
+  (contrib-graph/reverse-graph (dep-graph)))
 
 (defn depends-upon
   "return the obects that this job depends upon based on the state of the graph"
   [job]
-  ;; TODO: make the dependency relation go in the opposite direction
-  ;; for all other relevant functions in this namespace
-  (get (:neighbors @g) job))
+  (get (:neighbors (dep-graph)) job))
 
 (defn dependent-upon
   "return the job objects that are dependent upon the provided job based on the current state of the graph"
   [job]
-  (get (:neighbors @g) job))
+  (get (:neighbors (flow-graph)) job))
 
-(defn set-dependent-upon
-  "set the map indicating which jobs are dependent on which jobs"
+(defn set-depends-upon
+  "set the map indicating which jobs depend on which jobs"
   [job-dep-map]
-  (dosync (alter g assoc :neighbors job-dep-map)))
+  (dosync
+   (alter g assoc :neighbors job-dep-map)))
 
 (defn- initial-jobs
   "return a sequence of the initial jobs (sans dependent-upon info)"
@@ -111,7 +112,7 @@ id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file deps"
   "create the initial value of the graph struct object (as used by clojure.contrib.graph) for the graph. Note: the second value of the struct is a function that returns dependent jobs given a job as input.  I'm following the example of the provided test code and using a map since in Clojure, maps are functions of their keys"
   []
   (let [jobs (into #{} (initial-jobs))
-        id-dep-map {"dir-contents" ["filter-size"] "filter-size" ["build-sum-commands"] "build-sum-commands" ["compute-sum"]}
+        id-dep-map {"compute-sum" ["build-sum-commands"] "build-sum-commands" ["filter-size"] "filter-size" ["dir-contents"]}
         dep-map (job-dep-map jobs id-dep-map)]
     (Graph. jobs dep-map)))
 

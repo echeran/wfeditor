@@ -13,7 +13,7 @@
                          (for [key job-keys]
                            (let [key-str (name key)
                                  val (condp = key
-                                       :deps (into [] (map #(get % :name) (wf/dependent-upon job)))
+                                       :deps (into [] (map #(get % :name) (wf/depends-upon job)))
                                        (get job key))]
                              (when-not (print-remove-fn val)
                                (str key-str ": " val))))))))
@@ -21,6 +21,6 @@
 (defn workflow-to-string
   "return a string reprsentation of the workflow"
   []
-  (let [wfseq (wf/wf-job-seq (wf/graph))
+  (let [wfseq (wf/wf-job-seq (wf/flow-graph))
         job-str-seq (map job-str wfseq)]
     (string/join "\n" job-str-seq)))

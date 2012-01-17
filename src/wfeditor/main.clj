@@ -16,7 +16,7 @@
   (if (:graph options)
     (let [new-graph (:graph options)
           new-job-dep-map (wflow/job-dep-map (:graph options))]
-      (wflow/set-dependent-upon new-job-dep-map))))
+      (wflow/set-depends-upon new-job-dep-map))))
 
 (defn ui-create
   "The entry point to building the entire UI.  Uses a JFace idiom to do this, so UI code comes from an extended (proxied) ApplicationWindow.
@@ -54,7 +54,7 @@ TODO: handle options and args coming in from the CLI"
   (let [[options arguments banner] (clojure.tools.cli/cli user-args
                                         ["-g" "--[no-]gui" "Run the GUI frontend with the program" :default true :flag true]
                                         ["-h" "--help" "Display the command-line help statement" :default false :flag true]
-                                        ["--graph" "An initial job dependency graph as a map of keywords -> nested vector of keywords (Ex:  {:0 [:1 :4], :1 [:3], :2 [:1]})" :default nil :parse-fn load-string])]
+                                        ["--graph" "An initial job dependency graph as a map of keywords -> nested vector of keywords (Ex:  {:1 [:0 :2] :3 [:1] :4 [:0]})" :default nil :parse-fn load-string])]
     (when (:help options)
       (println banner)
       (System/exit 0))
