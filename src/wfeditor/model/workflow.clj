@@ -6,7 +6,7 @@
 ;; refs (declarations here, initial bindings below)
 ;;
 
-(declare g)
+(declare wf)
 
 ;;
 ;; records
@@ -17,25 +17,38 @@
 
 ;; proposed unique identifier for Job = id
 ;; for a listing of required and optional arguments, see new-job-fn
+;; the deps of a job is implicitly stored in the global Graph object g
 (defrecord Job [id name desc prog-name prog-ver prog-exec-loc prog-exec-ver prog-args prog-opts std-out-file std-err-file deps])
-
-;; proposed unique identifier(s) for Dependency = [src dest]
-;; Dependency is defined as: src _depends on_ dest
-(defrecord Dependency [src dest label])
 
 ;; replacement for the defstruct declaration of graphs in
 ;; clojure.contrib.graph
+;; the deps field of the Job type pulls info from the Graph obj upon request
 (defrecord Graph [nodes neighbors])
 
+;; a type encapsulating everything of interest to a workflow.  this is
+;; currently the graph (encapsulates the jobs and job dependencies),
+;; and all of the meta-info
+(defrecord Workflow [graph wf-name wf-ver wf-format-ver parent-ver parent-file parent-hash])
 
 ;;
 ;; functions
 ;;
 
+(defn dep-graph
+  "return the current state of the workflow graph, i.e. job dependency graph, i.e. Job objs as nodes and dependencies represented as the function"
+  []
+  (:graph @wf))
+
+(defn flow-graph
+  "return the reverse of the workflow graph, i.e., representing the 'flow' of data between jobs instead of dependencies between jobs.
+note: this is the reverse of the dep-graph"
+  []
+  (contrib-graph/reverse-graph (dep-graph)))
+
 (defn get-job-by-id
   "returns first node containing the provided id"
   ([id]
-     (get-job-by-id (:nodes @g) id))
+     (get-job-by-id (:nodes (dep-graph)) id))
   ([jobs id]
       (when (seq jobs)
         (some #(when (= id (:id %)) %) jobs))))
@@ -43,7 +56,7 @@
 (defn get-job-by-field
   "returns first node containing the provided field and value, where field is given a keyword"
   ([field val]
-     (get-job-by-id (:nodes @g) field val))
+     (get-job-by-id (:nodes (dep-graph)) field val))
   ([jobs field val]
       (when (seq jobs)
         (some #(when (= val (field %)) %) jobs))))
@@ -57,21 +70,15 @@ id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file deps"
   [name prog-exec-loc prog-args prog-opts & {:keys [id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file deps] :or {id nil desc "" prog-name "" prog-ver "" prog-exec-ver "" std-out-file nil std-err-file nil deps []}}]
   (Job. id name desc prog-name prog-ver prog-exec-loc prog-exec-ver prog-args prog-opts std-out-file std-err-file deps))
 
-(defn new-dep-fn
-  "return a new dependency record / object"
-  ([[src dest label]]
-     (Dependency. src dest label)))
+(defn new-graph-fn
+  "return a new graph type"
+  [& {:keys [nodes neighbors] :or {nodes #{} neighbors {}}}]
+  (Graph. nodes neighbors))
 
-(defn dep-graph
-  "return the current state of the workflow graph, i.e. job dependency graph, i.e. Job objs as nodes and dependencies represented as the function"
-  []
-  @g)
-
-(defn flow-graph
-  "return the reverse of the workflow graph, i.e., representing the 'flow' of data between jobs instead of dependencies between jobs.
-note: this is the reverse of the dep-graph"
-  []
-  (contrib-graph/reverse-graph (dep-graph)))
+(defn new-workflow-fn
+  "return a new workflow type"
+  [& {:keys [graph wf-name wf-ver wf-format-ver parent-ver parent-file parent-hash] :or {graph (new-graph-fn) wf-name "" wf-ver "" wf-format-ver "" parent-ver "" parent-file "" parent-hash ""}}]
+  (Workflow. graph wf-name wf-ver wf-format-ver parent-ver parent-file parent-hash))
 
 (defn depends-upon
   "return the obects that this job depends upon based on the state of the graph"
@@ -86,8 +93,9 @@ note: this is the reverse of the dep-graph"
 (defn set-depends-upon
   "set the map indicating which jobs depend on which jobs"
   [job-dep-map]
-  (dosync
-   (alter g assoc :neighbors job-dep-map)))
+  (letfn [(update-fn [wf new-neighbors] (assoc (:graph wf) :neighbors new-neighbors))]
+    (dosync
+     (alter wf update-fn job-dep-map))))
 
 (defn- initial-jobs
   "return a sequence of the initial jobs (sans dependent-upon info)"
@@ -102,7 +110,7 @@ note: this is the reverse of the dep-graph"
 (defn job-dep-map
   "return a map that (due to Clojure rules for maps) serves as a function returning which jobs are dependent upon the input job / key.  the input is an adjacency list implemented as a map of names to lists of names"
   ([id-dep-map]
-     (job-dep-map (:nodes @g) id-dep-map))
+     (job-dep-map (:nodes (dep-graph)) id-dep-map))
   ([jobs id-dep-map]
      (into {}
            (for [[key vals] id-dep-map]
@@ -115,6 +123,12 @@ note: this is the reverse of the dep-graph"
         id-dep-map {"compute-sum" ["build-sum-commands"] "build-sum-commands" ["filter-size"] "filter-size" ["dir-contents"]}
         dep-map (job-dep-map jobs id-dep-map)]
     (Graph. jobs dep-map)))
+
+(defn- init-clj-wf
+  "create the initial value of the workflow object"
+  []
+  (let [init-graph (init-clj-graph)]
+    (new-workflow-fn :graph init-graph)))
 
 (defn wf-job-seq
   "return a sequence of jobs in the workflow graph in a topological order, where if job B depends on job A, then B will follow A in the returned sequence"
@@ -130,4 +144,4 @@ note: this is the reverse of the dep-graph"
 ;;
 
 
-(def g (ref (init-clj-graph)))
+(def wf (ref (init-clj-wf)))

@@ -1,7 +1,9 @@
 (ns wfeditor.io.util.xml
   (:require [clojure.xml :as xml]
             [clojure.zip :as zip]
-            [clojure.contrib.zip-filter.xml :as zfx]))
+            ;; [clojure.contrib.zip-filter.xml :as zfx]
+            [clojure.contrib.lazy-xml :as lxml]
+            ))
 
 (defn ppxml
   "pretty-prints an input xml string (i.e., reformats with indentation)
@@ -19,11 +21,17 @@ taken from http://nakkaya.com/2010/03/27/pretty-printing-xml-with-clojure/"
     (.transform transformer in out)
     (-> out .getWriter .toString)))
 
-(def parse-as-zip
-  "composes the work of parsing of an input XML stream into a tree, and turning that tree into a zipper"
-  (comp zip/xml-zip xml/parse))
 
-(defn pprint-xml-zip
-  "pretty-prints XML from an XML zipper"
-  [xmlzipper]
-  (ppxml (zfx/xml-> xmlzipper)))
+(defn tree-to-xml-str
+  "convenience function to 'compose' creating an XML stream out of an XML tree, and capturing the stream (by default, goes to std. out.) to a string. this cannot be done with the comp function because with-out-str is a macro"
+  [xml-tree]
+  (with-out-str (lxml/emit xml-tree)))
+
+(defn tree-to-ppxml
+  "pretty-print XML from an XML tree"
+  [xml-tree]
+  (ppxml (tree-to-xml-str xml-tree)))
+
+(def xml-str-to-tree xml/parse)
+
+(def xml-str-to-zip (comp zip/xml-zip xml/parse))
