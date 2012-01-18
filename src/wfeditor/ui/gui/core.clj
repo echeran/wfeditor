@@ -54,7 +54,7 @@
       (.addSelectionListener (proxy [SelectionAdapter]
                                  []
                                (widgetSelected [event]
-                                 (println (fformat/workflow-to-string))))))
+                                 (println (fformat/workflow-to-string (wflow/workflow)))))))
     (doto label2
       (.setText "Testing/non-working button(s)"))
     (doto save-wf-button

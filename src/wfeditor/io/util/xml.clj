@@ -27,7 +27,7 @@ taken from http://nakkaya.com/2010/03/27/pretty-printing-xml-with-clojure/"
   [xml-tree]
   (with-out-str (lxml/emit xml-tree)))
 
-(defn tree-to-ppxml
+(defn tree-to-ppxml-str
   "pretty-print XML from an XML tree"
   [xml-tree]
   (ppxml (tree-to-xml-str xml-tree)))

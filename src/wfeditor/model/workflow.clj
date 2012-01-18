@@ -34,6 +34,11 @@
 ;; functions
 ;;
 
+(defn workflow
+  "return the current state of the workflow object"
+  []
+  @wf)
+
 (defn dep-graph
   "return the current state of the workflow graph, i.e. job dependency graph, i.e. Job objs as nodes and dependencies represented as the function"
   []
@@ -67,7 +72,7 @@ when supplying arguments to the function, the following are required
 name, prog-exec-loc, prog-args prog-opts
 the following are optional:
 id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file deps"
-  [name prog-exec-loc prog-args prog-opts & {:keys [id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file deps] :or {id nil desc "" prog-name "" prog-ver "" prog-exec-ver "" std-out-file nil std-err-file nil deps []}}]
+  [name prog-exec-loc prog-args prog-opts & {:keys [id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file deps] :or {id nil desc nil prog-name nil prog-ver nil prog-exec-ver nil std-out-file nil std-err-file nil deps []}}]
   (Job. id name desc prog-name prog-ver prog-exec-loc prog-exec-ver prog-args prog-opts std-out-file std-err-file deps))
 
 (defn new-graph-fn
@@ -77,7 +82,7 @@ id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file deps"
 
 (defn new-workflow-fn
   "return a new workflow type"
-  [& {:keys [graph wf-name wf-ver wf-format-ver parent-ver parent-file parent-hash] :or {graph (new-graph-fn) wf-name "" wf-ver "" wf-format-ver "" parent-ver "" parent-file "" parent-hash ""}}]
+  [& {:keys [graph wf-name wf-ver wf-format-ver parent-ver parent-file parent-hash] :or {graph (new-graph-fn) wf-name nil wf-ver nil wf-format-ver nil parent-ver nil parent-file nil parent-hash nil}}]
   (Workflow. graph wf-name wf-ver wf-format-ver parent-ver parent-file parent-hash))
 
 (defn depends-upon
