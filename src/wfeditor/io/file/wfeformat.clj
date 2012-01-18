@@ -2,14 +2,14 @@
   (:require [wfeditor.io.util.xml :as xml-util]
             [wfeditor.model.workflow :as wf]
             [clojure.string :as string])
-  (:import [wfeditor.model.workflow Job Graph]))
+  (:import [wfeditor.model.workflow Job Workflow]))
 
 
 (def format-reqd-states {:workflow :reqd
                          :wf-name :req-when-parent, :wf-ver :req-when-parent, :wf-format-ver :req-when-parent, :name :req-when-parent, :prog-exec-loc :req-when-parent, :prog-args :req-when-parent, :prog-opts :req-when-parent, :flag :req-when-parent, :val :req-when-parent, :dep :req-when-parent
-                         :meta nil, :parent nil, :parent-ver nil, :parent-file nil, :parent-hash nil, :jobs nil, :job nil, :desc nil, :prog-name nil, :prog-ver nil, :prog-exec-ver nil, :arg nil, :op nil, :std-out-file nil, :std-err-file nil, :job-deps nil})
+                         :meta nil, :parent nil, :parent-ver nil, :parent-file nil, :parent-hash nil, :jobs nil, :job nil, :desc nil, :prog-name nil, :prog-ver nil, :prog-exec-ver nil, :arg nil, :op nil, :std-out-file nil, :std-err-file nil, :deps nil})
 
-(def format-hierarchy {:workflow [:meta :jobs], :meta [:wf-name :wf-ver :wf-format-ver :parent], :parent [:parent-ver :parent-file :parent-hash], :jobs :job, :job [:name :desc :prog-name :prog-ver :prog-exec-loc :prog-exec-ver :prog-args :prog-opts :std-out-file :std-err-file :job-deps], :prog-args :arg, :prog-opts :opt, :opt [:flag :val], :job-deps :dep})
+(def format-hierarchy {:workflow [:meta :jobs], :meta [:wf-name :wf-ver :wf-format-ver :parent], :parent [:parent-ver :parent-file :parent-hash], :jobs :job, :job [:name :desc :prog-name :prog-ver :prog-exec-loc :prog-exec-ver :prog-args :prog-opts :std-out-file :std-err-file :job-deps], :prog-args :arg, :prog-opts :opt, :opt [:flag :val], :deps :dep})
 
 (defn- remove-fn
   "use this function to prune null/empty non-essential info being represented in a XML tree reprsentation"
@@ -44,7 +44,7 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
                      nil
                      {:tag tag :attrs nil :content []})
    (string? val) {:tag tag :attrs nil :content [val]}
-   (vector? val) {:tag tag :attrs nil :content (into [] (remove nil? (for [x val] (xml-subtree (format-hierarchy tag) x))))}
+   (sequential? val) {:tag tag :attrs nil :content (into [] (remove nil? (for [x val] (xml-subtree (format-hierarchy tag) x))))}
    (map? val) (let [keyval-tag (format-hierarchy tag)
                     [key-tag val-tag] (format-hierarchy keyval-tag)]
                 {:tag tag :attrs nil :content
@@ -53,27 +53,46 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
                                           [(xml-subtree key-tag k)
                                            (xml-subtree val-tag v)]})))})))
 
-(defn job-xml-tree
+(defn- job-xml-tree
   "implementation of defmethod for xml-tree multimethod for the Job record class"
   [job]
-  (let [job-keys (keys job)]
+  (let [job-keys (keys job)
+        job-deps (map #(get % :name) ((:neighbors (wf/dep-graph)) job))]
     {:tag :job :attrs nil :content
-     (into [] (remove nil? (for [key job-keys]
-                             (let [val (get job key)]
-                               (xml-subtree key val)))))}))
+     (into [] (remove nil? (concat (for [key job-keys]
+                                      (let [val (get job key)] 
+                                        (xml-subtree key val)))
+                                   (list (xml-subtree :deps job-deps)))))}))
 
-(defn graph-xml-tree
-  ""
-  [graph])
+(defn- wf-meta-xml-tree
+  "helper method for wf-xml-tree"
+  [wf]
+  (let [wf-get-fn (fn [key] (get wf key))
+        meta-wf-tags [:wf-name :wf-ver :wf-format-ver]
+        meta-wf-vals (map wf-get-fn meta-wf-tags)
+        meta-parent-tags [:parent-ver :parent-file :parent-hash]
+        meta-parent-vals (map wf-get-fn meta-parent-tags)
+        meta-tags (concat meta-wf-tags meta-parent-tags)
+        meta-vals (concat meta-wf-vals meta-parent-vals)
+        or-fn (fn ([a] a) ([a b] (or a b)))]
+    (when (reduce or-fn meta-vals)
+      (let [new-tag-fn (fn [tag] (xml-subtree tag (wf-get-fn tag)))]
+        {:tag :meta :attrs nil :content (remove nil?  [(new-tag-fn :wf-name) (new-tag-fn :wf-ver) (new-tag-fn :wf-format-ver) (when (reduce or-fn meta-parent-vals) {:tag :parent :attrs nil :content (remove nil? [(new-tag-fn :parent-ver) (new-tag-fn :parent-file) (new-tag-fn :parent-hash)])})])}))))
+
+(defn- wf-xml-tree
+  "implementation of defmethod for xml-tree multimethod for the Workflow record class"
+  [wf]
+  (let [meta-subtree (wf-meta-xml-tree wf)
+        job-seq (wf/wf-job-seq (wf/flow-graph))
+        jobs-subtree {:tag :jobs :attrs nil :content (remove nil? (into [] (map job-xml-tree job-seq)))}]
+    {:tag :workflow :attrs nil :content (remove nil? [meta-subtree jobs-subtree])}))
 
 ;; return an XML tree for a given object as XML trees are returned by clojure.xml/parse
 (defmulti xml-tree class)
 (defmethod xml-tree wfeditor.model.workflow.Job [obj] (job-xml-tree obj))
-(defmethod xml-tree wfeditor.model.workflow.Graph [obj] (graph-xml-tree obj))
+(defmethod xml-tree wfeditor.model.workflow.Workflow [obj] (wf-xml-tree obj))
 
 (defn workflow-to-string
   "return a string reprsentation of the workflow"
-  []
-  (let [job-seq (wf/wf-job-seq (wf/flow-graph))]
-    (println (string/join "\n--\n" (map (comp xml-util/tree-to-ppxml xml-tree) job-seq)))
-    ))
+  [wf]
+  (xml-util/tree-to-ppxml-str (xml-tree wf)))
