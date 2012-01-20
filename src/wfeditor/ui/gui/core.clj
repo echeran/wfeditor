@@ -35,9 +35,11 @@
   (let [label1 (new Label parent SWT/CENTER)
         run-wf-button (new-widget Button parent SWT/PUSH)
         print-wf-button (new-widget Button parent SWT/PUSH)
+        comp1 (new Composite parent SWT/BORDER)
+        load-wf-label (new Label comp1 SWT/CENTER)
+        load-wf-button (new-widget Button comp1 SWT/PUSH)
         label2 (Label. parent  SWT/CENTER)
-        save-wf-button (new-widget Button parent SWT/PUSH)
-        load-wf-button (new-widget Button parent SWT/PUSH)]
+        save-wf-button (new-widget Button parent SWT/PUSH)]
     (do
       (.setLayout parent (FillLayout. SWT/VERTICAL)))
     (doto label1
@@ -55,12 +57,20 @@
                                  []
                                (widgetSelected [event]
                                  (println (fformat/workflow-to-string (wflow/workflow)))))))
+    (doto comp1
+      (.setLayout (FillLayout. SWT/VERTICAL)))
+    (doto load-wf-label
+      (.setText (str "Load test file at: " fformat/file-name-load-wf-test)))
+    (doto load-wf-button
+      (.setText "Load workflow")
+      (.addSelectionListener (proxy [SelectionAdapter]
+                                 []
+                               (widgetSelected [event]
+                                 (println (fformat/workflow-to-string (wflow/workflow)))))))
     (doto label2
       (.setText "Testing/non-working button(s)"))
     (doto save-wf-button
       (.setText "Save workflow?"))
-    (doto load-wf-button
-      (.setText "Load workflow?"))
     (create-widgets-with-names parent Button SWT/PUSH ["one" "two" "three"])
     (do
       (.setLayout parent (FillLayout. SWT/VERTICAL))

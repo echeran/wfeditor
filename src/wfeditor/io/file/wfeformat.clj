@@ -1,7 +1,8 @@
 (ns wfeditor.io.file.wfeformat
   (:require [wfeditor.io.util.xml :as xml-util]
             [wfeditor.model.workflow :as wf]
-            [clojure.string :as string])
+            [clojure.string :as string]
+            [clojure.contrib.zip-filter.xml :as zfx])
   (:import [wfeditor.model.workflow Job Workflow]))
 
 
@@ -93,6 +94,34 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
 (defmethod xml-tree wfeditor.model.workflow.Workflow [obj] (wf-xml-tree obj))
 
 (defn workflow-to-string
-  "return a string reprsentation of the workflow"
+  "return an XML string representation of the current workflow object"
   [wf]
   (xml-util/tree-to-ppxml-str (xml-tree wf)))
+
+(def file-name-load-wf-test "/home/echeran/wfeditor/src/wfeditor/io/file/sample1.xml")
+
+(defn map-from-zip
+  [z tag]
+  "return a map of string keys -> string values created from an XML zip (z) using a tag (tag), representing the map, that has children which contain pairs of leaf tags representing the key-value pairs of the map"
+  (let [keyval-seq (zfx/xml-> z tag)
+        keyval-tag (format-hierarchy tag)
+        [key-tag val-tag] (format-hierarchy keyval-tag)]))
+
+(defn vector-from-zip
+  [z tag]
+  "return a vector of string values created from an XML zip (z) using a tag (tag), representing the vector, that has 0+ children of leaf tags, representing the values"
+  (into [] (zfx/xml-> z tag (format-hierarchy tag) zfx/text)))
+
+(defn job-from-zip
+  "return a new Job instance when given a XML zipper that is currently at a job node"
+  [z]
+  )
+
+(defn set-workflow-from-file
+  "set the current state of the workflow based on an input XML string representation"
+  [file-name]
+  (let [wf-xml-tree (xml-util/xml-file-to-tree file-name)
+        wf-xml-zip (xml-util/xml-tree-to-zip wf-xml-tree)
+        job-zip-seq (zfx/xml-> wf-xml-zip :jobs :job)
+        jobs (for [jz job-zip-seq] (job-from-zip jz))]
+    ))

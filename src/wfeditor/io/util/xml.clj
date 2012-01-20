@@ -32,6 +32,6 @@ taken from http://nakkaya.com/2010/03/27/pretty-printing-xml-with-clojure/"
   [xml-tree]
   (ppxml (tree-to-xml-str xml-tree)))
 
-(def xml-str-to-tree xml/parse)
+(def xml-file-to-tree xml/parse)
 
-(def xml-str-to-zip (comp zip/xml-zip xml/parse))
+(def xml-tree-to-zip zip/xml-zip)
