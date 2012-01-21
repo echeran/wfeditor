@@ -100,22 +100,39 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
 
 (def file-name-load-wf-test "/home/echeran/wfeditor/src/wfeditor/io/file/sample1.xml")
 
+(defn nil-pun-empty-str
+  "if the input is an empty string, return nil.  else, return the input val"
+  [s]
+  (if (and (string? s) (empty? s))
+    nil
+    s))
+
 (defn map-from-zip
   [z tag]
   "return a map of string keys -> string values created from an XML zip (z) using a tag (tag), representing the map, that has children which contain pairs of leaf tags representing the key-value pairs of the map"
-  (let [keyval-seq (zfx/xml-> z tag)
-        keyval-tag (format-hierarchy tag)
-        [key-tag val-tag] (format-hierarchy keyval-tag)]))
+  (let [keyval-tag (format-hierarchy tag)
+        keyval-zip-seq (zfx/xml-> z tag keyval-tag)
+        [key-tag val-tag] (format-hierarchy keyval-tag)]
+    (apply merge
+           (for [keyval keyval-zip-seq]
+             (let [key (first (zfx/xml-> keyval key-tag zfx/text))
+                   val (nil-pun-empty-str (first (zfx/xml-> keyval val-tag zfx/text)))]
+               {key val})))))
 
 (defn vector-from-zip
   [z tag]
   "return a vector of string values created from an XML zip (z) using a tag (tag), representing the vector, that has 0+ children of leaf tags, representing the values"
   (into [] (zfx/xml-> z tag (format-hierarchy tag) zfx/text)))
 
+(defn scalar-from-zip
+  [z tag]
+  "return a scalar, of type string, created from an XML zip (z) within a child tag (tag)"
+  (first (zfx/xml-> z tag zfx/text)))
+
 (defn job-from-zip
   "return a new Job instance when given a XML zipper that is currently at a job node"
   [z]
-  )
+  (let [fields ]))
 
 (defn set-workflow-from-file
   "set the current state of the workflow based on an input XML string representation"
@@ -124,4 +141,5 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
         wf-xml-zip (xml-util/xml-tree-to-zip wf-xml-tree)
         job-zip-seq (zfx/xml-> wf-xml-zip :jobs :job)
         jobs (for [jz job-zip-seq] (job-from-zip jz))]
+    ;; TODO: set Job's id in sequential fashion as the jobs get created
     ))
