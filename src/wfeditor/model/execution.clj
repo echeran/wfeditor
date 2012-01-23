@@ -31,9 +31,11 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
   (flatten
    (for [[opt vals] opts-map]
      (if (or (not vals) (empty? vals))
-       (str opt)      
-       (for [val vals]
-         (string/join opt-val-sep [opt val]))))))
+       (str opt)
+       (if (string? vals)
+         (string/join opt-val-sep [opt vals])
+        (for [val vals]
+          (string/join opt-val-sep [opt val])))))))
 
 (defn opts-str
   "generate a string for a program's command-line options and/or flags, given the options list, as given by opts-list. "
