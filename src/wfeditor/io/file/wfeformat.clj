@@ -98,7 +98,7 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
   [wf]
   (xml-util/tree-to-ppxml-str (xml-tree wf)))
 
-(def file-name-load-wf-test "/home/echeran/wfeditor/src/wfeditor/io/file/sample1.xml")
+(def file-name-load-wf-test "/home/echeran/wfeditor/src/wfeditor/io/file/sample2.xml")
 
 (defn nil-pun-empty-str
   "if the input is an empty string, return nil.  else, return the input val"
@@ -130,7 +130,16 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
   (first (zfx/xml-> z tag zfx/text)))
 
 (defn deps-from-zip
-  [z])
+  "returns the dependencies of job given a job zipper as a vector of job names"
+  [z]
+  (vector-from-zip z :deps))
+
+(defn map-to-flat-vector
+  "return a vector where each key in the map is followed by its value. if function fn is provided, then it will be applied to every vector of key-val pairs"
+  ([map]
+     (map-to-flat-vector map identity))
+  ([map fn]
+      (flatten (into [] (into {} (for [[k v] map] (fn [k v])))))))
 
 (defn job-from-zip
   "return a new Job instance when given a XML zipper that is currently at a job node"
@@ -142,23 +151,47 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
                                      :prog-args (vector-from-zip z field)
                                      :prog-opts (map-from-zip z field)                  
                                      (scalar-from-zip z field)))]
-                           (for [f fields :when (not (#{:job-deps} f))]
+                           (for [f fields :when (not (#{:deps} f))]
                              {f (field-val f)})))
         reqd-fields [:name :prog-exec-loc :prog-args :prog-opts]
         reqd-vals (map #(field-map %) reqd-fields)
         optional-fields (remove (set reqd-fields) fields)
-        optional-field-vals (flatten (into [] (into {} (for [[k v] field-map] (when ((set optional-fields) k) [k v])))))]
+        optional-field-vals (map-to-flat-vector field-map (fn [[k v]] (when ((set optional-fields) k) [k v])))]
     ;; TODO: make sure that required and optional fields match up with
     ;; format-reqd-states map above and
     ;; wfeditor.model.workflow/new-job-fn as well    
     (apply wfeditor.model.workflow/new-job-fn (concat reqd-vals optional-field-vals))))
+
+(defn meta-from-zip
+  "return the meta info of the workflow given an XML zipper of the workflow as a map of tags to values"
+  [z]
+  (when-let [meta-zip (first (zfx/xml-> z :meta))]
+    (let [meta-map (into {} (for [tag [:wf-name :wf-ver :wf-format-ver]] [tag (scalar-from-zip meta-zip tag)]))]
+      (if-let [parent-zip (first (zfx/xml-> meta-zip :parent))]
+        (let [parent-meta-map (into {} (for [tag [:parent-ver :parent-file :parent-hash]] [tag (scalar-from-zip parent-zip tag)]))]
+          (merge meta-map parent-meta-map))
+         meta-map))))
 
 (defn set-workflow-from-file
   "set the current state of the workflow based on an input XML string representation"
   [file-name]
   (let [wf-xml-tree (xml-util/xml-file-to-tree file-name)
         wf-xml-zip (xml-util/xml-tree-to-zip wf-xml-tree)
-        job-zip-seq (zfx/xml-> wf-xml-zip :jobs :job)
-        jobs (for [jz job-zip-seq] (job-from-zip jz))]
+        meta-map (meta-from-zip wf-xml-zip)]
     ;; TODO: set Job's id in sequential fashion as the jobs get created
-    ))
+    (loop [job-zip-seq (zfx/xml-> wf-xml-zip :jobs :job)
+           job-set #{}
+           dep-name-map {}]      
+      (if (empty? job-zip-seq)
+        (let [graph (wf/new-graph-fn :nodes job-set :neighbors (wf/job-dep-map job-set dep-name-map))
+              wf-meta-fields (remove #(= :parent %) (concat (format-hierarchy :meta) (format-hierarchy :parent)))
+              wf-meta-map (into {} (map (fn [k] [k (get meta-map k)]) wf-meta-fields))
+              meta-field-vals (map-to-flat-vector wf-meta-map)
+              wf (apply wfeditor.model.workflow/new-workflow-fn (concat [:graph graph] meta-field-vals))]
+          (dosync
+           (ref-set wf/wf wf)))
+        (let [jz (first job-zip-seq)
+              job (job-from-zip jz)
+              job-name (:name job)
+              job-deps (deps-from-zip jz)]
+          (recur (rest job-zip-seq) (conj job-set job) (assoc dep-name-map job-name job-deps)))))))
