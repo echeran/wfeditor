@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <workflow>
+  <meta>
+    <wf-name>sample 1</wf-name>
+    <wf-ver>1.2</wf-ver>
+    <wf-format-ver>1.0</wf-format-ver>
+  </meta>
   <jobs>
     <job>
       <name>dir-contents</name>

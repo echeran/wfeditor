@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <workflow>
+  <meta>
+    <wf-name>sample 1</wf-name>
+    <wf-ver>1.3</wf-ver>
+    <wf-format-ver>1.0</wf-format-ver>
+    <parent>
+      <parent-ver>1.2</parent-ver>
+      <parent-file>/home/echeran/wfeditor/src/wfeditor/io/file/sample1.xml</parent-file>
+      <parent-hash>1bf50a9a9a11381de0b121f872483a4139c233e8</parent-hash>
+    </parent>
+  </meta>
   <jobs>
     <job>
       <name>dir-contents</name>
