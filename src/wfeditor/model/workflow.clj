@@ -50,10 +50,15 @@ note: this is the reverse of the dep-graph"
   []
   (contrib-graph/reverse-graph (dep-graph)))
 
+(defn wf-jobs
+  "return the set of jobs in the workflow"
+  []
+  (:nodes (dep-graph)))
+
 (defn get-job-by-id
   "returns first node containing the provided id"
   ([id]
-     (get-job-by-id (:nodes (dep-graph)) id))
+     (get-job-by-id (wf-jobs) id))
   ([jobs id]
       (when (seq jobs)
         (some #(when (= id (:id %)) %) jobs))))
@@ -61,7 +66,7 @@ note: this is the reverse of the dep-graph"
 (defn get-job-by-field
   "returns first node containing the provided field and value, where field is given a keyword"
   ([field val]
-     (get-job-by-id (:nodes (dep-graph)) field val))
+     (get-job-by-id (wf-jobs) field val))
   ([jobs field val]
       (when (seq jobs)
         (some #(when (= val (field %)) %) jobs))))
@@ -114,11 +119,11 @@ id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file deps"
 
 (defn job-dep-map
   "return a map that (due to Clojure rules for maps) serves as a function returning which jobs are dependent upon the input job / key.  the input is an adjacency list implemented as a map of names to lists of names"
-  ([id-dep-map]
-     (job-dep-map (:nodes (dep-graph)) id-dep-map))
-  ([jobs id-dep-map]
+  ([name-dep-map]
+     (job-dep-map (wf-jobs) name-dep-map))
+  ([jobs name-dep-map]
      (into {}
-           (for [[key vals] id-dep-map]
+           (for [[key vals] name-dep-map]
              [(get-job-by-field jobs :name key) (for [v vals] (get-job-by-field jobs :name v))]))))
 
 (defn- init-clj-graph
