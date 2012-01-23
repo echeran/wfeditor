@@ -135,15 +135,15 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
 (defn job-from-zip
   "return a new Job instance when given a XML zipper that is currently at a job node"
   [z]
-  (let [field-map (let [fields (format-hierarchy :job)]
-                    (apply merge
-                           (letfn [(field-val [field]
-                                     (condp = field
-                                       :prog-args (vector-from-zip z field)
-                                       :prog-opts (map-from-zip z field)                  
-                                       (scalar-from-zip z field)))]
-                             (for [f fields :when (not (#{:job-deps} f))]
-                               {f (field-val f)}))))
+  (let [fields (format-hierarchy :job)
+        field-map (apply merge
+                         (letfn [(field-val [field]
+                                   (condp = field
+                                     :prog-args (vector-from-zip z field)
+                                     :prog-opts (map-from-zip z field)                  
+                                     (scalar-from-zip z field)))]
+                           (for [f fields :when (not (#{:job-deps} f))]
+                             {f (field-val f)})))
         reqd-fields [:name :prog-exec-loc :prog-args :prog-opts]
         reqd-vals (map #(field-map %) reqd-fields)
         optional-fields (remove (set reqd-fields) fields)
