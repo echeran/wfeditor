@@ -8,9 +8,9 @@
 
 (def format-reqd-states {:workflow :reqd
                          :wf-name :req-when-parent, :wf-ver :req-when-parent, :wf-format-ver :req-when-parent, :name :req-when-parent, :prog-exec-loc :req-when-parent, :prog-args :req-when-parent, :prog-opts :req-when-parent, :flag :req-when-parent, :val :req-when-parent, :dep :req-when-parent
-                         :meta nil, :parent nil, :parent-ver nil, :parent-file nil, :parent-hash nil, :jobs nil, :job nil, :desc nil, :prog-name nil, :prog-ver nil, :prog-exec-ver nil, :arg nil, :op nil, :std-out-file nil, :std-err-file nil, :deps nil})
+                         :meta nil, :parent nil, :parent-ver nil, :parent-file nil, :parent-hash nil, :jobs nil, :job nil, :id nil :desc nil, :prog-name nil, :prog-ver nil, :prog-exec-ver nil, :arg nil, :op nil, :std-out-file nil, :std-err-file nil, :deps nil})
 
-(def format-hierarchy {:workflow [:meta :jobs], :meta [:wf-name :wf-ver :wf-format-ver :parent], :parent [:parent-ver :parent-file :parent-hash], :jobs :job, :job [:name :desc :prog-name :prog-ver :prog-exec-loc :prog-exec-ver :prog-args :prog-opts :std-out-file :std-err-file :job-deps], :prog-args :arg, :prog-opts :opt, :opt [:flag :val], :deps :dep})
+(def format-hierarchy {:workflow [:meta :jobs], :meta [:wf-name :wf-ver :wf-format-ver :parent], :parent [:parent-ver :parent-file :parent-hash], :jobs :job, :job [:id :name :desc :prog-name :prog-ver :prog-exec-loc :prog-exec-ver :prog-args :prog-opts :std-out-file :std-err-file :job-deps], :prog-args :arg, :prog-opts :opt, :opt [:flag :val], :deps :dep})
 
 (defn- remove-fn
   "use this function to prune null/empty non-essential info being represented in a XML tree reprsentation"
@@ -129,10 +129,29 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
   "return a scalar, of type string, created from an XML zip (z) within a child tag (tag)"
   (first (zfx/xml-> z tag zfx/text)))
 
+(defn deps-from-zip
+  [z])
+
 (defn job-from-zip
   "return a new Job instance when given a XML zipper that is currently at a job node"
   [z]
-  (let [fields ]))
+  (let [field-map (let [fields (format-hierarchy :job)]
+                    (apply merge
+                           (letfn [(field-val [field]
+                                     (condp = field
+                                       :prog-args (vector-from-zip z field)
+                                       :prog-opts (map-from-zip z field)                  
+                                       (scalar-from-zip z field)))]
+                             (for [f fields :when (not (#{:job-deps} f))]
+                               {f (field-val f)}))))
+        reqd-fields [:name :prog-exec-loc :prog-args :prog-opts]
+        reqd-vals (map #(field-map %) reqd-fields)
+        optional-fields (remove (set reqd-fields) fields)
+        optional-field-vals (flatten (into [] (into {} (for [[k v] field-map] (when ((set optional-fields) k) [k v])))))]
+    ;; TODO: make sure that required and optional fields match up with
+    ;; format-reqd-states map above and
+    ;; wfeditor.model.workflow/new-job-fn as well    
+    (apply wfeditor.model.workflow/new-job-fn (concat reqd-vals optional-field-vals))))
 
 (defn set-workflow-from-file
   "set the current state of the workflow based on an input XML string representation"
