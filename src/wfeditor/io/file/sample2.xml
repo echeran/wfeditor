@@ -151,6 +151,10 @@
       <prog-exec-loc>sort</prog-exec-loc>
       <prog-args/>
       <prog-opts/>
+      <deps>
+        <dep>sq-sum-pr</dep>
+        <dep>sum-pr</dep>
+      </deps>
     </job>
   </jobs>
 </workflow>
