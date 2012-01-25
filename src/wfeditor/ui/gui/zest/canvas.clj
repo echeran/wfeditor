@@ -13,6 +13,10 @@
    org.eclipse.zest.layouts.LayoutStyles
    org.eclipse.swt.layout.GridData))
 
+;; a ref to hold the GraphViewer object that maintains the state of
+;; the Zest GEF canvas
+(def gv (ref nil))
+
 (defn graph-viewer-layout
   "create and return the layout algorithm used for the graph viewer"
   []
@@ -22,6 +26,14 @@
         tree-layout ^LayoutAlgorithm (TreeLayoutAlgorithm. style)]
     (CompositeLayoutAlgorithm. style (into-array LayoutAlgorithm [tree-layout ]))
     ))
+
+(defn set-graph-jobs
+  "give a collection of workflow Job's to be set as the new canvas graph content. subsequently, refresh the graph"
+  [jobs]
+  (let [jarr-input (into-array jobs)]
+      (dosync
+       (ref-set gv jarr-input)
+       (alter gv #(.applyLayout %)))))
 
 (defn graph-viewer-create
   "create (but don't return?) the Zest GraphViewer object creating the whole Zest canvas"
@@ -42,4 +54,5 @@
       (.setInput jarr-init-input)
       (.setLayoutAlgorithm layout true)
       (.applyLayout))
-    ))
+    (dosync
+     (ref-set gv viewer))))
