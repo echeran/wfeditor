@@ -41,19 +41,25 @@
 
 (defn dep-graph
   "return the current state of the workflow graph, i.e. job dependency graph, i.e. Job objs as nodes and dependencies represented as the function"
-  []
-  (:graph @wf))
+  ([]
+     (dep-graph @wf))
+  ([wf]
+     (:graph wf)))
 
 (defn flow-graph
   "return the reverse of the workflow graph, i.e., representing the 'flow' of data between jobs instead of dependencies between jobs.
 note: this is the reverse of the dep-graph"
-  []
-  (contrib-graph/reverse-graph (dep-graph)))
+  ([]
+     (flow-graph @wf))
+  ([wf]
+     (contrib-graph/reverse-graph (dep-graph wf))))
 
 (defn wf-jobs
   "return the set of jobs in the workflow"
-  []
-  (:nodes (dep-graph)))
+  ([]
+     (wf-jobs @wf))
+  ([wf]
+     (:nodes (dep-graph wf))))
 
 (defn get-job-by-id
   "returns first node containing the provided id"
