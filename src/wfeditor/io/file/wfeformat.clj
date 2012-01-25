@@ -2,9 +2,13 @@
   (:require [wfeditor.io.util.xml :as xml-util]
             [wfeditor.model.workflow :as wf]
             [clojure.string :as string]
-            [clojure.contrib.zip-filter.xml :as zfx])
+            [clojure.contrib.zip-filter.xml :as zfx]
+            [wfeditor.ui.gui.zest.canvas :as canvas])
   (:import [wfeditor.model.workflow Job Workflow]))
 
+
+(def file-filter-extensions ["*.xml"])
+(def file-filter-names ["Extensible Markup Language (XML) Files"])
 
 (def format-reqd-states {:workflow :reqd
                          :wf-name :req-when-parent, :wf-ver :req-when-parent, :wf-format-ver :req-when-parent, :name :req-when-parent, :prog-exec-loc :req-when-parent, :prog-args :req-when-parent, :prog-opts :req-when-parent, :flag :req-when-parent, :val :req-when-parent, :dep :req-when-parent
@@ -98,8 +102,6 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
   [wf]
   (xml-util/tree-to-ppxml-str (xml-tree wf)))
 
-(def file-name-load-wf-test "/home/echeran/wfeditor/src/wfeditor/io/file/sample2.xml")
-
 (defn nil-pun-empty-str
   "if the input is an empty string, return nil.  else, return the input val"
   [s]
@@ -172,8 +174,8 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
           (merge meta-map parent-meta-map))
          meta-map))))
 
-(defn set-workflow-from-file
-  "set the current state of the workflow based on an input XML string representation"
+(defn workflow-from-file
+  "return a workflow based on an input XML string representation"
   [file-name]
   (let [wf-xml-tree (xml-util/xml-file-to-tree file-name)
         wf-xml-zip (xml-util/xml-tree-to-zip wf-xml-tree)
@@ -188,10 +190,31 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
               wf-meta-map (into {} (map (fn [k] [k (get meta-map k)]) wf-meta-fields))
               meta-field-vals (map-to-flat-vector wf-meta-map)
               wf (apply wfeditor.model.workflow/new-workflow-fn (concat [:graph graph] meta-field-vals))]
-          (dosync
-           (ref-set wf/wf wf)))
+          wf)
         (let [jz (first job-zip-seq)
               job (job-from-zip jz)
               job-name (:name job)
               job-deps (deps-from-zip jz)]
           (recur (rest job-zip-seq) (conj job-set job) (assoc dep-name-map job-name job-deps)))))))
+
+(defn set-workflow
+  "set the current state of the workflow.  also, update the canvas graph accordingly"
+  [wf]
+  (letfn [(set-viewer-input [viewer input] (.setInput viewer input)) ]
+    (println "jobs=" (map #(get % :name) (wf/wf-jobs)))
+    (dosync
+     (ref-set wf/wf wf) 
+     (let [new-jobs (wf/wf-jobs wf)
+           new-jarr-input (into-array new-jobs)]
+       ;; (println "workflow loaded=" (workflow-to-string @wf/wf))
+       ;; (println "(count jobs)=" (count new-jobs))
+       ;; (println "jobs=" (map #(get % :name) new-jobs))
+       (alter canvas/gv set-viewer-input new-jarr-input)
+       ;; (println "jobs=" (map #(get % :name) new-jobs))
+       ))))
+
+(defn set-workflow-from-file
+  "set the current state of the workflow based on an input XML string representation"
+  [file-name]
+  (let [wf (workflow-from-file file-name)]
+    (set-workflow wf)))
