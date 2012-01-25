@@ -12,7 +12,7 @@
    org.eclipse.jface.window.ApplicationWindow
    org.eclipse.swt.SWT
    (org.eclipse.swt.layout FillLayout FormLayout FormData FormAttachment GridLayout GridData)
-   (org.eclipse.swt.widgets Display Shell Label Button Sash Composite)
+   (org.eclipse.swt.widgets Display Shell Label Button Sash Composite FileDialog)
    (org.eclipse.swt.events SelectionEvent SelectionAdapter)
    (org.eclipse.draw2d.geometry Rectangle Point)
    ;; (org.eclipse.swt.graphics Rectangle Point) have to comment this
@@ -31,13 +31,22 @@
   (dorun (map #(.setText (Button. parent style) %1) names)))
 
 
+;; TODO: move this function to a gui.util namespace
+;; TODO: also, create a one-stop, new widget convenience utility to end them all
+;; i that namespace
+(defn get-ancestor-shell
+  "return the ancestor shell of the provided widget / element, or else nil"
+  [widget]
+  (cond
+   (isa? (class widget) org.eclipse.swt.widgets.Shell) widget
+   (isa? (class widget) org.eclipse.jface.window.Window) (.getShell widget)
+   :else (when-let [parent (.getParent widget)] (get-ancestor-shell parent))))
+
 (defn ui-editor-left-create [parent]
   (let [label1 (new Label parent SWT/CENTER)
         run-wf-button (new-widget Button parent SWT/PUSH)
         print-wf-button (new-widget Button parent SWT/PUSH)
-        comp1 (new Composite parent SWT/BORDER)
-        load-wf-label (new Label comp1 SWT/CENTER)
-        load-wf-button (new-widget Button comp1 SWT/PUSH)
+        load-wf-button (new-widget Button parent SWT/PUSH)
         label2 (Label. parent  SWT/CENTER)
         save-wf-button (new-widget Button parent SWT/PUSH)]
     (do
@@ -57,20 +66,25 @@
                                  []
                                (widgetSelected [event]
                                  (println (fformat/workflow-to-string (wflow/workflow)))))))
-    (doto comp1
-      (.setLayout (FillLayout. SWT/VERTICAL)))
-    (doto load-wf-label
-      (.setText (str "Load test file at: " fformat/file-name-load-wf-test)))
     (doto load-wf-button
       (.setText "Load workflow")
       (.addSelectionListener (proxy [SelectionAdapter]
                                  []
                                (widgetSelected [event]
-                                 (fformat/set-workflow-from-file fformat/file-name-load-wf-test)))))
+                                 (let [fd (new FileDialog (get-ancestor-shell parent) SWT/OPEN)
+                                       in-file-name (.open fd)]
+                                   (println "in-file will be:" in-file-name)
+                                   (fformat/set-workflow-from-file in-file-name))))))
     (doto label2
       (.setText "Testing/non-working button(s)"))
     (doto save-wf-button
-      (.setText "Save workflow?"))
+      (.setText "Save workflow?")
+      (.addSelectionListener (proxy [SelectionAdapter]
+                                 []
+                               (widgetSelected [event]
+                                 (let [fd (FileDialog. (get-ancestor-shell parent) SWT/SAVE)
+                                       out-file-name (.open fd)]
+                                   (println "out-file will be: " out-file-name))))))
     (create-widgets-with-names parent Button SWT/PUSH ["one" "two" "three"])
     (do
       (.setLayout parent (FillLayout. SWT/VERTICAL))
