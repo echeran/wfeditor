@@ -67,4 +67,9 @@
         ;; have to convert the Clojure seq into a Java array to make
         ;; the Java classes of GEF/Zest happy
         Job (to-array (wflow/dependent-upon entity))
-        (RuntimeException. "Type not supported")))))
+        (RuntimeException. "Type not supported")))
+    (getElements [input]
+      ;; assume the input parameter is an array of the Job objects in
+      ;; the canvas
+      (to-array input)
+      )))
