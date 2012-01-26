@@ -47,8 +47,8 @@
         run-wf-button (new-widget Button parent SWT/PUSH)
         print-wf-button (new-widget Button parent SWT/PUSH)
         load-wf-button (new-widget Button parent SWT/PUSH)
-        label2 (Label. parent  SWT/CENTER)
-        save-wf-button (new-widget Button parent SWT/PUSH)]
+        save-wf-button (new-widget Button parent SWT/PUSH)
+        label2 (Label. parent  SWT/CENTER)]
     (do
       (.setLayout parent (FillLayout. SWT/VERTICAL)))
     (doto label1
@@ -71,19 +71,19 @@
       (.addSelectionListener (proxy [SelectionAdapter]
                                  []
                                (widgetSelected [event]
-                                 (let [fd (new FileDialog (get-ancestor-shell parent) SWT/OPEN)
-                                       in-file-name (.open fd)]
-                                   (fformat/set-workflow-from-file in-file-name))))))
-    (doto label2
-      (.setText "Testing/non-working button(s)"))
+                                 (let [fd (new FileDialog (get-ancestor-shell parent) SWT/OPEN)]
+                                   (when-let [in-file-name (.open fd)]
+                                     (fformat/set-workflow-from-file in-file-name)))))))
     (doto save-wf-button
-      (.setText "Save workflow?")
+      (.setText "Save workflow")
       (.addSelectionListener (proxy [SelectionAdapter]
                                  []
                                (widgetSelected [event]
-                                 (let [fd (FileDialog. (get-ancestor-shell parent) SWT/SAVE)
-                                       out-file-name (.open fd)]
-                                   (println "out-file will be: " out-file-name))))))
+                                 (let [fd (FileDialog. (get-ancestor-shell parent) SWT/SAVE)]
+                                   (when-let [out-file-name (.open fd)]
+                                     (fformat/save-workflow-to-file (wflow/workflow) out-file-name)))))))
+    (doto label2
+      (.setText "Testing/non-working button(s)"))
     (create-widgets-with-names parent Button SWT/PUSH ["one" "two" "three"])
     (do
       (.setLayout parent (FillLayout. SWT/VERTICAL))
