@@ -73,7 +73,6 @@
                                (widgetSelected [event]
                                  (let [fd (new FileDialog (get-ancestor-shell parent) SWT/OPEN)
                                        in-file-name (.open fd)]
-                                   (println "in-file will be:" in-file-name)
                                    (fformat/set-workflow-from-file in-file-name))))))
     (doto label2
       (.setText "Testing/non-working button(s)"))

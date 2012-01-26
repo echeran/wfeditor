@@ -30,10 +30,14 @@
 (defn set-graph-jobs
   "give a collection of workflow Job's to be set as the new canvas graph content. subsequently, refresh the graph"
   [jobs]
-  (let [jarr-input (into-array jobs)]
-      (dosync
-       (ref-set gv jarr-input)
-       (alter gv #(.applyLayout %)))))
+  (let [jarr-input (into-array jobs)
+        return-viewer-with-new-input-fn (fn [viewer input]
+                                          (.setInput viewer input)
+                                          ;; since using in alter
+                                          ;; statement, have to return viewer
+                                          viewer)]
+    (dosync
+     (alter gv return-viewer-with-new-input-fn jarr-input))))
 
 (defn graph-viewer-create
   "create (but don't return?) the Zest GraphViewer object creating the whole Zest canvas"

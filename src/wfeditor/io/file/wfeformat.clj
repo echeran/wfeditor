@@ -200,18 +200,9 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
 (defn set-workflow
   "set the current state of the workflow.  also, update the canvas graph accordingly"
   [wf]
-  (letfn [(set-viewer-input [viewer input] (.setInput viewer input)) ]
-    (println "jobs=" (map #(get % :name) (wf/wf-jobs)))
-    (dosync
-     (ref-set wf/wf wf) 
-     (let [new-jobs (wf/wf-jobs wf)
-           new-jarr-input (into-array new-jobs)]
-       ;; (println "workflow loaded=" (workflow-to-string @wf/wf))
-       ;; (println "(count jobs)=" (count new-jobs))
-       ;; (println "jobs=" (map #(get % :name) new-jobs))
-       (alter canvas/gv set-viewer-input new-jarr-input)
-       ;; (println "jobs=" (map #(get % :name) new-jobs))
-       ))))
+  (dosync
+   (ref-set wf/wf wf)
+   (canvas/set-graph-jobs (wf/wf-jobs wf))))
 
 (defn set-workflow-from-file
   "set the current state of the workflow based on an input XML string representation"
