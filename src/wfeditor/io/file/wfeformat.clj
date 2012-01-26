@@ -21,17 +21,6 @@
   [obj]
   (or (nil? obj) (and (coll? obj) (empty? obj)) (and (string? obj) (empty? obj))))
 
-(defn xml-tree-leaf
-  "create a leaf node in the XML tree if the tag has content or is required, but return nil if the node is empty and optional"
-  ([tag attrs content]
-     (xml-tree-leaf tag attrs content (format-reqd-states tag)))
-  ([tag attrs content reqd]
-      (let []
-        (if (and (not reqd) (remove-fn content))
-          nil
-          (if (remove-fn content)
-            {:tag tag :attrs nil :content []}
-            {:tag tag :attrs nil :content [content]})))))
 
 ;; TODO: create test case that asserts that all of the fields that are
 ;; children of the :job type in format-hierarchy are present in the
@@ -40,7 +29,7 @@
 ;; statuses in format-reqd-states match with new-job-fn and/or
 ;; pre-post condition checks
 
-(defn xml-subtree
+(defn- xml-subtree
   "helper method for creating XML trees to represent values stored in WFE types.
 assumes that no attributes are present in any of the tags. (this is acceptable for WFE since attributes are eschewed and substituted by representing them as child elements.)"
   [tag val]
@@ -102,14 +91,14 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
   [wf]
   (xml-util/tree-to-ppxml-str (xml-tree wf)))
 
-(defn nil-pun-empty-str
+(defn- nil-pun-empty-str
   "if the input is an empty string, return nil.  else, return the input val"
   [s]
   (if (and (string? s) (empty? s))
     nil
     s))
 
-(defn map-from-zip
+(defn- map-from-zip
   [z tag]
   "return a map of string keys -> string values created from an XML zip (z) using a tag (tag), representing the map, that has children which contain pairs of leaf tags representing the key-value pairs of the map"
   (let [keyval-tag (format-hierarchy tag)
@@ -121,29 +110,29 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
                    val (nil-pun-empty-str (first (zfx/xml-> keyval val-tag zfx/text)))]
                {key val})))))
 
-(defn vector-from-zip
+(defn- vector-from-zip
   [z tag]
   "return a vector of string values created from an XML zip (z) using a tag (tag), representing the vector, that has 0+ children of leaf tags, representing the values"
   (into [] (zfx/xml-> z tag (format-hierarchy tag) zfx/text)))
 
-(defn scalar-from-zip
+(defn- scalar-from-zip
   [z tag]
   "return a scalar, of type string, created from an XML zip (z) within a child tag (tag)"
   (first (zfx/xml-> z tag zfx/text)))
 
-(defn deps-from-zip
+(defn- deps-from-zip
   "returns the dependencies of job given a job zipper as a vector of job names"
   [z]
   (vector-from-zip z :deps))
 
-(defn map-to-flat-vector
+(defn- map-to-flat-vector
   "return a vector where each key in the map is followed by its value. if function fn is provided, then it will be applied to every vector of key-val pairs"
   ([map]
      (map-to-flat-vector map identity))
   ([map fn]
       (flatten (into [] (into {} (for [[k v] map] (fn [k v])))))))
 
-(defn job-from-zip
+(defn- job-from-zip
   "return a new Job instance when given a XML zipper that is currently at a job node"
   [z]
   (let [fields (format-hierarchy :job)
@@ -164,7 +153,7 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
     ;; wfeditor.model.workflow/new-job-fn as well    
     (apply wfeditor.model.workflow/new-job-fn (concat reqd-vals optional-field-vals))))
 
-(defn meta-from-zip
+(defn- meta-from-zip
   "return the meta info of the workflow given an XML zipper of the workflow as a map of tags to values"
   [z]
   (when-let [meta-zip (first (zfx/xml-> z :meta))]
@@ -174,13 +163,16 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
           (merge meta-map parent-meta-map))
          meta-map))))
 
-(defn workflow-from-file
+(defn- workflow-from-file
   "return a workflow based on an input XML string representation"
   [file-name]
   (let [wf-xml-tree (xml-util/xml-file-to-tree file-name)
         wf-xml-zip (xml-util/xml-tree-to-zip wf-xml-tree)
         meta-map (meta-from-zip wf-xml-zip)]
-    ;; TODO: set Job's id in sequential fashion as the jobs get created
+    ;; TODO: set Job's id (internal id's) in sequential fashion as the
+    ;; jobs get created
+    ;; TODO: once Job id's set in sequential fashion, print Jobs in
+    ;; workflow XML in order of increasing internal Job id
     (loop [job-zip-seq (zfx/xml-> wf-xml-zip :jobs :job)
            job-set #{}
            dep-name-map {}]      
@@ -209,3 +201,8 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
   [file-name]
   (let [wf (workflow-from-file file-name)]
     (set-workflow wf)))
+
+(defn save-workflow-to-file
+  "save (using spit) the contents of the workflow object (wf) to the file provided (file-name) or create it if it doesn't exist"
+  [wf file-name]
+  (spit file-name (workflow-to-string wf)))
