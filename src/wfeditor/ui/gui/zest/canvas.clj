@@ -17,6 +17,20 @@
 ;; the Zest GEF canvas
 (def gv (ref nil))
 
+(add-watch wflow/wf :re-bind (fn [key r old new]
+                         (let [jarr-input (into-array (wflow/wf-jobs new))
+                               return-viewer-with-new-input-fn (fn [viewer input]
+                                          (.setInput viewer input)
+                                          ;; since using in alter
+                                          ;; statement, have to return viewer
+                                          viewer)]
+                           (dosync
+                            (alter gv return-viewer-with-new-input-fn jarr-input)))))
+
+;;
+;; functions
+;;
+
 (defn graph-viewer-layout
   "create and return the layout algorithm used for the graph viewer"
   []

@@ -193,8 +193,7 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
   "set the current state of the workflow.  also, update the canvas graph accordingly"
   [wf]
   (dosync
-   (ref-set wf/wf wf)
-   (canvas/set-graph-jobs (wf/wf-jobs wf))))
+   (ref-set wf/wf wf)))
 
 (defn set-workflow-from-file
   "set the current state of the workflow based on an input XML string representation"
