@@ -17,6 +17,10 @@
 ;; the Zest GEF canvas
 (def gv (ref nil))
 
+;; repainting of the canvas happens automatically whenever the
+;; workflow object changes value, using the add-watch mechanism. we
+;; have to trust that following this add-watch, the graphviewer gets
+;; instantiated before the workflow changes
 (add-watch wflow/wf :re-bind (fn [key r old new]
                          (let [jarr-input (into-array (wflow/wf-jobs new))
                                return-viewer-with-new-input-fn (fn [viewer input]
