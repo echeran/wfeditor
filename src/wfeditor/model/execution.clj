@@ -1,6 +1,6 @@
 (ns wfeditor.model.execution
   (:use [clojure.contrib.graph :as contrib-graph]
-        wfeditor.model.workflow
+        [wfeditor.model.workflow :as wflow]
         popen)
   (:require [clojure.string :as string])
   (:import wfeditor.model.workflow.Job))
@@ -52,11 +52,16 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
         opts-str (opts-str opts)]
     (string/join sep [exec opts-str args-str])))
 
+(defn wf-complex-command
+  "return the command necessary to run all jobs in a more complex graph (has branching and mergine)"
+  [wf]
+  (let [dep-graph ()]))
+
 (defn wf-command
   "return the command(s) necessary to run all of the jobs in the workflow according to the dependencies specified.  this assumes that there is only one path in the dependency graph
 TODO: extend this to handle a dependency graph with branches"
   [wf]
-  (let [dep-graph (contrib-graph/reverse-graph wf)
+  (let [dep-graph (wflow/dep-graph wf)
         dep-levels (contrib-graph/dependency-list dep-graph)
         wf-comm (string/join job-comm-sep (map (comp job-command first) dep-levels))]
     wf-comm))

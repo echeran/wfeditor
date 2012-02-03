@@ -59,7 +59,7 @@
       (.addSelectionListener (proxy [SelectionAdapter]
                                  []
                                (widgetSelected [event]
-                                 (mexec/run-workflow (wflow/flow-graph))))))
+                                 (mexec/run-workflow (wflow/workflow))))))
     (doto print-wf-button
       (.setText "Print workflow")
       (.addSelectionListener (proxy [SelectionAdapter]
