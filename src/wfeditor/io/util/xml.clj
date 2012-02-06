@@ -17,6 +17,8 @@ taken from http://nakkaya.com/2010/03/27/pretty-printing-xml-with-clojure/"
                      (javax.xml.transform.TransformerFactory/newInstance))]
     (.setOutputProperty transformer javax.xml.transform.OutputKeys/INDENT "yes")
     (.setOutputProperty transformer "{http://xml.apache.org/xslt}indent-amount" "2")
+    ;; TODO: change the following line from "xml" to "text" to see if > does
+    ;; not get changed to &gt;
     (.setOutputProperty transformer javax.xml.transform.OutputKeys/METHOD "xml")
     (.transform transformer in out)
     (-> out .getWriter .toString)))
