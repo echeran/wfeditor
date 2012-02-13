@@ -1,6 +1,6 @@
 (ns wfeditor.ui.gui.zest.providers
   (:require [wfeditor.model.workflow :as wflow]
-            [wfeditor.model.execution :as mexec])
+            [wfeditor.io.execution :as exec])
   ;; need to import the Clojure defrecord, etc. (Java-interop types)
   ;; as according to
   ;; http://dbostwick.posterous.com/using-clojures-deftype-and-defrecord-and-name
@@ -41,7 +41,7 @@
       nil)
     (getTooltip [entity]
       (if (= (class entity) wfeditor.model.workflow.Job)
-        (Label. (mexec/job-command entity))
+        (Label. (exec/job-command entity))
         nil))
     (fisheyeNode [entity]
       false)

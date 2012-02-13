@@ -4,8 +4,7 @@
   (:gen-class)
   (:require clojure.tools.cli)
   (:require wfeditor.ui.gui.core
-            [wfeditor.model.workflow :as wflow]
-            [wfeditor.model.execution :as mexec])
+            [wfeditor.model.workflow :as wflow])
   (:import
    org.eclipse.swt.widgets.Display))
 

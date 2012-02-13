@@ -6,7 +6,7 @@
   ;; (:require wfeditor.ui.gui.d2dcanvas)
   (:require wfeditor.ui.gui.zest.canvas
             [wfeditor.model.workflow :as wflow]
-            [wfeditor.model.execution :as mexec]
+            [wfeditor.io.execution :as exec]
             [wfeditor.io.file.wfeformat :as fformat])
   (:import
    org.eclipse.jface.window.ApplicationWindow
@@ -59,7 +59,7 @@
       (.addSelectionListener (proxy [SelectionAdapter]
                                  []
                                (widgetSelected [event]
-                                 (mexec/print-wf-command (wflow/workflow))))))
+                                 (exec/print-wf-command (wflow/workflow))))))
     (doto print-wf-button
       (.setText "Print workflow")
       (.addSelectionListener (proxy [SelectionAdapter]

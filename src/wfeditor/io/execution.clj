@@ -1,4 +1,4 @@
-(ns wfeditor.model.execution
+(ns wfeditor.io.execution
   (:require [clojure.contrib.graph :as contrib-graph]
         [wfeditor.model.workflow :as wflow]
         [clojure.string :as string]
