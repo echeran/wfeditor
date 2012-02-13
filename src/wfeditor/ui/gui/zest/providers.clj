@@ -5,7 +5,7 @@
   ;; as according to
   ;; http://dbostwick.posterous.com/using-clojures-deftype-and-defrecord-and-name
   (:import
-   [wfeditor.model.workflow Job Dependency]
+   [wfeditor.model.workflow Job]
    org.eclipse.jface.viewers.LabelProvider
    org.eclipse.zest.core.viewers.EntityConnectionData
    org.eclipse.jface.viewers.ArrayContentProvider
@@ -21,7 +21,6 @@
     (getText [element]
       (condp = (class element)
         Job (:name element)
-        Dependency (:label element)
         EntityConnectionData ""
         (str "Wrong type: " (str (class element)))))
     ;; IEntityStyleProvider methods
