@@ -76,7 +76,7 @@
       <prog-opts>
         <opt>
           <flag>-lane</flag>
-          <val>'puts "C. sqrt of sum of files (" + $F[0] + ") is " + Math.sqrt($F[0]).to_s'</val>
+          <val>'puts "C. sqrt of sum of files (" + $F[0] + ") is " + Math.sqrt($F[0].to_i).to_s'</val>
         </opt>
       </prog-opts>
       <deps>
