@@ -48,6 +48,7 @@
         print-wf-button (new-widget Button parent SWT/PUSH)
         load-wf-button (new-widget Button parent SWT/PUSH)
         save-wf-button (new-widget Button parent SWT/PUSH)
+        complex-print-wf-button (new-widget Button parent SWT/PUSH)
         label2 (Label. parent  SWT/CENTER)]
     (do
       (.setLayout parent (FillLayout. SWT/VERTICAL)))
@@ -83,6 +84,12 @@
                                  (let [fd (FileDialog. (get-ancestor-shell parent) SWT/SAVE)]
                                    (when-let [out-file-name (.open fd)]
                                      (fformat/save-workflow-to-file (wflow/workflow) out-file-name)))))))
+    (doto complex-print-wf-button
+      (.setText "Print complex workflow")
+      (.addSelectionListener (proxy [SelectionAdapter]
+                                 []
+                               (widgetSelected [event]
+                                 (println (exec/wf-complex-command-2 (wflow/workflow)))))))
     (doto label2
       (.setText "Testing/non-working button(s)"))
     (create-widgets-with-names parent Button SWT/PUSH ["one" "two" "three"])
