@@ -48,7 +48,8 @@
         print-wf-button (new-widget Button parent SWT/PUSH)
         load-wf-button (new-widget Button parent SWT/PUSH)
         save-wf-button (new-widget Button parent SWT/PUSH)
-        complex-print-wf-button (new-widget Button parent SWT/PUSH)
+        complex-2-print-wf-button (new-widget Button parent SWT/PUSH)
+        complex-4-print-wf-button (new-widget Button parent SWT/PUSH)
         label2 (Label. parent  SWT/CENTER)]
     (do
       (.setLayout parent (FillLayout. SWT/VERTICAL)))
@@ -84,12 +85,33 @@
                                  (let [fd (FileDialog. (get-ancestor-shell parent) SWT/SAVE)]
                                    (when-let [out-file-name (.open fd)]
                                      (fformat/save-workflow-to-file (wflow/workflow) out-file-name)))))))
-    (doto complex-print-wf-button
-      (.setText "Print complex workflow")
+    (doto complex-2-print-wf-button
+      (.setText "Print complex workflow 2")
       (.addSelectionListener (proxy [SelectionAdapter]
                                  []
                                (widgetSelected [event]
                                  (println (exec/wf-complex-command-2 (wflow/workflow)))))))
+    (doto complex-4-print-wf-button
+      (.setText "Print complex workflow 4")
+      (.addSelectionListener (proxy [SelectionAdapter]
+                                 []
+                               (widgetSelected [event]
+                                 (let [[final-job cumul-cmds future-cmds] (exec/wf-complex-command-4 (wflow/workflow))]
+                                   (println "final job= " (:name final-job))
+                                   (println "cumul cmds= " cumul-cmds)
+                                   (println "cumul cmd of final job= " (get cumul-cmds final-job))
+                                   (println "")
+                                   (doseq [[job cumul-cmd] cumul-cmds]
+                                     (dorun
+                                      (println "job= " job)
+                                      (println "job's cum. cmd= " cumul-cmd)))
+                                   (println "")
+                                   (doseq [[job future-cmd] future-cmds]
+                                     (dorun
+                                      (println "job=" job)
+                                      (println "job's fut. cmd= " future-cmd)))
+
+                                   )))))
     (doto label2
       (.setText "Testing/non-working button(s)"))
     (create-widgets-with-names parent Button SWT/PUSH ["one" "two" "three"])

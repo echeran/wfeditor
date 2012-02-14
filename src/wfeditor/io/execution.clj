@@ -80,18 +80,115 @@ TODO: extend this to handle a dependency graph with branches"
     wf-comm))
 
 
+(defn wf-complex-command-4
+  ([wf]
+     (let [dep-levels (contrib-graph/dependency-list (wflow/dep-graph wf))
+           first-job (first (second dep-levels))]
+       (wf-complex-command-4 wf first-job)))
+  ([wf curr-job]
+     (wf-complex-command-4 wf curr-job {} {}))
+  ([wf curr-job cumulative-cmds future-cmds]
+     (let [flow-graph (wflow/flow-graph wf)
+           dep-graph (wflow/dep-graph wf)
+           ;; a map that will end up mapping all ancestor jobs to the
+           ;; string of the command representing its ancestor sub-tree (self-inclusive)
+           cumulative-cmds (if (get cumulative-cmds curr-job)
+                             cumulative-cmds
+                             (let [upstream-jobs ((:neighbors dep-graph) curr-job)
+                                   new-upstream-jobs (remove (set (keys cumulative-cmds)) upstream-jobs)
+                                   ;; where newly-seen ancestor job(s)
+                                   ;; are added to the map
+                                   cumulative-cmds (loop [cumul-cmds cumulative-cmds
+                                                          up-jobs new-upstream-jobs]
+                                                     (if (empty? up-jobs)
+                                                       cumul-cmds
+                                                       (let [job (first up-jobs)
+                                                             [j ccmds fcmds] (wf-complex-command-4 wf job cumul-cmds future-cmds)]
+                                                         (recur ccmds (rest up-jobs)))))
+
+
+                                   
+                                   ;; the string representation of the
+                                   ;; ancestor sub-tree (not
+                                   ;; self-inclusive) is formed
+                                   upstream-cmd (condp = (count upstream-jobs)
+                                                  0 ""
+                                                  1 (str (cumulative-cmds (first upstream-jobs)) job-comm-sep)
+                                                  (str merge-split-begin
+                                                       (string/join merge-split-sep (map cumulative-cmds upstream-jobs))
+                                                       merge-split-end
+                                                       job-comm-sep))
+                                   ;; now the current job's
+                                   ;; command is created and the
+                                   ;; ancestor sub-tree's command
+                                   ;; string is combined in order to
+                                   ;; include the current job in the map
+                                   curr-cumul-cmd (str upstream-cmd
+                                                       (job-command curr-job))
+                                   cumulative-cmds (assoc cumulative-cmds curr-job curr-cumul-cmd)
+                                   ]
+                               cumulative-cmds))
+
+           
+           future-cmds (if (get future-cmds curr-job)
+                         future-cmds
+                         (let [downstream-jobs ((:neighbors flow-graph) curr-job)
+                               new-downstream-jobs (remove (set (keys cumulative-cmds)) downstream-jobs)
+                               future-cmds (loop [fut-cmds future-cmds
+                                                  down-jobs new-downstream-jobs]
+                                             (if (empty? down-jobs)
+                                               fut-cmds
+                                               (let [job (first down-jobs)
+                                                     [j ccmds fcmds] (wf-complex-command-4 wf job cumulative-cmds fut-cmds)]
+                                                 (recur ccmds (rest down-jobs)))))
+
+
+                               downstream-cmd (condp = (count downstream-jobs)
+                                                0 ""
+                                                1 (str (future-cmds (first downstream-jobs)) job-comm-sep)
+                                                (str branch-split-begin
+                                                     (string/join branch-split-sep (map future-cmds downstream-jobs))
+                                                     branch-split-end
+                                                     job-comm-sep))
+                               curr-cumul-cmd (str downstream-cmd
+                                                   (job-command curr-job))
+                               future-cmds (assoc future-cmds curr-job curr-cumul-cmd)
+                               ]
+                           future-cmds))
+           ]
+       [curr-job cumulative-cmds future-cmds]
+       )))
+
+(defn wf-complex-command-3
+  ([wf]
+     (let [dep-levels (contrib-graph/dependency-list (wflow/dep-graph wf))
+           first-job (first (first dep-levels))]
+       (wf-complex-command-3 wf first-job nil)))
+  ([wf root-job parent-job]
+     (let [flow-graph (wflow/flow-graph wf)
+           dep-graph (wflow/dep-graph wf)
+           upstream-jobs (remove #(= % parent-job) ((:neighbors dep-graph) root-job))
+           job-cmd (job-command root-job)
+           downstream-jobs ((:neighbors flow-graph) root-job)
+           downstream-job-cmd-suffix (condp = (count downstream-jobs)
+                                       0 nil
+                                       1 (str job-comm-sep (wf-complex-command-3 wf (first downstream-jobs) root-job))
+                                       (str job-comm-sep branch-split-begin (string/join branch-split-sep (map (fn [job] (str branch-split-job-prefix (wf-complex-command-3 wf job root-job) branch-split-job-suffix)) downstream-jobs)) branch-split-end))])))
+
 (defn wf-complex-command-2
   ([wf]
      (let [dep-levels (contrib-graph/dependency-list (wflow/dep-graph wf))
            first-job (first (first dep-levels))]
-       (wf-complex-command-2 wf first-job)))
-  ([wf root-job]
+       (wf-complex-command-2 wf first-job nil)))
+  ([wf root-job parent-job]
      (let [flow-graph (wflow/flow-graph wf)
+           dep-graph (wflow/dep-graph wf)
+           upstream-jobs (remove #(= % parent-job) ((:neighbors dep-graph) root-job))
            downstream-jobs ((:neighbors flow-graph) root-job)]
        (condp = (count downstream-jobs)
          0 (job-command root-job)
-         1 (str (job-command root-job) job-comm-sep (wf-complex-command-2 wf (first downstream-jobs)))
-         (str (job-command root-job) job-comm-sep branch-split-begin (string/join branch-split-sep (map (fn [job] (str branch-split-job-prefix (wf-complex-command-2 wf job) branch-split-job-suffix)) downstream-jobs)) branch-split-end)))))
+         1 (str (job-command root-job) job-comm-sep (wf-complex-command-2 wf (first downstream-jobs) root-job))
+         (str (job-command root-job) job-comm-sep branch-split-begin (string/join branch-split-sep (map (fn [job] (str branch-split-job-prefix (wf-complex-command-2 wf job root-job) branch-split-job-suffix)) downstream-jobs)) branch-split-end)))))
 
 (defn branch-command
   [wf job]
