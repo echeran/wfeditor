@@ -44,24 +44,28 @@
 
 (defn ui-editor-left-create [parent]
   (let [label1 (new Label parent SWT/CENTER)
+        complex-print-wf-button (new-widget Button parent SWT/PUSH)
         run-wf-button (new-widget Button parent SWT/PUSH)
         print-wf-button (new-widget Button parent SWT/PUSH)
         load-wf-button (new-widget Button parent SWT/PUSH)
         save-wf-button (new-widget Button parent SWT/PUSH)
-        complex-2-print-wf-button (new-widget Button parent SWT/PUSH)
-        complex-4-print-wf-button (new-widget Button parent SWT/PUSH)
         label2 (Label. parent  SWT/CENTER)]
     (do
       (.setLayout parent (FillLayout. SWT/VERTICAL)))
     (doto label1
       (.setText "Working button(s)")
       (.setBounds (.getClientArea parent)))
+    (doto complex-print-wf-button
+      (.setText "Print workflow command")
+      (.addSelectionListener (proxy [SelectionAdapter]
+                                 []
+                               (widgetSelected [event]
+                                 (exec/print-wf-command (wflow/workflow))))))
     (doto run-wf-button
       (.setText "Run workflow")
       (.addSelectionListener (proxy [SelectionAdapter]
                                  []
-                               (widgetSelected [event]
-                                 (exec/print-wf-command (wflow/workflow))
+                               (widgetSelected [event]                                 
                                  (exec/run-workflow (wflow/workflow))))))
     (doto print-wf-button
       (.setText "Print workflow")
@@ -85,34 +89,6 @@
                                  (let [fd (FileDialog. (get-ancestor-shell parent) SWT/SAVE)]
                                    (when-let [out-file-name (.open fd)]
                                      (fformat/save-workflow-to-file (wflow/workflow) out-file-name)))))))
-    (doto complex-2-print-wf-button
-      (.setText "Print complex workflow 2")
-      (.addSelectionListener (proxy [SelectionAdapter]
-                                 []
-                               (widgetSelected [event]
-                                 (println (exec/wf-complex-command-2 (wflow/workflow)))))))
-    (doto complex-4-print-wf-button
-      (.setText "Print complex workflow 4")
-      (.addSelectionListener (proxy [SelectionAdapter]
-                                 []
-                               (widgetSelected [event]
-                                 (let [[final-job cumul-cmds visited-jobs] (exec/wf-complex-command-4 (wflow/workflow))]
-                                   (println "final job= " (:name final-job))
-                                   (println "cumul cmd of final job= " (get cumul-cmds final-job))
-                                   (println "cumul cmds= " cumul-cmds)
-                                   (println " ")
-                                   (doseq [[job cumul-cmd] cumul-cmds]
-                                     (dorun
-                                      (println "job= " job)
-                                      (println "job's cum. cmd= " cumul-cmd)))
-                                   (println " ")
-                                   
-                                   ;; (doseq [[job future-cmd] future-cmds]
-                                   ;;   (dorun
-                                   ;;    (println "job=" job)
-                                   ;;    (println "job's fut. cmd= " future-cmd)))
-
-                                   )))))
     (doto label2
       (.setText "Testing/non-working button(s)"))
     (create-widgets-with-names parent Button SWT/PUSH ["one" "two" "three"])

@@ -70,7 +70,7 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
         opts-str (opts-str opts)]
     (string/join sep [exec opts-str args-str])))
 
-(defn wf-command
+(defn wf-command-linked-list
   "return the command(s) necessary to run all of the jobs in the workflow according to the dependencies specified.  this assumes that there is only one path in the dependency graph
 TODO: extend this to handle a dependency graph with branches"
   [wf]
@@ -79,8 +79,8 @@ TODO: extend this to handle a dependency graph with branches"
         wf-comm (string/join job-comm-sep (map (comp job-command first) dep-levels))]
     wf-comm))
 
-
-(defn wf-complex-command-4
+(defn wf-command-one-branch
+  "return the command(s) necessary to run all of the jobs in the workflow according to the dependencies specified.  this assumes that there is only one job that has multiple streams depending on it (i.e., multiple 'branches')."
   ([wf]
      (let [dep-levels (contrib-graph/dependency-list (wflow/dep-graph wf))
            first-job (first (first dep-levels))
@@ -89,12 +89,16 @@ TODO: extend this to handle a dependency graph with branches"
            flow-out-degrees (for [job jobs] (count ((:neighbors flow-graph) job)))]
        (when (>= 1 (count (filter #(< 1 %) flow-out-degrees)))
          (if-let [branch-job (first (filter #(< 1 (count ((:neighbors flow-graph) %))) jobs))]
-           (wf-complex-command-4 wf branch-job)
+           (wf-command-one-branch wf branch-job)
            (letfn [(leaf-job [job] (let [children ((:neighbors flow-graph) job)] (if (seq children) (leaf-job (first children)) job)))]
-             (wf-complex-command-4 wf (leaf-job first-job)))))))
+             (wf-command-one-branch wf (leaf-job first-job)))))))
   ([wf curr-job]
-     (wf-complex-command-4 wf curr-job {} #{}))
+     (let [[final-job cumulative-cmds visited-jobs] (wf-command-one-branch wf curr-job {} #{})]
+       ;; this is where we return the string value representing the
+       ;; piped shell command on behalf of the entire function
+       (cumulative-cmds final-job)))
   ([wf curr-job cumulative-cmds visited-jobs]
+     ;; this part of the function is meant for implementation purposes only
      (let [flow-graph (wflow/flow-graph wf)
            dep-graph (wflow/dep-graph wf)
            ;; a map that will end up mapping all ancestor jobs to the
@@ -110,7 +114,7 @@ TODO: extend this to handle a dependency graph with branches"
                                                      (if (empty? up-jobs)
                                                        cumul-cmds
                                                        (let [job (first up-jobs)
-                                                             [j ccmds vjobs] (wf-complex-command-4 wf job cumul-cmds visited-jobs)]
+                                                             [j ccmds vjobs] (wf-command-one-branch wf job cumul-cmds visited-jobs)]
                                                          (recur ccmds (rest up-jobs)))))
                                    ;; this is added especially because
                                    ;; of the hack below to allow the
@@ -158,7 +162,7 @@ TODO: extend this to handle a dependency graph with branches"
          (letfn [(leaf-job [job] (let [children ((:neighbors flow-graph) job)] (if (seq children) (leaf-job (first children)) job)))]
            (let [branch-jobs ((:neighbors flow-graph) curr-job)
                  branch-leaf-jobs (map leaf-job branch-jobs)
-                 branch-cmd-fn (fn [branch-leaf-job] (let [[job cumul-cmds visited-jobs] (wf-complex-command-4 wf branch-leaf-job {curr-job nil} #{})] (cumul-cmds branch-leaf-job)))
+                 branch-cmd-fn (fn [branch-leaf-job] (let [[job cumul-cmds visited-jobs] (wf-command-one-branch wf branch-leaf-job {curr-job nil} #{})] (cumul-cmds branch-leaf-job)))
                  branch-cmds (map branch-cmd-fn branch-leaf-jobs)
                  full-downstream-cmd (str branch-split-begin
                                           (string/join branch-split-sep (map #(str branch-split-job-prefix % branch-split-job-suffix) branch-cmds))
@@ -166,29 +170,19 @@ TODO: extend this to handle a dependency graph with branches"
                  full-curr-cmd (str (cumulative-cmds curr-job) job-comm-sep full-downstream-cmd)
                  new-cumulative-cmds (assoc cumulative-cmds curr-job full-curr-cmd)]
              [curr-job new-cumulative-cmds visited-jobs]
+             ;; at this point, we're finished with the
+             ;; 'implementation' part of the function, and we assume
+             ;; that we return to the part of the function with
+             ;; different arity which we assume any external caller
+             ;; ultimately came through
              ))))))
 
-(defn wf-complex-command-3
+(defn wf-command-no-branch
+  "return the command(s) necessary to run all of the jobs in the workflow according to the dependencies specified.  this assumes that there no job has multiple streams depending on it (i.e., multiple 'branches')."
   ([wf]
      (let [dep-levels (contrib-graph/dependency-list (wflow/dep-graph wf))
            first-job (first (first dep-levels))]
-       (wf-complex-command-3 wf first-job nil)))
-  ([wf root-job parent-job]
-     (let [flow-graph (wflow/flow-graph wf)
-           dep-graph (wflow/dep-graph wf)
-           upstream-jobs (remove #(= % parent-job) ((:neighbors dep-graph) root-job))
-           job-cmd (job-command root-job)
-           downstream-jobs ((:neighbors flow-graph) root-job)
-           downstream-job-cmd-suffix (condp = (count downstream-jobs)
-                                       0 nil
-                                       1 (str job-comm-sep (wf-complex-command-3 wf (first downstream-jobs) root-job))
-                                       (str job-comm-sep branch-split-begin (string/join branch-split-sep (map (fn [job] (str branch-split-job-prefix (wf-complex-command-3 wf job root-job) branch-split-job-suffix)) downstream-jobs)) branch-split-end))])))
-
-(defn wf-complex-command-2
-  ([wf]
-     (let [dep-levels (contrib-graph/dependency-list (wflow/dep-graph wf))
-           first-job (first (first dep-levels))]
-       (wf-complex-command-2 wf first-job nil)))
+       (wf-command-no-branch wf first-job nil)))
   ([wf root-job parent-job]
      (let [flow-graph (wflow/flow-graph wf)
            dep-graph (wflow/dep-graph wf)
@@ -196,53 +190,9 @@ TODO: extend this to handle a dependency graph with branches"
            downstream-jobs ((:neighbors flow-graph) root-job)]
        (condp = (count downstream-jobs)
          0 (job-command root-job)
-         1 (str (job-command root-job) job-comm-sep (wf-complex-command-2 wf (first downstream-jobs) root-job))
-         (str (job-command root-job) job-comm-sep branch-split-begin (string/join branch-split-sep (map (fn [job] (str branch-split-job-prefix (wf-complex-command-2 wf job root-job) branch-split-job-suffix)) downstream-jobs)) branch-split-end)))))
+         1 (str (job-command root-job) job-comm-sep (wf-command-no-branch wf (first downstream-jobs) root-job))
+         (str (job-command root-job) job-comm-sep branch-split-begin (string/join branch-split-sep (map (fn [job] (str branch-split-job-prefix (wf-command-no-branch wf job root-job) branch-split-job-suffix)) downstream-jobs)) branch-split-end)))))
 
-(defn branch-command
-  [wf job]
-  (let [dep-graph (wflow/dep-graph wf)
-        flow-graph (wflow/flow-graph wf)
-        downstream-jobs ((:neighbors flow-graph) job)
-        upstream-jobs ((:neighbors dep-graph) job)
-        dep-jobs ()]))
-
-(declare wf-complex-command)
-
-(defn wf-complex-subtree-command-impl
-  "return the command for either the subtree upstream or downstream of a job"
-  [wf job job-set visited-nodes up-down-stream-flag cmd-begin job-prefix job-suffix job-sep cmd-end]
-  (when job-set
-    (let [unseen-job-set (remove visited-nodes job-set)]
-      (condp =  (count unseen-job-set)
-        0 nil
-        1 (let [unseen-job (first unseen-job-set)]
-            (if (= :down up-down-stream-flag)
-              (wf-complex-command wf job (conj visited-nodes job unseen-job) (str (job-command job)) )))
-        (str cmd-begin
-             (string/join job-sep
-                          (map #((str job-prefix % job-suffix)) unseen-job-set))
-             cmd-end)))))
-
-(defmulti wf-complex-subtree-command (fn [_ _ _ up-down-stream-flag] up-down-stream-flag))
-(defmethod wf-complex-subtree-command :up [wf job visited-nodes up-down-stream-flag] (wf-complex-subtree-command-impl wf job ((:neighbors (wflow/dep-graph wf)) job) visited-nodes up-down-stream-flag merge-split-begin merge-split-job-prefix merge-split-job-suffix merge-split-sep merge-split-end))
-(defmethod wf-complex-subtree-command :down [wf job visited-nodes up-down-stream-flag] (wf-complex-subtree-command-impl wf job ((:neighbors (wflow/flow-graph wf)) job) visited-nodes up-down-stream-flag branch-split-begin branch-split-job-prefix branch-split-job-suffix branch-split-sep branch-split-end))
-
-
-(defn wf-complex-command
-  "return the command necessary to run all jobs in a more complex graph (has branching and mergine)
-for now, assumes that the entire graph is connected"
-  ([wf]
-     (let [dep-levels (contrib-graph/dependency-list (wflow/dep-graph wf))
-           first-job (first (first dep-levels))]
-       (wf-complex-command wf first-job #{} "")))
-  ([wf job visited-nodes accum-cmd]
-     (when job 
-       (let [visited-nodes (conj visited-nodes job)
-             upstream-cmd (wf-complex-subtree-command wf job visited-nodes :up)
-             downstream-cmd (wf-complex-subtree-command wf job visited-nodes :down)
-             job-cmd (wf-command job)]
-         (string/join job-comm-sep (remove nil? [upstream-cmd job-cmd downstream-cmd]))))))
 
 (defn print-still-running
   "run a function for the provided number of times in a row (reps), where the function prints whether the provided popen process (proc) is still running"
@@ -251,6 +201,8 @@ for now, assumes that the entire graph is connected"
     (dotimes [_ reps]
       (.start
        (Thread. is-running-fn)))))
+
+(def wf-command wf-command-one-branch)
 
 (defn print-wf-command
   [wf]
@@ -263,6 +215,6 @@ Note: currently assumes only one path through the dependency graph
 TODO: figure out how to enable multiple brances in the depenedency graph"
   [wf]
   (let [wf-comm (wf-command wf)]
-    (let [proc (popen/popen ["/bin/sh" "-c" wf-comm])
+    (let [proc (popen/popen ["/bin/bash" "-c" wf-comm])
           output (slurp (popen/stdout proc))]
       (println "output of wf command(s)=" output))))
