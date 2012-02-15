@@ -93,11 +93,11 @@ TODO: extend this to handle a dependency graph with branches"
            (letfn [(leaf-job [job] (let [children ((:neighbors flow-graph) job)] (if (seq children) (leaf-job (first children)) job)))]
              (wf-command-one-branch wf (leaf-job first-job)))))))
   ([wf curr-job]
-     (let [[final-job cumulative-cmds visited-jobs] (wf-command-one-branch wf curr-job {} #{})]
+     (let [[final-job cumulative-cmds] (wf-command-one-branch wf curr-job {})]
        ;; this is where we return the string value representing the
        ;; piped shell command on behalf of the entire function
        (cumulative-cmds final-job)))
-  ([wf curr-job cumulative-cmds visited-jobs]
+  ([wf curr-job cumulative-cmds]
      ;; this part of the function is meant for implementation purposes only
      (let [flow-graph (wflow/flow-graph wf)
            dep-graph (wflow/dep-graph wf)
@@ -114,7 +114,7 @@ TODO: extend this to handle a dependency graph with branches"
                                                      (if (empty? up-jobs)
                                                        cumul-cmds
                                                        (let [job (first up-jobs)
-                                                             [j ccmds vjobs] (wf-command-one-branch wf job cumul-cmds visited-jobs)]
+                                                             [j ccmds vjobs] (wf-command-one-branch wf job cumul-cmds)]
                                                          (recur ccmds (rest up-jobs)))))
                                    ;; this is added especially because
                                    ;; of the hack below to allow the
@@ -148,7 +148,7 @@ TODO: extend this to handle a dependency graph with branches"
          ;; we're either returning from a recursive call to get the
          ;; ancestor subtree (out-degree == 1), or we're at the leaf
          ;; node (out-degree == 0), which is the base case, so return
-         [curr-job cumulative-cmds visited-jobs]
+         [curr-job cumulative-cmds]
          ;; if the out-degree of the job is > 1, then this job is a
          ;; branch, and this is the only one permissible in a piped
          ;; shell command graph.  so we determine what the branches
@@ -162,14 +162,14 @@ TODO: extend this to handle a dependency graph with branches"
          (letfn [(leaf-job [job] (let [children ((:neighbors flow-graph) job)] (if (seq children) (leaf-job (first children)) job)))]
            (let [branch-jobs ((:neighbors flow-graph) curr-job)
                  branch-leaf-jobs (map leaf-job branch-jobs)
-                 branch-cmd-fn (fn [branch-leaf-job] (let [[job cumul-cmds visited-jobs] (wf-command-one-branch wf branch-leaf-job {curr-job nil} #{})] (cumul-cmds branch-leaf-job)))
+                 branch-cmd-fn (fn [branch-leaf-job] (let [[job cumul-cmds] (wf-command-one-branch wf branch-leaf-job {curr-job nil})] (cumul-cmds branch-leaf-job)))
                  branch-cmds (map branch-cmd-fn branch-leaf-jobs)
                  full-downstream-cmd (str branch-split-begin
                                           (string/join branch-split-sep (map #(str branch-split-job-prefix % branch-split-job-suffix) branch-cmds))
                                           branch-split-end)
                  full-curr-cmd (str (cumulative-cmds curr-job) job-comm-sep full-downstream-cmd)
                  new-cumulative-cmds (assoc cumulative-cmds curr-job full-curr-cmd)]
-             [curr-job new-cumulative-cmds visited-jobs]
+             [curr-job new-cumulative-cmds]
              ;; at this point, we're finished with the
              ;; 'implementation' part of the function, and we assume
              ;; that we return to the part of the function with
