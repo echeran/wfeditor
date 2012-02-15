@@ -96,20 +96,21 @@
       (.addSelectionListener (proxy [SelectionAdapter]
                                  []
                                (widgetSelected [event]
-                                 (let [[final-job cumul-cmds future-cmds] (exec/wf-complex-command-4 (wflow/workflow))]
+                                 (let [[final-job cumul-cmds visited-jobs] (exec/wf-complex-command-4 (wflow/workflow))]
                                    (println "final job= " (:name final-job))
-                                   (println "cumul cmds= " cumul-cmds)
                                    (println "cumul cmd of final job= " (get cumul-cmds final-job))
-                                   (println "")
+                                   (println "cumul cmds= " cumul-cmds)
+                                   (println " ")
                                    (doseq [[job cumul-cmd] cumul-cmds]
                                      (dorun
                                       (println "job= " job)
                                       (println "job's cum. cmd= " cumul-cmd)))
-                                   (println "")
-                                   (doseq [[job future-cmd] future-cmds]
-                                     (dorun
-                                      (println "job=" job)
-                                      (println "job's fut. cmd= " future-cmd)))
+                                   (println " ")
+                                   
+                                   ;; (doseq [[job future-cmd] future-cmds]
+                                   ;;   (dorun
+                                   ;;    (println "job=" job)
+                                   ;;    (println "job's fut. cmd= " future-cmd)))
 
                                    )))))
     (doto label2

@@ -83,11 +83,18 @@ TODO: extend this to handle a dependency graph with branches"
 (defn wf-complex-command-4
   ([wf]
      (let [dep-levels (contrib-graph/dependency-list (wflow/dep-graph wf))
-           first-job (first (second dep-levels))]
-       (wf-complex-command-4 wf first-job)))
+           first-job (first (first dep-levels))
+           flow-graph (wflow/flow-graph wf)
+           jobs (:nodes flow-graph)
+           flow-out-degrees (for [job jobs] (count ((:neighbors flow-graph) job)))]
+       (when (>= 1 (count (filter #(< 1 %) flow-out-degrees)))
+         (if-let [branch-job (first (filter #(< 1 (count ((:neighbors flow-graph) %))) jobs))]
+           (wf-complex-command-4 wf branch-job)
+           (letfn [(leaf-job [job] (let [children ((:neighbors flow-graph) job)] (if (seq children) (leaf-job (first children)) job)))]
+             (wf-complex-command-4 wf (leaf-job first-job)))))))
   ([wf curr-job]
-     (wf-complex-command-4 wf curr-job {} {}))
-  ([wf curr-job cumulative-cmds future-cmds]
+     (wf-complex-command-4 wf curr-job {} #{}))
+  ([wf curr-job cumulative-cmds visited-jobs]
      (let [flow-graph (wflow/flow-graph wf)
            dep-graph (wflow/dep-graph wf)
            ;; a map that will end up mapping all ancestor jobs to the
@@ -103,19 +110,22 @@ TODO: extend this to handle a dependency graph with branches"
                                                      (if (empty? up-jobs)
                                                        cumul-cmds
                                                        (let [job (first up-jobs)
-                                                             [j ccmds fcmds] (wf-complex-command-4 wf job cumul-cmds future-cmds)]
+                                                             [j ccmds vjobs] (wf-complex-command-4 wf job cumul-cmds visited-jobs)]
                                                          (recur ccmds (rest up-jobs)))))
-
-
-                                   
+                                   ;; this is added especially because
+                                   ;; of the hack below to allow the
+                                   ;; proper accumulation of the
+                                   ;; downstream branches of the job
+                                   ;; with out-degree >= 2
+                                   upstream-cmds (remove nil? (for [job upstream-jobs] (cumulative-cmds job)))
                                    ;; the string representation of the
                                    ;; ancestor sub-tree (not
                                    ;; self-inclusive) is formed
-                                   upstream-cmd (condp = (count upstream-jobs)
+                                   upstream-cmd (condp = (count upstream-cmds)
                                                   0 ""
-                                                  1 (str (cumulative-cmds (first upstream-jobs)) job-comm-sep)
+                                                  1 (str (first upstream-cmds) job-comm-sep)
                                                   (str merge-split-begin
-                                                       (string/join merge-split-sep (map cumulative-cmds upstream-jobs))
+                                                       (string/join merge-split-sep (map #(str merge-split-job-prefix % merge-split-job-suffix) upstream-cmds))
                                                        merge-split-end
                                                        job-comm-sep))
                                    ;; now the current job's
@@ -128,36 +138,35 @@ TODO: extend this to handle a dependency graph with branches"
                                    cumulative-cmds (assoc cumulative-cmds curr-job curr-cumul-cmd)
                                    ]
                                cumulative-cmds))
-
-           
-           future-cmds (if (get future-cmds curr-job)
-                         future-cmds
-                         (let [downstream-jobs ((:neighbors flow-graph) curr-job)
-                               new-downstream-jobs (remove (set (keys cumulative-cmds)) downstream-jobs)
-                               future-cmds (loop [fut-cmds future-cmds
-                                                  down-jobs new-downstream-jobs]
-                                             (if (empty? down-jobs)
-                                               fut-cmds
-                                               (let [job (first down-jobs)
-                                                     [j ccmds fcmds] (wf-complex-command-4 wf job cumulative-cmds fut-cmds)]
-                                                 (recur ccmds (rest down-jobs)))))
-
-
-                               downstream-cmd (condp = (count downstream-jobs)
-                                                0 ""
-                                                1 (str (future-cmds (first downstream-jobs)) job-comm-sep)
-                                                (str branch-split-begin
-                                                     (string/join branch-split-sep (map future-cmds downstream-jobs))
-                                                     branch-split-end
-                                                     job-comm-sep))
-                               curr-cumul-cmd (str downstream-cmd
-                                                   (job-command curr-job))
-                               future-cmds (assoc future-cmds curr-job curr-cumul-cmd)
-                               ]
-                           future-cmds))
            ]
-       [curr-job cumulative-cmds future-cmds]
-       )))
+       (if (>= 1 (count ((:neighbors flow-graph) curr-job)))
+         ;; if the out-degree of the job in the flow-graph is >=1, then
+         ;; we're either returning from a recursive call to get the
+         ;; ancestor subtree (out-degree == 1), or we're at the leaf
+         ;; node (out-degree == 0), which is the base case, so return
+         [curr-job cumulative-cmds visited-jobs]
+         ;; if the out-degree of the job is > 1, then this job is a
+         ;; branch, and this is the only one permissible in a piped
+         ;; shell command graph.  so we determine what the branches
+         ;; are, add it to this job's cumulative command and return.
+         ;; permissibility is a function of what is representable as
+         ;; piped shell command.  the branches are also called in the
+         ;; code as 'downstream subtrees', and they can even look like
+         ;; full trees so long as their out-degree is not > 1 (since
+         ;; there can only be one such node in the graph with
+         ;; out-degree > 1)
+         (letfn [(leaf-job [job] (let [children ((:neighbors flow-graph) job)] (if (seq children) (leaf-job (first children)) job)))]
+           (let [branch-jobs ((:neighbors flow-graph) curr-job)
+                 branch-leaf-jobs (map leaf-job branch-jobs)
+                 branch-cmd-fn (fn [branch-leaf-job] (let [[job cumul-cmds visited-jobs] (wf-complex-command-4 wf branch-leaf-job {curr-job nil} #{})] (cumul-cmds branch-leaf-job)))
+                 branch-cmds (map branch-cmd-fn branch-leaf-jobs)
+                 full-downstream-cmd (str branch-split-begin
+                                          (string/join branch-split-sep (map #(str branch-split-job-prefix % branch-split-job-suffix) branch-cmds))
+                                          branch-split-end)
+                 full-curr-cmd (str (cumulative-cmds curr-job) job-comm-sep full-downstream-cmd)
+                 new-cumulative-cmds (assoc cumulative-cmds curr-job full-curr-cmd)]
+             [curr-job new-cumulative-cmds visited-jobs]
+             ))))))
 
 (defn wf-complex-command-3
   ([wf]
