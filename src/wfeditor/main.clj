@@ -4,7 +4,8 @@
   (:gen-class)
   (:require clojure.tools.cli)
   (:require wfeditor.ui.gui.core
-            [wfeditor.model.workflow :as wflow])
+            [wfeditor.model.workflow :as wflow]
+            [wfeditor.io.relay.server :as server])
   (:import
    org.eclipse.swt.widgets.Display))
 
@@ -47,30 +48,38 @@ TODO: handle options and args coming in from the CLI"
   ;; TODO: create functionality of program!
   )
 
+(defn server-execute
+  "The entry point for creating the server version of the program"
+  [options args]
+  (let [port (:port options)
+        new-server (server/new-running-server {:port port})]
+    (server/set-server new-server)))
+
 (defn parse-args
   "parse the command-line arguments and, as the clojure.tools.cli provides, returns a vector containing 3 elements: 1) the parsed options, 2) remaining arguments, and 3) a help banner. works well with user-args as a list of the command-line arguments"
   [user-args]
   (let [[options arguments banner] (clojure.tools.cli/cli user-args
                                         ["-g" "--[no-]gui" "Run the GUI frontend with the program" :default true :flag true]
                                         ["-h" "--help" "Display the command-line help statement" :default false :flag true]
-                                        ["--graph" "An initial job dependency graph as a map of keywords -> nested vector of keywords (Ex:  {:1 [:0 :2] :3 [:1] :4 [:0]})" :default nil :parse-fn load-string])]
+                                        ["--graph" "An initial job dependency graph as a map of keywords -> nested vector of keywords (Ex:  {:1 [:0 :2] :3 [:1] :4 [:0]})" :default nil :parse-fn load-string]
+                                        ["-S"  "--server" "Run in server mode, i.e., run the agent polling the computation server (when on the server main node)" :default false :flag true])]
     (when (:help options)
       (println banner)
       (System/exit 0))
     [options arguments banner]))
 
-(defn test-args
-  "a simple test method to test how cli args and the cli parser work"
-  [args]
-  (println args)
-  (let [[options arguments banner] (clojure.tools.cli/cli args
-                                        ["-p" "--port" "Listen on this port" :parse-fn #(Integer. %)] 
-                                        ["-h" "--host" "The hostname" :default "localhost"]
-                                        ["-v" "--[no-]verbose" :default true]
-                                        ["-l" "--log-directory" :default "/some/path"])]
-    (println (apply str "options = " options))
-    (println (apply str "arguments = " arguments))
-    (println (apply str "banner = " banner))))
+;; (defn test-args
+;;   "a simple test method to test how cli args and the cli parser work"
+;;   [args]
+;;   (println args)
+;;   (let [[options arguments banner] (clojure.tools.cli/cli args
+;;                                         ["-p" "--port" "Listen on this port" :parse-fn #(Integer. %)] 
+;;                                         ["-h" "--host" "The hostname" :default "localhost"]
+;;                                         ["-v" "--[no-]verbose" :default true]
+;;                                         ["-l" "--log-directory" :default "/some/path"])]
+;;     (println (apply str "options = " options))
+;;     (println (apply str "arguments = " arguments))
+;;     (println (apply str "banner = " banner))))
 
 (defn -main
   "main method (i.e., entry point) for the entire WFE"
@@ -78,5 +87,6 @@ TODO: handle options and args coming in from the CLI"
   (let [[options parsed-args banner] (parse-args args)]
     (handle-common-args options args)
     (cond
+     (true? (:server options)) (server-execute options parse-args)
      (false? (:gui options))  (cli-execute options parsed-args)
      :else (ui-create options parsed-args))))

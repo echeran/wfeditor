@@ -18,7 +18,8 @@
                    ;; clojure-contrib 1.2.1 doesn't exist, 1.2.0 is last on 1.2x branch
                    [org.clojure/clojure-contrib "1.2.0"]
                    [popen "0.2.0"]
-                   [clj-ssh "0.3.0"]]
+                   [clj-ssh "0.3.0"]
+                   [noir "1.2.1"]]
     :disable-deps-clean true
     :aot [wfeditor.main]
     :jvm-opts ~jvm-opts
