@@ -68,19 +68,6 @@ TODO: handle options and args coming in from the CLI"
       (System/exit 0))
     [options arguments banner]))
 
-;; (defn test-args
-;;   "a simple test method to test how cli args and the cli parser work"
-;;   [args]
-;;   (println args)
-;;   (let [[options arguments banner] (clojure.tools.cli/cli args
-;;                                         ["-p" "--port" "Listen on this port" :parse-fn #(Integer. %)] 
-;;                                         ["-h" "--host" "The hostname" :default "localhost"]
-;;                                         ["-v" "--[no-]verbose" :default true]
-;;                                         ["-l" "--log-directory" :default "/some/path"])]
-;;     (println (apply str "options = " options))
-;;     (println (apply str "arguments = " arguments))
-;;     (println (apply str "banner = " banner))))
-
 (defn -main
   "main method (i.e., entry point) for the entire WFE"
   [ & args]
