@@ -218,3 +218,26 @@ TODO: figure out how to enable multiple brances in the depenedency graph"
     (let [proc (popen/popen ["/bin/bash" "-c" wf-comm])
           output (slurp (popen/stdout proc))]
       (println "output of wf command(s)=" output))))
+
+;; everything above is for piped shell commands
+
+;; the following section is for running jobs on a grid engine
+
+
+
+(defn print-deps-in-order
+  "print the jobs in order of which is depended on by following jobs"
+  [wf]
+  (let [new-wf (wflow/wf-with-internal-ids wf)
+        dep-order-job-seq (wflow/wf-job-seq new-wf)
+        jobs (wflow/wf-jobs new-wf)
+        dep-graph (wflow/dep-graph new-wf)]
+    (doseq [job dep-order-job-seq]
+      (let [job-name (:name job)
+            deps ((:neighbors dep-graph) job)
+            deps-str (if deps
+                       (str "-hold_jid " (string/join "," (map :id deps)))
+                       "")
+            job-id (:id job)
+            cmd (string/join " " [(str "[" job-id  "]") "qsub" job-name deps-str])]
+        (println cmd)))))
