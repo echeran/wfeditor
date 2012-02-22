@@ -77,7 +77,7 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
   "implementation of defmethod for xml-tree multimethod for the Workflow record class"
   [wf]
   (let [meta-subtree (wf-meta-xml-tree wf)
-        job-seq (wf/wf-job-seq (wf/flow-graph))
+        job-seq (wf/wf-job-seq wf)
         jobs-subtree {:tag :jobs :attrs nil :content (remove nil? (into [] (map job-xml-tree job-seq)))}]
     {:tag :workflow :attrs nil :content (remove nil? [meta-subtree jobs-subtree])}))
 
