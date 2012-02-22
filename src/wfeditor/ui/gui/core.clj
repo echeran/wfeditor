@@ -44,7 +44,8 @@
 
 (defn ui-editor-left-create [parent]
   (let [label1 (new Label parent SWT/CENTER)
-        complex-print-wf-button (new-widget Button parent SWT/PUSH)
+        print-wf-cmd-button (new-widget Button parent SWT/PUSH)
+        print-wf-sge-test-button (new-widget Button parent SWT/PUSH)
         run-wf-button (new-widget Button parent SWT/PUSH)
         print-wf-button (new-widget Button parent SWT/PUSH)
         load-wf-button (new-widget Button parent SWT/PUSH)
@@ -55,12 +56,18 @@
     (doto label1
       (.setText "Working button(s)")
       (.setBounds (.getClientArea parent)))
-    (doto complex-print-wf-button
+    (doto print-wf-cmd-button
       (.setText "Print workflow command")
       (.addSelectionListener (proxy [SelectionAdapter]
                                  []
                                (widgetSelected [event]
                                  (exec/print-wf-command (wflow/workflow))))))
+    (doto print-wf-sge-test-button
+      (.setText "Print SGE commands test")
+      (.addSelectionListener (proxy [SelectionAdapter]
+                                 []
+                               (widgetSelected [event]
+                                 (exec/print-deps-in-order (wflow/workflow))))))
     (doto run-wf-button
       (.setText "Run workflow")
       (.addSelectionListener (proxy [SelectionAdapter]
