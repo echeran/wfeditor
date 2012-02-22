@@ -61,6 +61,13 @@ note: this is the reverse of the dep-graph"
   ([wf]
      (:nodes (dep-graph wf))))
 
+(defn dep-levels
+  "return the dependency list of a graph as given by clojure-contrib's graph, i.e., a vector of sets of nodes that are independent of all nodes that follow in the vector"
+  ([]
+     (dep-levels (dep-graph @wf)))
+  ([graph]
+     (contrib-graph/dependency-list graph)))
+
 (defn get-job-by-id
   "returns first node containing the provided id"
   ([id]
@@ -149,11 +156,21 @@ id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file deps"
 (defn wf-job-seq
   "return a sequence of jobs in the workflow graph in a topological order, where if job B depends on job A, then B will follow A in the returned sequence"
   [wf]
-  (let [dep-graph (contrib-graph/reverse-graph wf)
-        dep-levels (contrib-graph/dependency-list dep-graph)]
+  (let [dep-levels (dep-levels (dep-graph wf))]
     (for [level dep-levels job level] job)))
 
-
+(defn wf-with-internal-ids
+  "return the workflow with artificially, uniquely assigned ids for all jobs"
+  [wf]
+  (let [dep-order-job-seq (wf-job-seq wf)
+        local-id (atom 0)
+        new-job-map (into {} (for [j dep-order-job-seq] [j (assoc j :id (swap! local-id inc))]))
+        new-jobs (into #{} (vals new-job-map))
+        dep-graph (dep-graph wf)
+        dep-graph-neighbors (:neighbors dep-graph)
+        new-dep-graph-neighbors (into {} (for [[job deps] dep-graph-neighbors] [(new-job-map job) (map new-job-map deps)]))
+        new-dep-graph { :nodes new-jobs :neighbors new-dep-graph-neighbors}]
+    (assoc wf :graph new-dep-graph)))
 
 ;;
 ;; refs - binding initial values
