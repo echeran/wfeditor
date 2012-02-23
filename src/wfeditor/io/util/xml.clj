@@ -1,9 +1,8 @@
 (ns wfeditor.io.util.xml
   (:require [clojure.xml :as xml]
             [clojure.zip :as zip]
-            ;; [clojure.contrib.zip-filter.xml :as zfx]
-            [clojure.contrib.lazy-xml :as lxml]
-            ))
+            [clojure.contrib.lazy-xml :as lxml])
+  (:import org.apache.commons.lang.StringEscapeUtils))
 
 (defn ppxml
   "pretty-prints an input xml string (i.e., reformats with indentation)
@@ -17,8 +16,6 @@ taken from http://nakkaya.com/2010/03/27/pretty-printing-xml-with-clojure/"
                      (javax.xml.transform.TransformerFactory/newInstance))]
     (.setOutputProperty transformer javax.xml.transform.OutputKeys/INDENT "yes")
     (.setOutputProperty transformer "{http://xml.apache.org/xslt}indent-amount" "2")
-    ;; TODO: change the following line from "xml" to "text" to see if > does
-    ;; not get changed to &gt;
     (.setOutputProperty transformer javax.xml.transform.OutputKeys/METHOD "xml")
     (.transform transformer in out)
     (-> out .getWriter .toString)))
@@ -37,3 +34,17 @@ taken from http://nakkaya.com/2010/03/27/pretty-printing-xml-with-clojure/"
 (def xml-file-to-tree xml/parse)
 
 (def xml-tree-to-zip zip/xml-zip)
+
+(defn unescaped-xml-zip
+  "returns an XML but modifies all text so that any XML-encoded elements of the string (e.g., escaped characters) are decoded.
+Note: this method was created in order to unescape the XML-escaped characters (e.g., < > &) that may appear in the files of saved workflows. This phenomenon is the subject of this SO post: http://stackoverflow.com/questions/1059854/how-do-you-prevent-a-javax-transformer-from-escaping-whitespace.
+However, note: 1. the escaping of characters in XML should happen, according to this: and  So users just need to be aware that if they edit something in text, load it, and save it using the GUI, they will see punctation (especially for complex Unix commands) get escaped in the saved file.  This should not effect execution, however.   2. xml/parse seems to handle the unescaping, meaning that this method is most likely superfluous."
+  [xz]
+  (loop [loc xz]
+    (if (zip/end? loc)
+      (zip/root loc)
+      (recur
+       (zip/next
+        (if (string? (zip/node loc))
+          (zip/replace loc (StringEscapeUtils/unescapeXml (zip/node loc)))
+          loc))))))
