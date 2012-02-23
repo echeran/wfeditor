@@ -18,7 +18,6 @@
    ;; (org.eclipse.swt.graphics Rectangle Point) have to comment this
    ;; out since it conflicts with the draw2d import statements
    ;; according to Clojure compiler
-   ;; TODO: refactor draw2d canvas to a separate namespace
    ))
 
 (defmacro new-widget [widget-class parent style]

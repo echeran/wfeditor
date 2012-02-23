@@ -169,10 +169,6 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
   (let [wf-xml-tree (xml-util/xml-file-to-tree file-name)
         wf-xml-zip (xml-util/xml-tree-to-zip wf-xml-tree)
         meta-map (meta-from-zip wf-xml-zip)]
-    ;; TODO: set Job's id (internal id's) in sequential fashion as the
-    ;; jobs get created
-    ;; TODO: once Job id's set in sequential fashion, print Jobs in
-    ;; workflow XML in order of increasing internal Job id
     (loop [job-zip-seq (zfx/xml-> wf-xml-zip :jobs :job)
            job-set #{}
            dep-name-map {}]      

@@ -71,8 +71,7 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
     (string/join sep [exec opts-str args-str])))
 
 (defn wf-command-linked-list
-  "return the command(s) necessary to run all of the jobs in the workflow according to the dependencies specified.  this assumes that there is only one path in the dependency graph
-TODO: extend this to handle a dependency graph with branches"
+  "return the command(s) necessary to run all of the jobs in the workflow according to the dependencies specified.  this assumes that there is only one path in the dependency graph"
   [wf]
   (let [dep-graph (wflow/dep-graph wf)
         dep-levels (contrib-graph/dependency-list dep-graph)
@@ -210,9 +209,7 @@ TODO: extend this to handle a dependency graph with branches"
     (println "wf-command=" wf-comm)))
 
 (defn run-workflow
-  "run a workflow of jobs.  supplied as type Graph
-Note: currently assumes only one path through the dependency graph
-TODO: figure out how to enable multiple brances in the depenedency graph"
+  "run a workflow of jobs"
   [wf]
   (let [wf-comm (wf-command wf)]
     (let [proc (popen/popen ["/bin/bash" "-c" wf-comm])
