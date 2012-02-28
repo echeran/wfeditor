@@ -18,7 +18,7 @@
 ;; proposed unique identifier for Job = id
 ;; for a listing of required and optional arguments, see new-job-fn
 ;; the deps of a job is implicitly stored in the global Graph object g
-(defrecord Job [id name desc prog-name prog-ver prog-exec-loc prog-exec-ver prog-args prog-opts std-out-file std-err-file])
+(defrecord Job [id name desc prog-name prog-ver prog-exec-loc prog-exec-ver prog-args prog-opts std-out-file std-err-file task-status-array])
 
 ;; replacement for the defstruct declaration of graphs in
 ;; clojure.contrib.graph
@@ -90,8 +90,8 @@ when supplying arguments to the function, the following are required
 name, prog-exec-loc, prog-args prog-opts
 the following are optional:
 id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file deps"
-  [name prog-exec-loc prog-args prog-opts & {:keys [id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file] :or {id nil desc nil prog-name nil prog-ver nil prog-exec-ver nil std-out-file nil std-err-file nil}}]
-  (Job. id name desc prog-name prog-ver prog-exec-loc prog-exec-ver prog-args prog-opts std-out-file std-err-file))
+  [name prog-exec-loc prog-args prog-opts & {:keys [id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file task-statuses] :or {id nil desc nil prog-name nil prog-ver nil prog-exec-ver nil std-out-file nil std-err-file nil task-statuses nil}}]
+  (Job. id name desc prog-name prog-ver prog-exec-loc prog-exec-ver prog-args prog-opts std-out-file std-err-file task-statuses))
 
 (defn new-graph-fn
   "return a new graph type"

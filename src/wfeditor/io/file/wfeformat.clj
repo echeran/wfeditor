@@ -11,10 +11,15 @@
 (def file-filter-names ["Extensible Markup Language (XML) Files"])
 
 (def format-reqd-states {:workflow :reqd
-                         :wf-name :req-when-parent, :wf-ver :req-when-parent, :wf-format-ver :req-when-parent, :name :req-when-parent, :prog-exec-loc :req-when-parent, :prog-args :req-when-parent, :prog-opts :req-when-parent, :flag :req-when-parent, :val :req-when-parent, :dep :req-when-parent
-                         :meta nil, :parent nil, :parent-ver nil, :parent-file nil, :parent-hash nil, :jobs nil, :job nil, :id nil :desc nil, :prog-name nil, :prog-ver nil, :prog-exec-ver nil, :arg nil, :op nil, :std-out-file nil, :std-err-file nil, :deps nil})
+                         :wf-name :req-when-parent, :wf-ver :req-when-parent, :wf-format-ver :req-when-parent, :name :req-when-parent, :prog-exec-loc :req-when-parent, :prog-args :req-when-parent, :prog-opts :req-when-parent, :flag :req-when-parent, :val :req-when-parent, :dep :req-when-parent, :task-id :req-when-parent, :status :req-when-parent
+                         :meta nil, :parent nil, :parent-ver nil, :parent-file nil, :parent-hash nil, :jobs nil, :job nil, :id nil :desc nil, :prog-name nil, :prog-ver nil, :prog-exec-ver nil, :arg nil, :opt nil, :std-out-file nil, :std-err-file nil, :deps nil, :task-statuses nil, :task nil})
 
-(def format-hierarchy {:workflow [:meta :jobs], :meta [:wf-name :wf-ver :wf-format-ver :parent], :parent [:parent-ver :parent-file :parent-hash], :jobs :job, :job [:id :name :desc :prog-name :prog-ver :prog-exec-loc :prog-exec-ver :prog-args :prog-opts :std-out-file :std-err-file :job-deps], :prog-args :arg, :prog-opts :opt, :opt [:flag :val], :deps :dep})
+(def format-hierarchy {:workflow [:meta :jobs], :meta [:wf-name :wf-ver :wf-format-ver :parent], :parent [:parent-ver :parent-file :parent-hash], :jobs :job, :job [:id :name :desc :prog-name :prog-ver :prog-exec-loc :prog-exec-ver :prog-args :prog-opts :std-out-file :std-err-file :job-deps :task-statuses], :prog-args :arg, :prog-opts :opt, :opt [:flag :val], :deps :dep, :task-statuses :task, :task [:task-id :status]})
+
+;;
+;; functions to create XML from datatypes
+;;
+
 
 (defn- remove-fn
   "use this function to prune null/empty non-essential info being represented in a XML tree reprsentation"
@@ -91,6 +96,10 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
   [wf]
   (xml-util/tree-to-ppxml-str (xml-tree wf)))
 
+;;
+;; functions to create datatypes from XML
+;;
+
 (defn- nil-pun-empty-str
   "if the input is an empty string, return nil.  else, return the input val"
   [s]
@@ -140,7 +149,8 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
                          (letfn [(field-val [field]
                                    (condp = field
                                      :prog-args (vector-from-zip z field)
-                                     :prog-opts (map-from-zip z field)                  
+                                     :prog-opts (map-from-zip z field)
+                                     :task-statuses (map-from-zip z field)
                                      (scalar-from-zip z field)))]
                            (for [f fields :when (not (#{:deps} f))]
                              {f (field-val f)})))
@@ -190,6 +200,11 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
   [wf]
   (dosync
    (ref-set wf/wf wf)))
+
+;;
+;; developer-friendly high-level functions for loading and saving
+;; datatypes from/to XML
+;;
 
 (defn set-workflow-from-file
   "set the current state of the workflow based on an input XML string representation"
