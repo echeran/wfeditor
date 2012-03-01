@@ -11,8 +11,8 @@
   (:import
    org.eclipse.jface.window.ApplicationWindow
    org.eclipse.swt.SWT
-   (org.eclipse.swt.layout FillLayout FormLayout FormData FormAttachment GridLayout GridData)
-   (org.eclipse.swt.widgets Display Shell Label Button Sash Composite FileDialog)
+   (org.eclipse.swt.layout FillLayout FormLayout FormData FormAttachment GridLayout GridData RowLayout)
+   (org.eclipse.swt.widgets Display Shell Label Button Sash Composite FileDialog Group Text Combo)
    (org.eclipse.swt.events SelectionEvent SelectionAdapter)
    (org.eclipse.draw2d.geometry Rectangle Point)
    ;; (org.eclipse.swt.graphics Rectangle Point) have to comment this
@@ -42,19 +42,40 @@
    :else (when-let [parent (.getParent widget)] (get-ancestor-shell parent))))
 
 (defn ui-editor-left-create [parent]
-  (let [label1 (new Label parent SWT/CENTER)
-        print-wf-cmd-button (new-widget Button parent SWT/PUSH)
-        print-wf-sge-test-button (new-widget Button parent SWT/PUSH)
-        run-wf-button (new-widget Button parent SWT/PUSH)
-        print-wf-button (new-widget Button parent SWT/PUSH)
-        load-wf-button (new-widget Button parent SWT/PUSH)
-        save-wf-button (new-widget Button parent SWT/PUSH)
+  (let [exec-group (new-widget Group parent SWT/SHADOW_ETCHED_IN)
+        user-label (new-widget Label exec-group SWT/LEFT)
+        user-text (new-widget Text exec-group (bit-or SWT/SINGLE SWT/BORDER))
+        exec-dom-label (new-widget Label exec-group SWT/LEFT)
+        exec-dom-combo (new-widget Combo exec-group (bit-or SWT/DROP_DOWN SWT/READ_ONLY))
+        button-group (new-widget Group parent SWT/SHADOW_NONE)
+        label1 (new Label button-group SWT/CENTER)
+        print-wf-cmd-button (new-widget Button button-group SWT/PUSH)
+        print-wf-sge-test-button (new-widget Button button-group SWT/PUSH)
+        run-wf-button (new-widget Button button-group SWT/PUSH)
+        print-wf-button (new-widget Button button-group SWT/PUSH)
+        load-wf-button (new-widget Button button-group SWT/PUSH)
+        save-wf-button (new-widget Button button-group SWT/PUSH)
+        print-wf-inst-button (new-widget Button button-group SWT/PUSH)
         label2 (Label. parent  SWT/CENTER)]
     (do
-      (.setLayout parent (FillLayout. SWT/VERTICAL)))
+      (.setLayout parent (RowLayout. SWT/VERTICAL)))
+    (doto exec-group
+      (.setLayout (FillLayout. SWT/VERTICAL))
+      (.setText "Execution Properties"))
+    (doto user-label
+      (.setText "Enter username:"))
     (doto label1
       (.setText "Working button(s)")
       (.setBounds (.getClientArea parent)))
+    (doto exec-dom-label
+      (.setText "Select execution domain:"))
+    (doto exec-dom-combo
+      (.add "SGE")
+      (.add "shell")
+      (.select 0))
+    (doto button-group
+      (.setLayout (FillLayout. SWT/VERTICAL))
+      (.setText "Buttons"))
     (doto print-wf-cmd-button
       (.setText "Print workflow command")
       (.addSelectionListener (proxy [SelectionAdapter]
@@ -95,11 +116,21 @@
                                  (let [fd (FileDialog. (get-ancestor-shell parent) SWT/SAVE)]
                                    (when-let [out-file-name (.open fd)]
                                      (fformat/save-workflow-to-file (wflow/workflow) out-file-name)))))))
+    (doto print-wf-inst-button
+      (.setText "Print WF instance")
+      (.addSelectionListener (proxy [SelectionAdapter]
+                                 []
+                               (widgetSelected [event]
+                                 (let [username (.getText user-text)
+                                       workflow (wflow/workflow)
+                                       exec-domain (.getItem exec-dom-combo (.getSelectionIndex exec-dom-combo))
+                                       wf-inst (wflow/new-wfinstance-fn username workflow exec-domain)
+                                       wf-inst-str (fformat/workflow-instance-to-string wf-inst)]
+                                   (println wf-inst-str))))))
     (doto label2
       (.setText "Testing/non-working button(s)"))
     (create-widgets-with-names parent Button SWT/PUSH ["one" "two" "three"])
     (do
-      (.setLayout parent (FillLayout. SWT/VERTICAL))
       (create-widgets-with-names parent Button SWT/RADIO ["Radio 1" "Radio 2" "Radio 3"])
       (create-widgets-with-names parent Button SWT/TOGGLE ["Tog 1" "Tog 2" "Tog 3"])
       (create-widgets-with-names parent Button SWT/CHECK [ "Check one" "...two" "...three"]))))

@@ -92,7 +92,7 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
   (let [username (:username wfinst)
         wf (:workflow wfinst)
         exec-domain (:exec-domain wfinst)]
-    {:tag :wfinstance :attrs nil :content [(xml-subtree username) (wf-xml-tree wf) (xml-subtree exec-domain)]}))
+    {:tag :wfinstance :attrs nil :content [(xml-subtree :username username) (wf-xml-tree wf) (xml-subtree :exec-domain exec-domain)]}))
 
 ;; return an XML tree for a given object as XML trees are returned by clojure.xml/parse
 (defmulti xml-tree class)
