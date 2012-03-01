@@ -33,7 +33,7 @@
 
 ;; a type representing the execution of a workflow on a server (e.g., on a cluster
 ;; using a Grid Engine).
-(defrecord WFInstance [username workflow exec-domain])
+(defrecord WFInstance [username exec-domain workflow])
 
 
 ;;
@@ -61,8 +61,8 @@ id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file deps"
 
 (defn new-wfinstance-fn
   "return a new workflow instance type"
-  [username workflow exec-domain]
-  (WFInstance. username workflow exec-domain))
+  [username exec-domain workflow]
+  (WFInstance. username exec-domain workflow))
 
 
 ;;

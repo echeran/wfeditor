@@ -124,7 +124,7 @@
                                  (let [username (.getText user-text)
                                        workflow (wflow/workflow)
                                        exec-domain (.getItem exec-dom-combo (.getSelectionIndex exec-dom-combo))
-                                       wf-inst (wflow/new-wfinstance-fn username workflow exec-domain)
+                                       wf-inst (wflow/new-wfinstance-fn username exec-domain workflow)
                                        wf-inst-str (fformat/workflow-instance-to-string wf-inst)]
                                    (println wf-inst-str))))))
     (doto label2

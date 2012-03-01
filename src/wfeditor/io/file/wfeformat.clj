@@ -14,7 +14,7 @@
                          :username :req-when-parent, :exec-domain :req-when-parent, :wf-name :req-when-parent, :wf-ver :req-when-parent, :wf-format-ver :req-when-parent, :name :req-when-parent, :prog-exec-loc :req-when-parent, :prog-args :req-when-parent, :prog-opts :req-when-parent, :flag :req-when-parent, :val :req-when-parent, :dep :req-when-parent, :task-id :req-when-parent, :status :req-when-parent
                          :meta nil, :parent nil, :parent-ver nil, :parent-file nil, :parent-hash nil, :jobs nil, :job nil, :id nil :desc nil, :prog-name nil, :prog-ver nil, :prog-exec-ver nil, :arg nil, :opt nil, :std-out-file nil, :std-err-file nil, :deps nil, :task-statuses nil, :task nil})
 
-(def format-hierarchy {:wfinstance [:username :workflow :exec-domain], :workflow [:meta :jobs], :meta [:wf-name :wf-ver :wf-format-ver :parent], :parent [:parent-ver :parent-file :parent-hash], :jobs :job, :job [:id :name :desc :prog-name :prog-ver :prog-exec-loc :prog-exec-ver :prog-args :prog-opts :std-out-file :std-err-file :job-deps :task-statuses], :prog-args :arg, :prog-opts :opt, :opt [:flag :val], :deps :dep, :task-statuses :task, :task [:task-id :status]})
+(def format-hierarchy {:wfinstance [:username :exec-domain :workflow], :workflow [:meta :jobs], :meta [:wf-name :wf-ver :wf-format-ver :parent], :parent [:parent-ver :parent-file :parent-hash], :jobs :job, :job [:id :name :desc :prog-name :prog-ver :prog-exec-loc :prog-exec-ver :prog-args :prog-opts :std-out-file :std-err-file :job-deps :task-statuses], :prog-args :arg, :prog-opts :opt, :opt [:flag :val], :deps :dep, :task-statuses :task, :task [:task-id :status]})
 
 ;;
 ;; functions to create XML from datatypes
@@ -89,10 +89,10 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
 (defn- wfinstance-xml-tree
   "implementation of defmethod for xml-tree multimethod for the WFInstance record class"
   [wfinst]
-  (let [username (:username wfinst)
-        wf (:workflow wfinst)
-        exec-domain (:exec-domain wfinst)]
-    {:tag :wfinstance :attrs nil :content [(xml-subtree :username username) (wf-xml-tree wf) (xml-subtree :exec-domain exec-domain)]}))
+  (let [username (:username wfinst) 
+        exec-domain (:exec-domain wfinst)
+        wf (:workflow wfinst)]
+    {:tag :wfinstance :attrs nil :content [(xml-subtree :username username) (xml-subtree :exec-domain exec-domain) (wf-xml-tree wf)]}))
 
 ;; return an XML tree for a given object as XML trees are returned by clojure.xml/parse
 (defmulti xml-tree class)
