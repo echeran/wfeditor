@@ -8,6 +8,7 @@
 
 (declare wf)
 
+
 ;;
 ;; records
 ;;
@@ -30,8 +31,42 @@
 ;; and all of the meta-info
 (defrecord Workflow [graph wf-name wf-ver wf-format-ver parent-ver parent-file parent-hash])
 
+;; a type representing the execution of a workflow on a server (e.g., on a cluster
+;; using a Grid Engine).
+(defrecord WFInstance [username workflow exec-domain])
+
+
 ;;
-;; functions
+;; record type utility functions
+;;
+
+(defn new-job-fn
+  "return a new job record / object.
+when supplying arguments to the function, the following are required
+name, prog-exec-loc, prog-args prog-opts
+the following are optional:
+id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file deps"
+  [name prog-exec-loc prog-args prog-opts & {:keys [id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file task-statuses] :or {id nil desc nil prog-name nil prog-ver nil prog-exec-ver nil std-out-file nil std-err-file nil task-statuses nil}}]
+  (Job. id name desc prog-name prog-ver prog-exec-loc prog-exec-ver prog-args prog-opts std-out-file std-err-file task-statuses))
+
+(defn new-graph-fn
+  "return a new graph type"
+  [& {:keys [nodes neighbors] :or {nodes #{} neighbors {}}}]
+  (Graph. nodes neighbors))
+
+(defn new-workflow-fn
+  "return a new workflow type"
+  [& {:keys [graph wf-name wf-ver wf-format-ver parent-ver parent-file parent-hash] :or {graph (new-graph-fn) wf-name nil wf-ver nil wf-format-ver nil parent-ver nil parent-file nil parent-hash nil}}]
+  (Workflow. graph wf-name wf-ver wf-format-ver parent-ver parent-file parent-hash))
+
+(defn new-wfinstance-fn
+  "return a new workflow instance type"
+  [username workflow exec-domain]
+  (WFInstance. username workflow exec-domain))
+
+
+;;
+;; workflow utility functions
 ;;
 
 (defn workflow
@@ -84,25 +119,6 @@ note: this is the reverse of the dep-graph"
       (when (seq jobs)
         (some #(when (= val (field %)) %) jobs))))
 
-(defn new-job-fn
-  "return a new job record / object.
-when supplying arguments to the function, the following are required
-name, prog-exec-loc, prog-args prog-opts
-the following are optional:
-id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file deps"
-  [name prog-exec-loc prog-args prog-opts & {:keys [id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file task-statuses] :or {id nil desc nil prog-name nil prog-ver nil prog-exec-ver nil std-out-file nil std-err-file nil task-statuses nil}}]
-  (Job. id name desc prog-name prog-ver prog-exec-loc prog-exec-ver prog-args prog-opts std-out-file std-err-file task-statuses))
-
-(defn new-graph-fn
-  "return a new graph type"
-  [& {:keys [nodes neighbors] :or {nodes #{} neighbors {}}}]
-  (Graph. nodes neighbors))
-
-(defn new-workflow-fn
-  "return a new workflow type"
-  [& {:keys [graph wf-name wf-ver wf-format-ver parent-ver parent-file parent-hash] :or {graph (new-graph-fn) wf-name nil wf-ver nil wf-format-ver nil parent-ver nil parent-file nil parent-hash nil}}]
-  (Workflow. graph wf-name wf-ver wf-format-ver parent-ver parent-file parent-hash))
-
 (defn depends-upon
   "return the obects that this job depends upon based on the state of the graph"
   [job]
@@ -130,6 +146,30 @@ id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file deps"
                         ["compute-sum" "bc" [] {}]] )]
     init-jobs))
 
+(defn wf-job-seq
+  "return a sequence of jobs in the workflow graph in a topological order, where if job B depends on job A, then B will follow A in the returned sequence"
+  [wf]
+  (let [dep-levels (dep-levels (dep-graph wf))]
+    (for [level dep-levels job level] job)))
+
+(defn wf-with-internal-ids
+  "return the workflow with artificially, uniquely assigned ids for all jobs"
+  [wf]
+  (let [dep-order-job-seq (wf-job-seq wf)
+        local-id (atom 0)
+        new-job-map (into {} (for [j dep-order-job-seq] [j (assoc j :id (swap! local-id inc))]))
+        new-jobs (into #{} (vals new-job-map))
+        dep-graph (dep-graph wf)
+        dep-graph-neighbors (:neighbors dep-graph)
+        new-dep-graph-neighbors (into {} (for [[job deps] dep-graph-neighbors] [(new-job-map job) (map new-job-map deps)]))
+        new-dep-graph { :nodes new-jobs :neighbors new-dep-graph-neighbors}]
+    (assoc wf :graph new-dep-graph)))
+
+
+;;
+;; initialization functions
+;;
+
 (defn job-dep-map
   "return a map that (due to Clojure rules for maps) serves as a function returning which jobs are dependent upon the input job / key.  the input is an adjacency list implemented as a map of names to lists of names"
   ([name-dep-map]
@@ -153,24 +193,6 @@ id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file deps"
   (let [init-graph (init-clj-graph)]
     (new-workflow-fn :graph init-graph)))
 
-(defn wf-job-seq
-  "return a sequence of jobs in the workflow graph in a topological order, where if job B depends on job A, then B will follow A in the returned sequence"
-  [wf]
-  (let [dep-levels (dep-levels (dep-graph wf))]
-    (for [level dep-levels job level] job)))
-
-(defn wf-with-internal-ids
-  "return the workflow with artificially, uniquely assigned ids for all jobs"
-  [wf]
-  (let [dep-order-job-seq (wf-job-seq wf)
-        local-id (atom 0)
-        new-job-map (into {} (for [j dep-order-job-seq] [j (assoc j :id (swap! local-id inc))]))
-        new-jobs (into #{} (vals new-job-map))
-        dep-graph (dep-graph wf)
-        dep-graph-neighbors (:neighbors dep-graph)
-        new-dep-graph-neighbors (into {} (for [[job deps] dep-graph-neighbors] [(new-job-map job) (map new-job-map deps)]))
-        new-dep-graph { :nodes new-jobs :neighbors new-dep-graph-neighbors}]
-    (assoc wf :graph new-dep-graph)))
 
 ;;
 ;; refs - binding initial values

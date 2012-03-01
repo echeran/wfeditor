@@ -4,17 +4,17 @@
             [clojure.string :as string]
             [clojure.contrib.zip-filter.xml :as zfx]
             [wfeditor.ui.gui.zest.canvas :as canvas])
-  (:import [wfeditor.model.workflow Job Workflow]))
+  (:import [wfeditor.model.workflow Job Workflow WFInstance]))
 
 
 (def file-filter-extensions ["*.xml"])
 (def file-filter-names ["Extensible Markup Language (XML) Files"])
 
-(def format-reqd-states {:workflow :reqd
-                         :wf-name :req-when-parent, :wf-ver :req-when-parent, :wf-format-ver :req-when-parent, :name :req-when-parent, :prog-exec-loc :req-when-parent, :prog-args :req-when-parent, :prog-opts :req-when-parent, :flag :req-when-parent, :val :req-when-parent, :dep :req-when-parent, :task-id :req-when-parent, :status :req-when-parent
+(def format-reqd-states {:workflow :reqd, :wfinstance :reqd
+                         :username :req-when-parent, :exec-domain :req-when-parent, :wf-name :req-when-parent, :wf-ver :req-when-parent, :wf-format-ver :req-when-parent, :name :req-when-parent, :prog-exec-loc :req-when-parent, :prog-args :req-when-parent, :prog-opts :req-when-parent, :flag :req-when-parent, :val :req-when-parent, :dep :req-when-parent, :task-id :req-when-parent, :status :req-when-parent
                          :meta nil, :parent nil, :parent-ver nil, :parent-file nil, :parent-hash nil, :jobs nil, :job nil, :id nil :desc nil, :prog-name nil, :prog-ver nil, :prog-exec-ver nil, :arg nil, :opt nil, :std-out-file nil, :std-err-file nil, :deps nil, :task-statuses nil, :task nil})
 
-(def format-hierarchy {:workflow [:meta :jobs], :meta [:wf-name :wf-ver :wf-format-ver :parent], :parent [:parent-ver :parent-file :parent-hash], :jobs :job, :job [:id :name :desc :prog-name :prog-ver :prog-exec-loc :prog-exec-ver :prog-args :prog-opts :std-out-file :std-err-file :job-deps :task-statuses], :prog-args :arg, :prog-opts :opt, :opt [:flag :val], :deps :dep, :task-statuses :task, :task [:task-id :status]})
+(def format-hierarchy {:wfinstance [:username :workflow :exec-domain], :workflow [:meta :jobs], :meta [:wf-name :wf-ver :wf-format-ver :parent], :parent [:parent-ver :parent-file :parent-hash], :jobs :job, :job [:id :name :desc :prog-name :prog-ver :prog-exec-loc :prog-exec-ver :prog-args :prog-opts :std-out-file :std-err-file :job-deps :task-statuses], :prog-args :arg, :prog-opts :opt, :opt [:flag :val], :deps :dep, :task-statuses :task, :task [:task-id :status]})
 
 ;;
 ;; functions to create XML from datatypes
@@ -86,16 +86,29 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
         jobs-subtree {:tag :jobs :attrs nil :content (remove nil? (into [] (map job-xml-tree job-seq)))}]
     {:tag :workflow :attrs nil :content (remove nil? [meta-subtree jobs-subtree])}))
 
+(defn- wfinstance-xml-tree
+  "implementation of defmethod for xml-tree multimethod for the WFInstance record class"
+  [wfinst]
+  (let [username (:username wfinst)
+        wf (:workflow wfinst)
+        exec-domain (:exec-domain wfinst)]
+    {:tag :wfinstance :attrs nil :content [(xml-subtree username) (wf-xml-tree wf) (xml-subtree exec-domain)]}))
+
 ;; return an XML tree for a given object as XML trees are returned by clojure.xml/parse
 (defmulti xml-tree class)
 (defmethod xml-tree wfeditor.model.workflow.Job [obj] (job-xml-tree obj))
 (defmethod xml-tree wfeditor.model.workflow.Workflow [obj] (wf-xml-tree obj))
+(defmethod xml-tree wfeditor.model.workflow.WFInstance [obj] (wfinstance-xml-tree obj))
 
 (defn workflow-to-string
   "return an XML string representation of the current workflow object"
   [wf]
   (xml-util/tree-to-ppxml-str (xml-tree wf)))
 
+(defn workflow-instance-to-string
+  "return an XML string representation of the current workflow instance object"
+  [wfinst]
+  (xml-util/tree-to-ppxml-str (xml-tree wfinst)))
 ;;
 ;; functions to create datatypes from XML
 ;;
@@ -171,15 +184,13 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
       (if-let [parent-zip (first (zfx/xml-> meta-zip :parent))]
         (let [parent-meta-map (into {} (for [tag [:parent-ver :parent-file :parent-hash]] [tag (scalar-from-zip parent-zip tag)]))]
           (merge meta-map parent-meta-map))
-         meta-map))))
+        meta-map))))
 
-(defn- workflow-from-file
-  "return a workflow based on an input XML string representation"
-  [file-name]
-  (let [wf-xml-tree (xml-util/xml-file-to-tree file-name)
-        wf-xml-zip (xml-util/xml-tree-to-zip wf-xml-tree)
-        meta-map (meta-from-zip wf-xml-zip)]
-    (loop [job-zip-seq (zfx/xml-> wf-xml-zip :jobs :job)
+(defn- workflow-from-zip
+  "return a workflow given an XML zipper of the workflow"
+  [z]
+  (let [meta-map (meta-from-zip z)]
+    (loop [job-zip-seq (zfx/xml-> z :jobs :job)
            job-set #{}
            dep-name-map {}]      
       (if (empty? job-zip-seq)
@@ -195,11 +206,34 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
               job-deps (deps-from-zip jz)]
           (recur (rest job-zip-seq) (conj job-set job) (assoc dep-name-map job-name job-deps)))))))
 
+(defn- workflow-from-file
+  "return a workflow based on an input XML string representation"
+  [file-name]
+  (let [wf-xml-tree (xml-util/xml-file-to-tree file-name)
+        wf-xml-zip (xml-util/xml-tree-to-zip wf-xml-tree)]
+    (workflow-from-zip wf-xml-zip)))
+
 (defn set-workflow
   "set the current state of the workflow.  also, update the canvas graph accordingly"
   [wf]
   (dosync
    (ref-set wf/wf wf)))
+
+(defn- wfinstance-from-zip
+  "return a workflow instance given an XML zipper of the workflow"
+  [z]
+  (let [username (scalar-from-zip z :username)
+        exec-domain (scalar-from-zip z :exec-domain)
+        wf-zip (first (zfx/xml-> z :workflow))
+        wf (workflow-from-zip wf-zip)]
+    (wfeditor.model.workflow/new-wfinstance-fn username wf exec-domain)))
+
+(defn- wfinstance-from-file
+  "return a workflow instance based on an input XML string representation"
+  [file-name]
+  (let [wfinstance-xml-tree (xml-util/xml-file-to-tree file-name)
+        wfinstance-xml-zip (xml-util/xml-tree-to-zip wfinstance-xml-tree)]
+    (wfinstance-from-zip wfinstance-xml-zip)))
 
 ;;
 ;; developer-friendly high-level functions for loading and saving
