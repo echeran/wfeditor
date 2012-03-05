@@ -17,8 +17,10 @@
   {:status 500
    :body "Oh no! An error has occurred"})
 
-(defpage [:get "/workflow"] []
-  "Request the status of a workflow")
+(defpage [:get "/wfinstance"] {:keys [wfinstance]}
+  (str "You are requesting the status of the following workflow instance"
+       "\n"
+       wfinstance))
 
-(defpage [:post "/workflow"] []
+(defpage [:post "/wfinstance"] []
   "Create a new instance of a workflow")
