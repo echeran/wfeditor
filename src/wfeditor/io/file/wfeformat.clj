@@ -227,7 +227,7 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
         exec-domain (scalar-from-zip z :exec-domain)
         wf-zip (first (zfx/xml-> z :workflow))
         wf (workflow-from-zip wf-zip)]
-    (wfeditor.model.workflow/new-wfinstance-fn username wf exec-domain)))
+    (wfeditor.model.workflow/new-wfinstance-fn username exec-domain wf)))
 
 (defn- wfinstance-from-file
   "return a workflow instance based on an input XML string representation"
