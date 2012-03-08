@@ -230,7 +230,7 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
     (for [job dep-order-job-seq]
       (let [job-name (:name job)
             deps ((:neighbors dep-graph) job)
-            deps-str (if deps
+            deps-str (if (seq deps)
                        (str "-hold_jid " (string/join "," (map :id deps)))
                        "")
             job-id (:id job)
@@ -240,18 +240,6 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
 (defn print-deps-in-order
   "print the jobs in order of which is depended on by following jobs"
   [wf]
-  ;; (let [dep-order-job-seq (wflow/wf-job-seq wf)
-  ;;       jobs (wflow/wf-jobs wf)
-  ;;       dep-graph (wflow/dep-graph wf)]
-  ;;   (doseq [job dep-order-job-seq]
-  ;;     (let [job-name (:name job)
-  ;;           deps ((:neighbors dep-graph) job)
-  ;;           deps-str (if deps
-  ;;                      (str "-hold_jid " (string/join "," (map :id deps)))
-  ;;                      "")
-  ;;           job-id (:id job)
-  ;;           cmd (string/join " " [(str "[" job-id  "]") "qsub" job-name deps-str])]
-  ;;       (println cmd))))
   (let [cmd-seq (cmds-in-dep-order wf)]
     (doseq [cmd cmd-seq]
       (println cmd)))
