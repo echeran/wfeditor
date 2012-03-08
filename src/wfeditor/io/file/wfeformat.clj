@@ -43,7 +43,6 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
    (remove-fn val) (if-not (format-reqd-states tag)
                      nil
                      {:tag tag :attrs nil :content []})
-   (string? val) {:tag tag :attrs nil :content [val]}
    (sequential? val) {:tag tag :attrs nil :content (into [] (remove nil? (for [x val] (xml-subtree (format-hierarchy tag) x))))}
    (map? val) (let [keyval-tag (format-hierarchy tag)
                     [key-tag val-tag] (format-hierarchy keyval-tag)]
@@ -51,13 +50,16 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
                  (into [] (remove nil? (for [[k v] val]
                                          {:tag keyval-tag :attrs nil :content
                                           [(xml-subtree key-tag k)
-                                           (xml-subtree val-tag v)]})))})))
+                                           (xml-subtree val-tag v)]})))})
+   ;; we need all scalars to be cast to Strings for the purposes
+   ;; of the Clojure XML emit function
+   true {:tag tag :attrs nil :content [(str val)]}))
 
 (defn- job-xml-tree
   "implementation of defmethod for xml-tree multimethod for the Job record class"
-  [job]
+  [wf job]
   (let [job-keys (keys job)
-        job-deps (map #(get % :name) ((:neighbors (wf/dep-graph)) job))]
+        job-deps (map #(get % :name) ((:neighbors (wf/dep-graph wf)) job))]
     {:tag :job :attrs nil :content
      (into [] (remove nil? (concat (for [key job-keys]
                                       (let [val (get job key)] 
@@ -84,7 +86,7 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
   [wf]
   (let [meta-subtree (wf-meta-xml-tree wf)
         job-seq (wf/wf-job-seq wf)
-        jobs-subtree {:tag :jobs :attrs nil :content (remove nil? (into [] (map job-xml-tree job-seq)))}]
+        jobs-subtree {:tag :jobs :attrs nil :content (remove nil? (into [] (map (partial job-xml-tree wf) job-seq)))}]
     {:tag :workflow :attrs nil :content (remove nil? [meta-subtree jobs-subtree])}))
 
 (defn- wfinstance-xml-tree
@@ -97,7 +99,7 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
 
 ;; return an XML tree for a given object as XML trees are returned by clojure.xml/parse
 (defmulti xml-tree class)
-(defmethod xml-tree wfeditor.model.workflow.Job [obj] (job-xml-tree obj))
+;; (defmethod xml-tree wfeditor.model.workflow.Job [obj] (job-xml-tree obj))
 (defmethod xml-tree wfeditor.model.workflow.Workflow [obj] (wf-xml-tree obj))
 (defmethod xml-tree wfeditor.model.workflow.WFInstance [obj] (wfinstance-xml-tree obj))
 
