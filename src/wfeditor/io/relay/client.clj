@@ -29,9 +29,12 @@
            wfinst-str (fformat/workflow-instance-to-string wfinst)]
        ;; even for GET, where there is a limit to the query string
        ;; length in most browswers in the range 2KB-8KB, there is no
-       ;; limit to the length of the entire message (and no mention of
-       ;; a length limit in the HTTP spec)
-       ;; SO: http://stackoverflow.com/questions/2659952/maximum-length-of-http-get-request
+       ;; limit to the length of the entire message (but no mention of
+       ;; an overall length limit in the HTTP spec)
+       ;; from SO: http://stackoverflow.com/questions/2659952/maximum-length-of-http-get-request
+       ;; TODO: put this function call in a Clojure state-aware call
+       ;; for I/O, so probably asynchronous, like send or send-off
+       ;; (not sure agent is what we need)
        (req-fn url {:body wfinst-str}))))
 
 (defn update-request
