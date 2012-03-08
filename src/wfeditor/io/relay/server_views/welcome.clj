@@ -35,11 +35,12 @@
 (defpage [:get "/wfinstance"] []
   (let [wfinst (wfinst-from-req)
         wf (:workflow wfinst)
-        new-wf (wflow/wf-with-internal-ids wf)] 
+        new-wf (wflow/wf-with-internal-ids wf)
+        new-wfinst (assoc wfinst :workflow new-wf)]
+    ;; TODO: replace these printing statements with actual code execution
+    (println "I have pretended to run:")
     (exec/print-deps-in-order new-wf)
-    (str "GET: Requesting the status of a workflow instance"
-         "\n"
-         "I have pretended to run the ")))
+    (fformat/workflow-instance-to-string new-wfinst)))
 
 (defpage [:put "/wfinstance"] []
   "POST: Create a new instance of a workflow")
