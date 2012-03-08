@@ -7,7 +7,8 @@
   (:require wfeditor.ui.gui.zest.canvas
             [wfeditor.model.workflow :as wflow]
             [wfeditor.io.execution :as exec]
-            [wfeditor.io.file.wfeformat :as fformat])
+            [wfeditor.io.file.wfeformat :as fformat]
+            [wfeditor.io.relay.client :as wfeclient])
   (:import
    org.eclipse.jface.window.ApplicationWindow
    org.eclipse.swt.SWT
@@ -56,6 +57,7 @@
         load-wf-button (new-widget Button button-group SWT/PUSH)
         save-wf-button (new-widget Button button-group SWT/PUSH)
         print-wf-inst-button (new-widget Button button-group SWT/PUSH)
+        update-wf-inst-button (new-widget Button button-group SWT/PUSH)
         testing-group (new-widget Group parent SWT/SHADOW_ETCHED_OUT)
         label2 (Label. testing-group  SWT/CENTER)]
     (do
@@ -100,7 +102,8 @@
       (.addSelectionListener (proxy [SelectionAdapter]
                                  []
                                (widgetSelected [event]
-                                 (exec/print-deps-in-order (wflow/workflow))))))
+                                 (let [new-wf (wflow/wf-with-internal-ids (wflow/workflow))]
+                                   (exec/print-deps-in-order new-wf))))))
     (doto run-wf-button
       (.setText "Run workflow")
       (.addSelectionListener (proxy [SelectionAdapter]
@@ -140,6 +143,20 @@
                                        wf-inst (wflow/new-wfinstance-fn username exec-domain workflow)
                                        wf-inst-str (fformat/workflow-instance-to-string wf-inst)]
                                    (println wf-inst-str))))))
+    (doto update-wf-inst-button
+      (.setText "Update WF instance via server")
+      (.addSelectionListener (proxy [SelectionAdapter]
+                                 []
+                               (widgetSelected [event]
+                                 (let [username (.getText user-text)
+                                       workflow (wflow/workflow)
+                                       exec-domain (.getItem exec-dom-combo (.getSelectionIndex exec-dom-combo))
+                                       wf-inst (wflow/new-wfinstance-fn username exec-domain workflow)
+                                       ;; wf-inst-str (fformat/workflow-instance-to-string wf-inst)
+                                       update-resp (wfeclient/update-request wf-inst)
+                                       resp-msg (wfeclient/response-msg update-resp)
+                                       ]
+                                   (println resp-msg))))))
     (doto testing-group
       (.setText "Testing")
       (.setLayout (RowLayout. SWT/VERTICAL))

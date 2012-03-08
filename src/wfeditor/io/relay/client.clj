@@ -13,7 +13,7 @@
 ;; functions
 ;;
 
-(defn req-wfinst
+(defn- req-wfinst
   "send an HTTP request to the server containing a WFInstance. WFInstance sent as its XML string representation in the request body.  req-type (HTTP request type) is one of [:get :post]"
   ;; TODO: make the host and port values optional, supplying defaults from
   ;; client.clj and server.clj when necessary
@@ -33,3 +33,13 @@
        ;; a length limit in the HTTP spec)
        ;; SO: http://stackoverflow.com/questions/2659952/maximum-length-of-http-get-request
        (req-fn url {:body wfinst-str}))))
+
+(defn update-request
+  "send an HTTP GET request to the server to get the status for a wf-instance, and the response message is returned"
+  [wfinst]
+  (req-wfinst :get wfinst DEFAULT-HOST wfeserver/DEFAULT-PORT "/wfinstance"))
+
+(defn response-msg
+  "retrieve the body of the HTTP response message from the server"
+  [resp]
+  (:body resp))

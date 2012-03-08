@@ -1,6 +1,8 @@
 (ns wfeditor.io.relay.server-views.welcome
   (:require [wfeditor.io.relay.server-views.common :as common]
             [wfeditor.io.file.wfeformat :as fformat]
+            [wfeditor.io.execution :as exec]
+            [wfeditor.model.workflow :as wflow]
             [noir.content.getting-started]
             [noir.response :as resp]
             [noir.validation :as vali]
@@ -26,13 +28,18 @@
   (let [req-body-parser (:body (ring-request))]
     (with-open [rdr (clojure.java.io/reader req-body-parser)]
       (let [wfinst-str (slurp rdr)
-            wfinst (fformat/workflow-instance-to-string wfinst-str)]
+            wfinst-stream (fformat/string-input-stream wfinst-str)
+            wfinst (fformat/wfinstance-from-stream wfinst-stream)]
         wfinst))))
 
 (defpage [:get "/wfinstance"] []
-  (str "GET: Requesting the status of a workflow instance"
-       "\n"
-       ))
+  (let [wfinst (wfinst-from-req)
+        wf (:workflow wfinst)
+        new-wf (wflow/wf-with-internal-ids wf)] 
+    (exec/print-deps-in-order new-wf)
+    (str "GET: Requesting the status of a workflow instance"
+         "\n"
+         "I have pretended to run the ")))
 
 (defpage [:put "/wfinstance"] []
   "POST: Create a new instance of a workflow")

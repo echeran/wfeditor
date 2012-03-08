@@ -4,7 +4,8 @@
             [clojure.string :as string]
             [clojure.contrib.zip-filter.xml :as zfx]
             [wfeditor.ui.gui.zest.canvas :as canvas])
-  (:import [wfeditor.model.workflow Job Workflow WFInstance]))
+  (:import [wfeditor.model.workflow Job Workflow WFInstance]
+           [java.io ByteArrayInputStream]))
 
 
 (def file-filter-extensions ["*.xml"])
@@ -236,12 +237,20 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
         wfinstance-xml-zip (xml-util/xml-tree-to-zip wfinstance-xml-tree)]
     (wfinstance-from-zip wfinstance-xml-zip)))
 
+;; TODO: clean up the __-from-__ style of methods that parse text and
+;; return objects so that zipper creation is abstracted 
+
 (defn wfinstance-from-stream
   "return a workflow instance from the input stream"
   [in-stream]
   (let [wfinstance-xml-tree (xml-util/xml-stream-to-tree in-stream)
         wfinstance-xml-zip (xml-util/xml-tree-to-zip wfinstance-xml-tree)]
     (wfinstance-from-zip wfinstance-xml-zip)))
+
+(defn string-input-stream
+  "return an input stream from a string"
+  [str]
+  (ByteArrayInputStream. (.getBytes str)))
 
 ;;
 ;; developer-friendly high-level functions for loading and saving

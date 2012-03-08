@@ -221,15 +221,13 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
 ;; the following section is for running jobs on a grid engine
 
 
-
-(defn print-deps-in-order
-  "print the jobs in order of which is depended on by following jobs"
+(defn cmds-in-dep-order
+  "return a sequence of job commands in order of which is depended on by which following jobs"
   [wf]
-  (let [new-wf (wflow/wf-with-internal-ids wf)
-        dep-order-job-seq (wflow/wf-job-seq new-wf)
-        jobs (wflow/wf-jobs new-wf)
-        dep-graph (wflow/dep-graph new-wf)]
-    (doseq [job dep-order-job-seq]
+  (let [dep-order-job-seq (wflow/wf-job-seq wf)
+        jobs (wflow/wf-jobs wf)
+        dep-graph (wflow/dep-graph wf)]
+    (for [job dep-order-job-seq]
       (let [job-name (:name job)
             deps ((:neighbors dep-graph) job)
             deps-str (if deps
@@ -237,4 +235,24 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
                        "")
             job-id (:id job)
             cmd (string/join " " [(str "[" job-id  "]") "qsub" job-name deps-str])]
-        (println cmd)))))
+        cmd))))
+
+(defn print-deps-in-order
+  "print the jobs in order of which is depended on by following jobs"
+  [wf]
+  ;; (let [dep-order-job-seq (wflow/wf-job-seq wf)
+  ;;       jobs (wflow/wf-jobs wf)
+  ;;       dep-graph (wflow/dep-graph wf)]
+  ;;   (doseq [job dep-order-job-seq]
+  ;;     (let [job-name (:name job)
+  ;;           deps ((:neighbors dep-graph) job)
+  ;;           deps-str (if deps
+  ;;                      (str "-hold_jid " (string/join "," (map :id deps)))
+  ;;                      "")
+  ;;           job-id (:id job)
+  ;;           cmd (string/join " " [(str "[" job-id  "]") "qsub" job-name deps-str])]
+  ;;       (println cmd))))
+  (let [cmd-seq (cmds-in-dep-order wf)]
+    (doseq [cmd cmd-seq]
+      (println cmd)))
+  )
