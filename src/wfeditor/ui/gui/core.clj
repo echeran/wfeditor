@@ -48,7 +48,7 @@
         exec-dom-label (new-widget Label exec-group SWT/LEFT)
         exec-dom-combo (new-widget Combo exec-group (bit-or SWT/DROP_DOWN SWT/READ_ONLY))
         button-group (new-widget Group parent SWT/SHADOW_NONE)
-        label1 (new Label button-group SWT/CENTER)
+        ;; label1 (new Label button-group SWT/CENTER)
         print-wf-cmd-button (new-widget Button button-group SWT/PUSH)
         print-wf-sge-test-button (new-widget Button button-group SWT/PUSH)
         run-wf-button (new-widget Button button-group SWT/PUSH)
@@ -56,26 +56,39 @@
         load-wf-button (new-widget Button button-group SWT/PUSH)
         save-wf-button (new-widget Button button-group SWT/PUSH)
         print-wf-inst-button (new-widget Button button-group SWT/PUSH)
-        label2 (Label. parent  SWT/CENTER)]
+        testing-group (new-widget Group parent SWT/SHADOW_ETCHED_OUT)
+        label2 (Label. testing-group  SWT/CENTER)]
     (do
-      (.setLayout parent (RowLayout. SWT/VERTICAL)))
+      ;; (.setLayout parent (RowLayout. SWT/VERTICAL))
+      (.setLayout parent (GridLayout.))
+      )
     (doto exec-group
-      (.setLayout (FillLayout. SWT/VERTICAL))
-      (.setText "Execution Properties"))
+      (.setText "Execution Properties")
+      (.setLayoutData (GridData. GridData/FILL_HORIZONTAL)))
+    (let [layout (GridLayout.)]
+      (do
+        (set! (. layout numColumns) 2)
+        (.setLayout exec-group layout)))
     (doto user-label
-      (.setText "Enter username:"))
-    (doto label1
-      (.setText "Working button(s)")
-      (.setBounds (.getClientArea parent)))
+      (.setText "Enter username:")
+      (.setLayoutData (GridData. GridData/HORIZONTAL_ALIGN_BEGINNING)))
+    (doto user-text
+      (.setLayoutData (GridData. GridData/FILL_HORIZONTAL)))
     (doto exec-dom-label
-      (.setText "Select execution domain:"))
+      (.setText "Select execution domain:")
+      (.setLayoutData (GridData. GridData/HORIZONTAL_ALIGN_BEGINNING)))
     (doto exec-dom-combo
       (.add "SGE")
       (.add "shell")
-      (.select 0))
+      (.select 0)
+      (.setLayoutData (GridData. GridData/FILL_HORIZONTAL)))
     (doto button-group
       (.setLayout (FillLayout. SWT/VERTICAL))
-      (.setText "Buttons"))
+      (.setText "Buttons")
+      (.setLayoutData (GridData. GridData/FILL_BOTH)))
+    ;; (doto label1
+    ;;   (.setText "Working button(s)")
+    ;;   (.setBounds (.getClientArea parent)))
     (doto print-wf-cmd-button
       (.setText "Print workflow command")
       (.addSelectionListener (proxy [SelectionAdapter]
@@ -127,13 +140,17 @@
                                        wf-inst (wflow/new-wfinstance-fn username exec-domain workflow)
                                        wf-inst-str (fformat/workflow-instance-to-string wf-inst)]
                                    (println wf-inst-str))))))
+    (doto testing-group
+      (.setText "Testing")
+      (.setLayout (RowLayout. SWT/VERTICAL))
+      (.setLayoutData (GridData. GridData/HORIZONTAL_ALIGN_BEGINNING)))
     (doto label2
       (.setText "Testing/non-working button(s)"))
-    (create-widgets-with-names parent Button SWT/PUSH ["one" "two" "three"])
+    (create-widgets-with-names testing-group Button SWT/PUSH ["one" "two" "three"])
     (do
-      (create-widgets-with-names parent Button SWT/RADIO ["Radio 1" "Radio 2" "Radio 3"])
-      (create-widgets-with-names parent Button SWT/TOGGLE ["Tog 1" "Tog 2" "Tog 3"])
-      (create-widgets-with-names parent Button SWT/CHECK [ "Check one" "...two" "...three"]))))
+      (create-widgets-with-names testing-group Button SWT/RADIO ["Radio 1" "Radio 2" "Radio 3"])
+      (create-widgets-with-names testing-group Button SWT/TOGGLE ["Tog 1" "Tog 2" "Tog 3"])
+      (create-widgets-with-names testing-group Button SWT/CHECK [ "Check one" "...two" "...three"]))))
 
 (defn ui-editor-right-create [parent]
   (let []
