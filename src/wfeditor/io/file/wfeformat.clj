@@ -109,6 +109,7 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
   "return an XML string representation of the current workflow instance object"
   [wfinst]
   (xml-util/tree-to-ppxml-str (xml-tree wfinst)))
+
 ;;
 ;; functions to create datatypes from XML
 ;;
@@ -232,6 +233,13 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
   "return a workflow instance based on an input XML string representation"
   [file-name]
   (let [wfinstance-xml-tree (xml-util/xml-file-to-tree file-name)
+        wfinstance-xml-zip (xml-util/xml-tree-to-zip wfinstance-xml-tree)]
+    (wfinstance-from-zip wfinstance-xml-zip)))
+
+(defn wfinstance-from-stream
+  "return a workflow instance from the input stream"
+  [in-stream]
+  (let [wfinstance-xml-tree (xml-util/xml-stream-to-tree in-stream)
         wfinstance-xml-zip (xml-util/xml-tree-to-zip wfinstance-xml-tree)]
     (wfinstance-from-zip wfinstance-xml-zip)))
 

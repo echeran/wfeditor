@@ -33,6 +33,8 @@ taken from http://nakkaya.com/2010/03/27/pretty-printing-xml-with-clojure/"
 
 (def xml-file-to-tree xml/parse)
 
+(def xml-stream-to-tree xml/parse)
+
 (def xml-tree-to-zip zip/xml-zip)
 
 (defn unescaped-xml-zip
