@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<workflow>
+  <meta>
+    <wf-name>sample 3</wf-name>
+    <wf-ver>1.3</wf-ver>
+    <wf-format-ver>1.0</wf-format-ver>
+  </meta>
+  <jobs>
+    <job>
+      <name>dir-contents</name>
+      <prog-exec-loc>ls</prog-exec-loc>
+      <prog-args>
+        <arg>~echeran</arg>
+      </prog-args>
+      <prog-opts>
+        <opt>
+          <flag>-l</flag>
+          <val/>
+        </opt>
+      </prog-opts>
+    </job>
+    <job>
+      <name>filter-size</name>
+      <prog-exec-loc>awk</prog-exec-loc>
+      <prog-args>
+        <arg>'{if (NF &gt; 4) {print $5;}}'</arg>
+      </prog-args>
+      <prog-opts/>
+      <deps>
+        <dep>dir-contents</dep>
+      </deps>
+    </job>
+    <job>
+      <name>build-sum-commands</name>
+      <prog-exec-loc>awk</prog-exec-loc>
+      <prog-args>
+        <arg>'{print "a = a + " $1} END {print "a";}'</arg>
+      </prog-args>
+      <prog-opts/>
+      <deps>
+        <dep>filter-size</dep>
+      </deps>
+    </job>
+    <job>
+      <name>compute-sum</name>
+      <prog-exec-loc>bc</prog-exec-loc>
+      <prog-args/>
+      <prog-opts/>
+      <deps>
+        <dep>build-sum-commands</dep>
+      </deps>
+    </job>
+    <job>
+      <name>multi-val-opt-ex</name>
+      <prog-exec-loc>g++</prog-exec-loc>
+      <prog-args>
+        <arg>main.cpp</arg>
+      </prog-args>
+      <prog-opts>
+        <opt>
+          <flag>-I</flag>
+          <val>/opt/local/include</val>
+        </opt>
+        <opt>
+          <flag>-I</flag>
+          <val>/opt/local/include/X11</val>
+        </opt>
+        <opt>
+          <flag>-o</flag>
+          <val>main</val>
+        </opt>
+      </prog-opts>
+    </job>
+  </jobs>
+</workflow>
+
