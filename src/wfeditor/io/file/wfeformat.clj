@@ -125,25 +125,27 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
     s))
 
 (defn- map-from-zip
-  [z tag]
   "return a map of string keys -> string values created from an XML zip (z) using a tag (tag), representing the map, that has children which contain pairs of leaf tags representing the key-value pairs of the map"
-  (let [keyval-tag (format-hierarchy tag)
-        keyval-zip-seq (zfx/xml-> z tag keyval-tag)
-        [key-tag val-tag] (format-hierarchy keyval-tag)]
-    (apply merge
-           (for [keyval keyval-zip-seq]
-             (let [key (first (zfx/xml-> keyval key-tag zfx/text))
-                   val (nil-pun-empty-str (first (zfx/xml-> keyval val-tag zfx/text)))]
-               {key val})))))
+  ([z tag]
+     (map-from-zip z tag last identity))
+  ([z tag merge-func val-func]
+     (let [keyval-tag (format-hierarchy tag)
+           keyval-zip-seq (zfx/xml-> z tag keyval-tag)
+           [key-tag val-tag] (format-hierarchy keyval-tag)]
+       (apply merge-with merge-func
+              (for [keyval keyval-zip-seq]
+                (let [key (first (zfx/xml-> keyval key-tag zfx/text))
+                      val (nil-pun-empty-str (first (zfx/xml-> keyval val-tag zfx/text)))]
+                  {key (val-func val)}))))))
 
 (defn- vector-from-zip
-  [z tag]
   "return a vector of string values created from an XML zip (z) using a tag (tag), representing the vector, that has 0+ children of leaf tags, representing the values"
+  [z tag]
   (into [] (zfx/xml-> z tag (format-hierarchy tag) zfx/text)))
 
 (defn- scalar-from-zip
-  [z tag]
   "return a scalar, of type string, created from an XML zip (z) within a child tag (tag)"
+  [z tag]
   (first (zfx/xml-> z tag zfx/text)))
 
 (defn- deps-from-zip
