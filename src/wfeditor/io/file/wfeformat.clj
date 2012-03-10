@@ -217,12 +217,6 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
         wf-xml-zip (xml-util/xml-tree-to-zip wf-xml-tree)]
     (workflow-from-zip wf-xml-zip)))
 
-(defn set-workflow
-  "set the current state of the workflow.  also, update the canvas graph accordingly"
-  [wf]
-  (dosync
-   (ref-set wf/wf wf)))
-
 (defn- wfinstance-from-zip
   "return a workflow instance given an XML zipper of the workflow"
   [z]
@@ -263,7 +257,7 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
   "set the current state of the workflow based on an input XML string representation"
   [file-name]
   (let [wf (workflow-from-file file-name)]
-    (set-workflow wf)))
+    (wf/set-workflow wf)))
 
 (defn save-workflow-to-file
   "save (using spit) the contents of the workflow object (wf) to the file provided (file-name) or create it if it doesn't exist"

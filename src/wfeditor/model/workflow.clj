@@ -19,11 +19,18 @@
 ;; proposed unique identifier for Job = id
 ;; for a listing of required and optional arguments, see new-job-fn
 ;; the deps of a job is implicitly stored in the global Graph object g
+;; int: id
+;; vector: prog-args
+;; map: prog-opts (string->vector of strings), task-status-array (int->keyword)
+;; TODO: figure out how to handle an option flag taking multiple
+;; values in a command string, in both XML parsing and emitting
 (defrecord Job [id name desc prog-name prog-ver prog-exec-loc prog-exec-ver prog-args prog-opts std-out-file std-err-file task-status-array])
 
 ;; replacement for the defstruct declaration of graphs in
 ;; clojure.contrib.graph
 ;; the deps field of the Job type pulls info from the Graph obj upon request
+;; set: nodes
+;; map: neighbors (Job->vector of Jobs)
 (defrecord Graph [nodes neighbors])
 
 ;; a type encapsulating everything of interest to a workflow.  this is
@@ -33,6 +40,7 @@
 
 ;; a type representing the execution of a workflow on a server (e.g., on a cluster
 ;; using a Grid Engine).
+;; keyword: exec-domain
 (defrecord WFInstance [username exec-domain workflow])
 
 
@@ -73,6 +81,12 @@ id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file deps"
   "return the current state of the workflow object"
   []
   @wf)
+
+(defn set-workflow
+  "set the current state of the workflow.  also, update the canvas graph accordingly"
+  [new-wf]
+  (dosync
+   (ref-set wf new-wf)))
 
 (defn dep-graph
   "return the current state of the workflow graph, i.e. job dependency graph, i.e. Job objs as nodes and dependencies represented as the function"

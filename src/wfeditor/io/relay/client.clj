@@ -1,7 +1,8 @@
 (ns wfeditor.io.relay.client
   (:require [clj-http.client :as client]
             [wfeditor.io.relay.server :as wfeserver]
-            [wfeditor.io.file.wfeformat :as fformat]))
+            [wfeditor.io.file.wfeformat :as fformat]
+            [wfeditor.model.workflow :as wflow]))
 
 ;;
 ;; constants
@@ -46,3 +47,12 @@
   "retrieve the body of the HTTP response message from the server"
   [resp]
   (:body resp))
+
+(defn save-response-wfinst
+  "take the WFInstance from the HTTP response to the HTTP request and save this as the (currently, one and only) workflow state"
+  [resp]
+  (let [wfinst-str (:body resp)
+        wfinst-str-stream (fformat/string-input-stream wfinst-str)
+        wfinst (fformat/wfinstance-from-stream wfinst-str-stream)
+        wf (:workflow wfinst)]
+    (wflow/set-workflow wf)))
