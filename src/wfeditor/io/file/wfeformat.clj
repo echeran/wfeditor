@@ -55,6 +55,22 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
    ;; of the Clojure XML emit function
    true {:tag tag :attrs nil :content [(str val)]}))
 
+(defn- map-coll-vals-xml-subtree
+  "helper method for maps which map keys to collections. this is for maps like the program options, where one option may occur multiple times with different values"
+  [tag map]
+  (let [keyval-tag (format-hierarchy tag)
+        [key-tag val-tag] (format-hierarchy keyval-tag)]
+    {:tag tag :attrs nil :content
+     (into [] (remove nil? (flatten (for [[k coll] map]
+                                      (if (or (nil? coll) (empty? coll))
+                                       {:tag keyval-tag :attrs nil :content
+                                        [(xml-subtree key-tag k)
+                                         (xml-subtree val-tag coll)]}
+                                       (for [v coll]
+                                         {:tag keyval-tag :attrs nil :content
+                                          [(xml-subtree key-tag k)
+                                           (xml-subtree val-tag v)]}))))))}))
+
 (defn- job-xml-tree
   "implementation of defmethod for xml-tree multimethod for the Job record class"
   [wf job]
@@ -63,7 +79,9 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
     {:tag :job :attrs nil :content
      (into [] (remove nil? (concat (for [key job-keys]
                                       (let [val (get job key)] 
-                                        (xml-subtree key val)))
+                                        (condp = key
+                                          :prog-opts (map-coll-vals-xml-subtree key val)
+                                          (xml-subtree key val))))
                                    (list (xml-subtree :deps job-deps)))))}))
 
 (defn- wf-meta-xml-tree
@@ -127,16 +145,26 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
 (defn- map-from-zip
   "return a map of string keys -> string values created from an XML zip (z) using a tag (tag), representing the map, that has children which contain pairs of leaf tags representing the key-value pairs of the map"
   ([z tag]
-     (map-from-zip z tag last identity))
-  ([z tag merge-func val-func]
+     ;; the default implementation of a map-from-zip is to assume that
+     ;; each key maps to a scalar (i.e., single val), and if there are
+     ;; repeat keys, then only take the last val
+     (let [last-fn (comp last list)]
+       (map-from-zip z tag last-fn identity)))
+  ([z tag merge-fn val-func]
      (let [keyval-tag (format-hierarchy tag)
            keyval-zip-seq (zfx/xml-> z tag keyval-tag)
            [key-tag val-tag] (format-hierarchy keyval-tag)]
-       (apply merge-with merge-func
+       (apply merge-with merge-fn
               (for [keyval keyval-zip-seq]
                 (let [key (first (zfx/xml-> keyval key-tag zfx/text))
                       val (nil-pun-empty-str (first (zfx/xml-> keyval val-tag zfx/text)))]
                   {key (val-func val)}))))))
+
+(defn- map-of-coll-vals-from-zip
+  "similar to map-from-zip, but the vals of the map are collections.  this made for data strucutres like program options, where one option flag might occur with multiple values."
+  [z tag]
+  (let [list-fn (fn [x] (if (nil? x) nil (list x)))]
+    (map-from-zip z tag concat list-fn)))
 
 (defn- vector-from-zip
   "return a vector of string values created from an XML zip (z) using a tag (tag), representing the vector, that has 0+ children of leaf tags, representing the values"
@@ -168,7 +196,7 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
                          (letfn [(field-val [field]
                                    (condp = field
                                      :prog-args (vector-from-zip z field)
-                                     :prog-opts (map-from-zip z field)
+                                     :prog-opts (map-of-coll-vals-from-zip z field)
                                      :task-statuses (map-from-zip z field)
                                      (scalar-from-zip z field)))]
                            (for [f fields :when (not (#{:deps} f))]
