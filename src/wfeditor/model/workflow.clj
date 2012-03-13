@@ -21,10 +21,10 @@
 ;; the deps of a job is implicitly stored in the global Graph object g
 ;; int: id
 ;; vector: prog-args
-;; map: prog-opts (string->vector of strings), task-status-array (int->keyword)
+;; map: prog-opts (string->vector of strings), task-statuses (int->keyword)
 ;; TODO: figure out how to handle an option flag taking multiple
 ;; values in a command string, in both XML parsing and emitting
-(defrecord Job [id name desc prog-name prog-ver prog-exec-loc prog-exec-ver prog-args prog-opts std-out-file std-err-file task-status-array])
+(defrecord Job [id name desc prog-name prog-ver prog-exec-loc prog-exec-ver prog-args prog-opts std-out-file std-err-file task-statuses])
 
 ;; replacement for the defstruct declaration of graphs in
 ;; clojure.contrib.graph
