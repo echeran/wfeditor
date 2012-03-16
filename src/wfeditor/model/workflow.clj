@@ -19,11 +19,13 @@
 ;; proposed unique identifier for Job = id
 ;; for a listing of required and optional arguments, see new-job-fn
 ;; the deps of a job is implicitly stored in the global Graph object g
+;; if an option flag takes multiple values, the flag will appear in
+;; the XML once per value. if a flag takes no values, then in the
+;; prog-opts map, its value can either be an empty vector or nil, it
+;; seems at the moment
 ;; int: id
 ;; vector: prog-args
 ;; map: prog-opts (string->vector of strings), task-statuses (int->keyword)
-;; TODO: figure out how to handle an option flag taking multiple
-;; values in a command string, in both XML parsing and emitting
 (defrecord Job [id name desc prog-name prog-ver prog-exec-loc prog-exec-ver prog-args prog-opts std-out-file std-err-file task-statuses])
 
 ;; replacement for the defstruct declaration of graphs in

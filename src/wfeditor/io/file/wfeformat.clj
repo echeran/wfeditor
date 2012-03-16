@@ -2,8 +2,7 @@
   (:require [wfeditor.io.util.xml :as xml-util]
             [wfeditor.model.workflow :as wf]
             [clojure.string :as string]
-            [clojure.contrib.zip-filter.xml :as zfx]
-            [wfeditor.ui.gui.zest.canvas :as canvas])
+            [clojure.contrib.zip-filter.xml :as zfx])
   (:import [wfeditor.model.workflow Job Workflow WFInstance]
            [java.io ByteArrayInputStream]))
 

@@ -7,8 +7,7 @@
   (:require wfeditor.ui.gui.zest.canvas
             [wfeditor.model.workflow :as wflow]
             [wfeditor.io.execution :as exec]
-            [wfeditor.io.file.wfeformat :as fformat]
-            [wfeditor.io.relay.client :as wfeclient])
+            [wfeditor.io.file.wfeformat :as fformat])
   (:import
    org.eclipse.jface.window.ApplicationWindow
    org.eclipse.swt.SWT
@@ -152,8 +151,9 @@
                                        workflow (wflow/workflow)
                                        exec-domain (.getItem exec-dom-combo (.getSelectionIndex exec-dom-combo))
                                        wf-inst (wflow/new-wfinstance-fn username exec-domain workflow)
-                                       update-resp (wfeclient/update-request wf-inst)]
-                                   (wfeclient/save-response-wfinst update-resp))))))
+                                       resp-wf-inst (exec/update-wfinst wf-inst)
+                                       resp-wf (:workflow resp-wf-inst)]
+                                   (wflow/set-workflow resp-wf))))))
     (doto testing-group
       (.setText "Testing")
       (.setLayout (RowLayout. SWT/VERTICAL))

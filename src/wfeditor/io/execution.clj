@@ -2,7 +2,8 @@
   (:require [clojure.contrib.graph :as contrib-graph]
         [wfeditor.model.workflow :as wflow]
         [clojure.string :as string]
-        [popen :as popen])
+        [popen :as popen]
+        [wfeditor.io.relay.client :as wfeclient])
   (:import wfeditor.model.workflow.Job))
 
 ;;
@@ -43,6 +44,10 @@
 
 ;;
 ;; functions
+;;
+
+;;
+;; functions for piped shell commands
 ;;
 
 (defn opts-list
@@ -196,7 +201,6 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
          1 (str (job-command root-job) job-comm-sep (wf-command-no-branch wf (first downstream-jobs) root-job))
          (str (job-command root-job) job-comm-sep branch-split-begin (string/join branch-split-sep (map (fn [job] (str branch-split-job-prefix (wf-command-no-branch wf job root-job) branch-split-job-suffix)) downstream-jobs)) branch-split-end)))))
 
-
 (defn print-still-running
   "run a function for the provided number of times in a row (reps), where the function prints whether the provided popen process (proc) is still running"
   [proc reps]
@@ -220,10 +224,9 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
           output (slurp (popen/stdout proc))]
       (println "output of wf command(s)=" output))))
 
-;; everything above is for piped shell commands
-
-;; the following section is for running jobs on a grid engine
-
+;;
+;; functions for running jobs on a grid engine
+;;
 
 (defn cmds-in-dep-order
   "return a sequence of job commands in order of which is depended on by which following jobs"
@@ -246,5 +249,11 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
   [wf]
   (let [cmd-seq (cmds-in-dep-order wf)]
     (doseq [cmd cmd-seq]
-      (println cmd)))
-  )
+      (println cmd))))
+
+;;
+;; generalized execution functions
+;;
+
+(defmulti update-wfinst :exec-domain)
+(defmethod update-wfinst "SGE" [wfinst] (wfeclient/response-wfinst wfinst))

@@ -35,24 +35,35 @@
        ;; from SO: http://stackoverflow.com/questions/2659952/maximum-length-of-http-get-request
        ;; TODO: put this function call in a Clojure state-aware call
        ;; for I/O, so probably asynchronous, like send or send-off
-       ;; (not sure agent is what we need)
+       ;; (not sure agent is what we need), or better yet, wrap the
+       ;; function from the UI ultimately calling this
        (req-fn url {:body wfinst-str}))))
 
-(defn update-request
+(defn- update-request
   "send an HTTP GET request to the server to get the status for a wf-instance, and the response message is returned"
   [wfinst]
   (req-wfinst :get wfinst DEFAULT-HOST wfeserver/DEFAULT-PORT "/wfinstance"))
 
-(defn response-msg
+(defn- response-msg
   "retrieve the body of the HTTP response message from the server"
   [resp]
   (:body resp))
 
-(defn save-response-wfinst
-  "take the WFInstance from the HTTP response to the HTTP request and save this as the (currently, one and only) workflow state"
+(defn- wfinst-from-response-msg
+  "extract the WFInstance object encoded in the HTTP response message sent back from the server"
   [resp]
-  (let [wfinst-str (:body resp)
+  (let [wfinst-str (response-msg resp)
         wfinst-str-stream (fformat/string-input-stream wfinst-str)
-        wfinst (fformat/wfinstance-from-stream wfinst-str-stream)
-        wf (:workflow wfinst)]
-    (wflow/set-workflow wf)))
+        wfinst (fformat/wfinstance-from-stream wfinst-str-stream)]
+    wfinst))
+
+(defn- sge-response-wfinst
+  "take the WFInstance input, send it to the server running SGE, and return the WFInstance returned containing an updated state"
+  [wfinst]
+  (let [resp (update-request wfinst)]
+    (wfinst-from-response-msg resp)))
+
+;; return the response WFInstance returned by the server (from an
+;; update operation)
+(defmulti response-wfinst :exec-domain)
+(defmethod response-wfinst "SGE" [wfinst] (sge-response-wfinst wfinst))
