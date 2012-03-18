@@ -1,9 +1,10 @@
 (ns wfeditor.io.execution
   (:require [clojure.contrib.graph :as contrib-graph]
-        [wfeditor.model.workflow :as wflow]
-        [clojure.string :as string]
-        [popen :as popen]
-        [wfeditor.io.relay.client :as wfeclient])
+            [clojure.contrib.map-utils :as map-utils]
+            [wfeditor.model.workflow :as wflow]
+            [clojure.string :as string]
+            [popen :as popen]
+            [wfeditor.io.relay.client :as wfeclient])
   (:import wfeditor.model.workflow.Job))
 
 ;;
@@ -41,10 +42,21 @@
 ;; refs (declarations here, initial bindings below)
 ;;
 
+(declare global-job-statuses)
 
 ;;
 ;; functions
 ;;
+
+;;
+;; util functions
+;;
+
+(defn update-map
+  "a utility function that updates the contents of the base map by adding/replacing them with the values of the newer map, and doing this recursively through the map structure according to clojure.contrib.map-utils/deep-merge-with"
+  [base-map newer-map]
+  (letfn [(merge-fn [& vals] (last (concat vals)))]
+    (map-utils/deep-merge-with base-map newer-map)))
 
 ;;
 ;; functions for piped shell commands
@@ -257,3 +269,27 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
 
 (defmulti update-wfinst :exec-domain)
 (defmethod update-wfinst "SGE" [wfinst] (wfeclient/response-wfinst wfinst))
+
+(defn add-wfinst-to-global-statuses
+  "take the status information from the input wfinst"
+  [wfinst]
+  (let [exec-domain (:exec-domain wfinst)
+        wf (:workflow wfinst)
+        jobs (wflow/wf-jobs wf)
+        newer-info-map {exec-domain (into {} (for [job jobs]
+                                           [(:id job) (:task-statuses job)]))}]
+    (dosync
+     (alter global-job-statuses update-map newer-info-map))))
+
+(defn update-wfinst-and-set-everywhere
+  "a convenience function that updates the WFInstance object and records the new info (workflow, its jobs' task statuses) where necessary.  use this instead of update-wfinst if possible"
+  [wfinst]
+  (let [updated-wfinst (update-wfinst wfinst)]
+    (add-wfinst-to-global-statuses updated-wfinst)
+    (wflow/set-workflow (:workflow updated-wfinst))))
+
+;;
+;; ref initializations
+;;
+
+(def global-job-statuses (ref {}))
