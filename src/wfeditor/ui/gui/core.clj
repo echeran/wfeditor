@@ -151,11 +151,7 @@
                                        workflow (wflow/workflow)
                                        exec-domain (.getItem exec-dom-combo (.getSelectionIndex exec-dom-combo))
                                        wf-inst (wflow/new-wfinstance-fn username exec-domain workflow)]
-                                   ;; resp-wf-inst (exec/update-wfinst wf-inst)
-                                   ;; resp-wf (:workflow resp-wf-inst)
-                                   ;; (wflow/set-workflow resp-wf)
-                                   (exec/update-wfinst-and-set-everywhere wf-inst)
-                                   )))))
+                                   (exec/update-wfinst-and-set-everywhere wf-inst))))))
     (doto testing-group
       (.setText "Testing")
       (.setLayout (RowLayout. SWT/VERTICAL))

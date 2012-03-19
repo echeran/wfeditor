@@ -6,6 +6,7 @@
 ;; refs (declarations here, initial bindings below)
 ;;
 
+;; note: an add-watch statement was attached to this ref in wfeditor.ui.gui.zest.canvas
 (declare wf)
 
 
