@@ -270,6 +270,11 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
 (defmulti update-wfinst :exec-domain)
 (defmethod update-wfinst "SGE" [wfinst] (wfeclient/response-wfinst wfinst))
 
+(defn global-statuses
+  "a convenience function to deref the global-job-statuses map ref"
+  []
+  @global-job-statuses)
+
 (defn add-wfinst-to-global-statuses
   "take the status information from the input wfinst"
   [wfinst]

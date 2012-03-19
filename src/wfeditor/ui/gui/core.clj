@@ -57,6 +57,7 @@
         save-wf-button (new-widget Button button-group SWT/PUSH)
         print-wf-inst-button (new-widget Button button-group SWT/PUSH)
         update-wf-inst-button (new-widget Button button-group SWT/PUSH)
+        print-global-statuses-button (new-widget Button button-group SWT/PUSH)
         testing-group (new-widget Group parent SWT/SHADOW_ETCHED_OUT)
         label2 (Label. testing-group  SWT/CENTER)]
     (do
@@ -152,6 +153,12 @@
                                        exec-domain (.getItem exec-dom-combo (.getSelectionIndex exec-dom-combo))
                                        wf-inst (wflow/new-wfinstance-fn username exec-domain workflow)]
                                    (exec/update-wfinst-and-set-everywhere wf-inst))))))
+    (doto print-global-statuses-button
+      (.setText "Print global statuses")
+      (.addSelectionListener (proxy [SelectionAdapter]
+                                 []
+                               (widgetSelected [event]
+                                 (println (exec/global-statuses))))))
     (doto testing-group
       (.setText "Testing")
       (.setLayout (RowLayout. SWT/VERTICAL))
