@@ -20,8 +20,15 @@
 (defn common-load-views
   "Load the Noir server view files for all server types (view = V of MVC, files = Clojure code that use Noir to define the behavior of the server)"
   []
-  ;; remember that a ns uses dashes but the corresponding path uses 
-  (server/load-views "src/wfeditor/io/relay/server_views/")
+  ;; remember that a ns uses dashes but the corresponding path uses
+
+  ;; substituting load-views-ns for load-views so that when the
+  ;; uberjar is compiled, a compiled version can be used instead of
+  ;; having to include the source *.clj files.  this will make it
+  ;; slightly less convenient, but oh well
+  ;; (server/load-views "src/wfeditor/io/relay/server_views/")
+  (server/load-views-ns 'wfeditor.io.relay.server-views.common
+                        'wfeditor.io.relay.server-views.welcome)
   )
 
 (defn get-server
