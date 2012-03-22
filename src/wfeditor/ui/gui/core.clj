@@ -75,6 +75,7 @@
       (.setText "Enter username:")
       (.setLayoutData (GridData. GridData/HORIZONTAL_ALIGN_BEGINNING)))
     (doto user-text
+      (.setText (. System getProperty "user.name"))
       (.setLayoutData (GridData. GridData/FILL_HORIZONTAL)))
     (doto exec-dom-label
       (.setText "Select execution domain:")
