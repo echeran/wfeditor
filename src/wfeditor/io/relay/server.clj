@@ -1,11 +1,8 @@
 (ns wfeditor.io.relay.server
-  (:require [noir.server :as server]))
-
-;;
-;; constants
-;;
-
-(def DEFAULT-PORT 8080)
+  (:require [noir.server :as server]
+            [wfeditor.io.util.const :as const]
+            wfeditor.io.relay.server-views.welcome
+            wfeditor.io.relay.server-views.common))
 
 ;;
 ;; refs
@@ -52,7 +49,7 @@
                (cond
                 user-port-val user-port-val
                 env-port-val env-port-val
-                true DEFAULT-PORT))
+                true const/DEFAULT-PORT))
         ]
     (common-load-views)
     (server/start port {:mode mode

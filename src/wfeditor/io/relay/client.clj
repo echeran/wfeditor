@@ -1,14 +1,9 @@
 (ns wfeditor.io.relay.client
   (:require [clj-http.client :as client]
-            [wfeditor.io.relay.server :as wfeserver]
             [wfeditor.io.file.wfeformat :as fformat]
-            [wfeditor.model.workflow :as wflow]))
+            [wfeditor.model.workflow :as wflow]
+            [wfeditor.io.util.const :as const]))
 
-;;
-;; constants
-;;
-
-(def DEFAULT-HOST "localhost")
 
 ;;
 ;; functions
@@ -42,7 +37,7 @@
 (defn- update-request
   "send an HTTP GET request to the server to get the status for a wf-instance, and the response message is returned"
   [wfinst]
-  (req-wfinst :get wfinst DEFAULT-HOST wfeserver/DEFAULT-PORT "/wfinstance"))
+  (req-wfinst :get wfinst const/DEFAULT-HOST const/DEFAULT-PORT "/wfinstance"))
 
 (defn- response-msg
   "retrieve the body of the HTTP response message from the server"
