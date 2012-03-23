@@ -7,7 +7,8 @@
   (:require wfeditor.ui.gui.zest.canvas
             [wfeditor.model.workflow :as wflow]
             [wfeditor.io.execution :as exec]
-            [wfeditor.io.file.wfeformat :as fformat])
+            [wfeditor.io.file.wfeformat :as fformat]
+            [wfeditor.io.util.const :as io-const])
   (:import
    org.eclipse.jface.window.ApplicationWindow
    org.eclipse.swt.SWT
@@ -47,6 +48,12 @@
         user-text (new-widget Text exec-group (bit-or SWT/SINGLE SWT/BORDER))
         exec-dom-label (new-widget Label exec-group SWT/LEFT)
         exec-dom-combo (new-widget Combo exec-group (bit-or SWT/DROP_DOWN SWT/READ_ONLY))
+        rem-host-label (new-widget Label exec-group SWT/LEFT)
+        rem-host-text (new-widget Text exec-group (bit-or SWT/SINGLE SWT/BORDER))
+        rem-port-label (new-widget Label exec-group SWT/LEFT)
+        rem-port-text (new-widget Text exec-group (bit-or SWT/SINGLE SWT/BORDER))
+        local-port-label (new-widget Label exec-group SWT/LEFT)
+        local-port-text (new-widget Text exec-group (bit-or SWT/SINGLE SWT/BORDER))
         button-group (new-widget Group parent SWT/SHADOW_NONE)
         ;; label1 (new Label button-group SWT/CENTER)
         print-wf-cmd-button (new-widget Button button-group SWT/PUSH)
@@ -84,6 +91,24 @@
       (.add "SGE")
       (.add "shell")
       (.select 0)
+      (.setLayoutData (GridData. GridData/FILL_HORIZONTAL)))
+    (doto rem-host-label
+      (.setText "Remote host:")
+      (.setLayoutData (GridData. GridData/HORIZONTAL_ALIGN_BEGINNING)))
+    (doto rem-host-text
+      (.setText io-const/DEFAULT-HOST)
+      (.setLayoutData (GridData. GridData/FILL_HORIZONTAL)))
+    (doto rem-port-label
+      (.setText "Remote port:")
+      (.setLayoutData (GridData. GridData/HORIZONTAL_ALIGN_BEGINNING)))
+    (doto rem-port-text
+      (.setText (str io-const/DEFAULT-PORT))
+      (.setLayoutData (GridData. GridData/FILL_HORIZONTAL)))
+    (doto local-port-label
+      (.setText "Local port:")
+      (.setLayoutData (GridData. GridData/HORIZONTAL_ALIGN_BEGINNING)))
+    (doto local-port-text
+      (.setText (str io-const/DEFAULT-LOCAL-PORT))
       (.setLayoutData (GridData. GridData/FILL_HORIZONTAL)))
     (doto button-group
       (.setLayout (FillLayout. SWT/VERTICAL))
