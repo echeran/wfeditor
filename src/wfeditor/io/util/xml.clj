@@ -6,7 +6,7 @@
 
 (defn ppxml
   "pretty-prints an input xml string (i.e., reformats with indentation)
-taken from http://nakkaya.com/2010/03/27/pretty-printing-xml-with-clojure/"
+borrowed from http://nakkaya.com/2010/03/27/pretty-printing-xml-with-clojure/ which is the Clojure version of Java SDK code (as shown on this SO page http://stackoverflow.com/a/4472580)"
   [xml]
   (let [in (javax.xml.transform.stream.StreamSource.
             (java.io.StringReader. xml))
