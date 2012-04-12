@@ -51,9 +51,9 @@
   ([req-type wfinst path rem-host rem-port loc-port loc-host server-host]
      (with-ssh-agent  [(create-ssh-agent true)]
        (let [session (session rem-host :strict-host-key-checking :no)]
-         (with-port-forwarded-connection [session loc-port rem-port server-host]
-           ;; (println (client/get "http://localhost:7777/" {:body wfinst-str}))
-           (req-wfinst req-type wfinst path loc-host loc-port))))))
+         (with-connection session
+           (with-local-port-forward [session loc-port rem-port]
+             (req-wfinst req-type wfinst path loc-host loc-port)))))))
 
 (defn- update-request
   "send an HTTP GET request to the server to get the status for a wf-instance, and the response message is returned"
