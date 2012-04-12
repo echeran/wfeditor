@@ -49,7 +49,7 @@
   ;;    (println "params are= " {:req-type req-type :wfinst wfinst :path path :rem-host rem-host :rem-port rem-port :loc-port loc-port :loc-host loc-host})
   ;;    (req-wfinst-over-ssh-tunnel wfinst path rem-host rem-port loc-port loc-host const/DEFAULT-SERVER-HOST-REL-TO-REMOTE))
   ([req-type wfinst path rem-host rem-port loc-port loc-host server-host]
-     (with-ssh-agent  [(create-ssh-agent true)]
+     (with-ssh-agent  []
        (let [session (session rem-host :strict-host-key-checking :no)]
          (with-connection session
            (with-local-port-forward [session loc-port rem-port]
