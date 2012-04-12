@@ -84,14 +84,14 @@
 
 (defn- sge-response-wfinst
   "take the WFInstance input, send it to the server running SGE, and return the WFInstance returned containing an updated state"
-  [wfinst]
+  [wfinst & conn-args]
   (let [
         ;; resp (update-request wfinst)
-        resp (update-request-over-ssh-tunnel wfinst)
+        resp (apply update-request-over-ssh-tunnel wfinst conn-args)
         ]
     (wfinst-from-response-msg resp)))
 
 ;; return the response WFInstance returned by the server (from an
 ;; update operation)
-(defmulti response-wfinst :exec-domain)
-(defmethod response-wfinst "SGE" [wfinst] (sge-response-wfinst wfinst))
+(defmulti response-wfinst (comp :exec-domain first vector))
+(defmethod response-wfinst "SGE" [wfinst & conn-args] (apply sge-response-wfinst wfinst conn-args))

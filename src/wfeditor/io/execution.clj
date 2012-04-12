@@ -267,8 +267,8 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
 ;; generalized execution functions
 ;;
 
-(defmulti update-wfinst :exec-domain)
-(defmethod update-wfinst "SGE" [wfinst] (wfeclient/response-wfinst wfinst))
+(defmulti update-wfinst (comp :exec-domain first vector))
+(defmethod update-wfinst "SGE" [wfinst & conn-args] (apply wfeclient/response-wfinst wfinst conn-args))
 
 (defn global-statuses
   "a convenience function to deref the global-job-statuses map ref"
@@ -288,8 +288,8 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
 
 (defn update-wfinst-and-set-everywhere
   "a convenience function that updates the WFInstance object and records the new info (workflow, its jobs' task statuses) where necessary.  use this instead of update-wfinst if possible"
-  [wfinst]
-  (let [updated-wfinst (update-wfinst wfinst)]
+  [wfinst & conn-args]
+  (let [updated-wfinst (apply update-wfinst wfinst conn-args)]
     (add-wfinst-to-global-statuses updated-wfinst)
     (wflow/set-workflow (:workflow updated-wfinst))))
 

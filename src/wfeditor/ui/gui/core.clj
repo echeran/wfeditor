@@ -52,8 +52,8 @@
         rem-host-text (new-widget Text exec-group (bit-or SWT/SINGLE SWT/BORDER))
         rem-port-label (new-widget Label exec-group SWT/LEFT)
         rem-port-text (new-widget Text exec-group (bit-or SWT/SINGLE SWT/BORDER))
-        local-port-label (new-widget Label exec-group SWT/LEFT)
-        local-port-text (new-widget Text exec-group (bit-or SWT/SINGLE SWT/BORDER))
+        loc-port-label (new-widget Label exec-group SWT/LEFT)
+        loc-port-text (new-widget Text exec-group (bit-or SWT/SINGLE SWT/BORDER))
         button-group (new-widget Group parent SWT/SHADOW_NONE)
         ;; label1 (new Label button-group SWT/CENTER)
         print-wf-cmd-button (new-widget Button button-group SWT/PUSH)
@@ -104,10 +104,10 @@
     (doto rem-port-text
       (.setText (str io-const/DEFAULT-PORT))
       (.setLayoutData (GridData. GridData/FILL_HORIZONTAL)))
-    (doto local-port-label
+    (doto loc-port-label
       (.setText "Local port:")
       (.setLayoutData (GridData. GridData/HORIZONTAL_ALIGN_BEGINNING)))
-    (doto local-port-text
+    (doto loc-port-text
       (.setText (str io-const/DEFAULT-LOCAL-PORT))
       (.setLayoutData (GridData. GridData/FILL_HORIZONTAL)))
     (doto button-group
@@ -177,8 +177,15 @@
                                  (let [username (.getText user-text)
                                        workflow (wflow/workflow)
                                        exec-domain (.getItem exec-dom-combo (.getSelectionIndex exec-dom-combo))
-                                       wf-inst (wflow/new-wfinstance-fn username exec-domain workflow)]
-                                   (exec/update-wfinst-and-set-everywhere wf-inst))))))
+                                       wf-inst (wflow/new-wfinstance-fn username exec-domain workflow)
+                                       rem-host (.getText rem-host-text)
+                                       rem-port (Integer/parseInt (.getText rem-port-text))
+                                       loc-port (Integer/parseInt (.getText loc-port-text))
+                                       loc-host io-const/DEFAULT-LOCAL-HOST
+                                       server-host io-const/DEFAULT-SERVER-HOST-REL-TO-REMOTE
+                                       ]
+                                   ;; (exec/update-wfinst-and-set-everywhere wf-inst)
+                                   (exec/update-wfinst-and-set-everywhere wf-inst rem-host rem-port loc-port loc-host server-host)                                   )))))
     (doto print-global-statuses-button
       (.setText "Print global statuses")
       (.addSelectionListener (proxy [SelectionAdapter]
