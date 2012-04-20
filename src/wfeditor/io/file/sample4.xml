@@ -10,7 +10,7 @@
     <!--   <name>delete-existing-dirs</name> -->
     <!--   <prog-exec-loc>rm</prog-exec-loc> -->
     <!--   <prog-args> -->
-    <!--     <arg>~echeran/wfeditor/sge</arg> -->
+    <!--     <arg>~/sge</arg> -->
     <!--   </prog-args> -->
     <!--   <prog-opts> -->
     <!--     <opt> -->
@@ -23,7 +23,7 @@
       <name>create-dirs</name>
       <prog-exec-loc>mkdir</prog-exec-loc>
       <prog-args>
-        <arg>~echeran/wfeditor/sge</arg>
+        <arg>~/sge</arg>
       </prog-args>
       <prog-opts>
         <opt>
@@ -35,11 +35,11 @@
 
     <job>
       <name>align1</name>
-      <prog-exec-loc>~echeran/ngs/bowtie/bowtie-0.12.7/bowtie</prog-exec-loc>
+      <prog-exec-loc>~/ngs/bowtie/bowtie-0.12.7/bowtie</prog-exec-loc>
       <prog-args>
         <arg>hg19</arg>
-        <arg>~echeran/ngs/reads/c20_reads/split_by_i/i_reads1.fasta</arg>
-        <arg>~/wfeditor/sge/alignment/align1.sam</arg>
+        <arg>~/ngs/reads/c20_reads/split_by_i/i_reads1.fasta</arg>
+        <arg>~/sge/alignment/align1.sam</arg>
       </prog-args>
       <prog-opts>
         <opt>
@@ -57,11 +57,11 @@
     </job>
     <job>
       <name>align2</name>
-      <prog-exec-loc>~echeran/ngs/bowtie/bowtie-0.12.7/bowtie</prog-exec-loc>
+      <prog-exec-loc>~/ngs/bowtie/bowtie-0.12.7/bowtie</prog-exec-loc>
       <prog-args>
         <arg>hg19</arg>
-        <arg>~echeran/ngs/reads/c20_reads/split_by_i/i_reads2.fasta</arg>
-        <arg>~/wfeditor/sge/alignment/align2.sam</arg>
+        <arg>~/ngs/reads/c20_reads/split_by_i/i_reads2.fasta</arg>
+        <arg>~/sge/alignment/align2.sam</arg>
       </prog-args>
       <prog-opts>
         <opt>
@@ -79,11 +79,11 @@
     </job>
     <job>
       <name>align3</name>
-      <prog-exec-loc>~echeran/ngs/bowtie/bowtie-0.12.7/bowtie</prog-exec-loc>
+      <prog-exec-loc>~/ngs/bowtie/bowtie-0.12.7/bowtie</prog-exec-loc>
       <prog-args>
         <arg>hg19</arg>
-        <arg>~echeran/ngs/reads/c20_reads/split_by_i/i_reads3.fasta</arg>
-        <arg>~/wfeditor/sge/alignment/align3.sam</arg>
+        <arg>~/ngs/reads/c20_reads/split_by_i/i_reads3.fasta</arg>
+        <arg>~/sge/alignment/align3.sam</arg>
       </prog-args>
       <prog-opts>
         <opt>
@@ -101,11 +101,11 @@
     </job>
     <job>
       <name>align4</name>
-      <prog-exec-loc>~echeran/ngs/bowtie/bowtie-0.12.7/bowtie</prog-exec-loc>
+      <prog-exec-loc>~/ngs/bowtie/bowtie-0.12.7/bowtie</prog-exec-loc>
       <prog-args>
         <arg>hg19</arg>
-        <arg>~echeran/ngs/reads/c20_reads/split_by_i/i_reads4.fasta</arg>
-        <arg>~/wfeditor/sge/alignment/align4.sam</arg>
+        <arg>~/ngs/reads/c20_reads/split_by_i/i_reads4.fasta</arg>
+        <arg>~/sge/alignment/align4.sam</arg>
       </prog-args>
       <prog-opts>
         <opt>
@@ -123,11 +123,11 @@
     </job>
     <job>
       <name>align5</name>
-      <prog-exec-loc>~echeran/ngs/bowtie/bowtie-0.12.7/bowtie</prog-exec-loc>
+      <prog-exec-loc>~/ngs/bowtie/bowtie-0.12.7/bowtie</prog-exec-loc>
       <prog-args>
         <arg>hg19</arg>
-        <arg>~echeran/ngs/reads/c20_reads/split_by_i/i_reads5.fasta</arg>
-        <arg>~/wfeditor/sge/alignment/align5.sam</arg>
+        <arg>~/ngs/reads/c20_reads/split_by_i/i_reads5.fasta</arg>
+        <arg>~/sge/alignment/align5.sam</arg>
       </prog-args>
       <prog-opts>
         <opt>
@@ -145,10 +145,10 @@
     </job>
     <job>
       <name>sam->bam1</name>
-      <prog-exec-loc>~echeran/ngs/samtools/samtools-0.1.18/samtools</prog-exec-loc>
+      <prog-exec-loc>~/ngs/samtools/samtools-0.1.18/samtools</prog-exec-loc>
       <prog-args>
         <arg>view</arg>
-        <arg>~/wfeditor/sge/alignment/align1.sam</arg>
+        <arg>~/sge/alignment/align1.sam</arg>
       </prog-args>
       <prog-opts>
         <opt>
@@ -170,10 +170,10 @@
     </job>
     <job>
       <name>sam->bam2</name>
-      <prog-exec-loc>~echeran/ngs/samtools/samtools-0.1.18/samtools</prog-exec-loc>
+      <prog-exec-loc>~/ngs/samtools/samtools-0.1.18/samtools</prog-exec-loc>
       <prog-args>
         <arg>view</arg>
-        <arg>~/wfeditor/sge/alignment/align2.sam</arg>
+        <arg>~/sge/alignment/align2.sam</arg>
       </prog-args>
       <prog-opts>
         <opt>
@@ -195,10 +195,10 @@
     </job>
     <job>
       <name>sam->bam3</name>
-      <prog-exec-loc>~echeran/ngs/samtools/samtools-0.1.18/samtools</prog-exec-loc>
+      <prog-exec-loc>~/ngs/samtools/samtools-0.1.18/samtools</prog-exec-loc>
       <prog-args>
         <arg>view</arg>
-        <arg>~/wfeditor/sge/alignment/align3.sam</arg>
+        <arg>~/sge/alignment/align3.sam</arg>
       </prog-args>
       <prog-opts>
         <opt>
@@ -220,10 +220,10 @@
     </job>
     <job>
       <name>sam->bam4</name>
-      <prog-exec-loc>~echeran/ngs/samtools/samtools-0.1.18/samtools</prog-exec-loc>
+      <prog-exec-loc>~/ngs/samtools/samtools-0.1.18/samtools</prog-exec-loc>
       <prog-args>
         <arg>view</arg>
-        <arg>~/wfeditor/sge/alignment/align4.sam</arg>
+        <arg>~/sge/alignment/align4.sam</arg>
       </prog-args>
       <prog-opts>
         <opt>
@@ -245,10 +245,10 @@
     </job>
     <job>
       <name>sam->bam5</name>
-      <prog-exec-loc>~echeran/ngs/samtools/samtools-0.1.18/samtools</prog-exec-loc>
+      <prog-exec-loc>~/ngs/samtools/samtools-0.1.18/samtools</prog-exec-loc>
       <prog-args>
         <arg>view</arg>
-        <arg>~/wfeditor/sge/alignment/align5.sam</arg>
+        <arg>~/sge/alignment/align5.sam</arg>
       </prog-args>
       <prog-opts>
         <opt>
@@ -270,15 +270,15 @@
     </job>
     <job>
       <name>merge</name>
-      <prog-exec-loc>~echeran/ngs/samtools/samtools-0.1.18/samtools</prog-exec-loc>
+      <prog-exec-loc>~/ngs/samtools/samtools-0.1.18/samtools</prog-exec-loc>
       <prog-args>
         <arg>merge</arg>
-        <arg>~/wfeditor/sge/alignment/merged.bam</arg>
-        <arg>~/wfeditor/sge/alignment/align1.bam</arg>
-        <arg>~/wfeditor/sge/alignment/align2.bam</arg>
-        <arg>~/wfeditor/sge/alignment/align3.bam</arg>
-        <arg>~/wfeditor/sge/alignment/align4.bam</arg>
-        <arg>~/wfeditor/sge/alignment/align5.bam</arg>
+        <arg>~/sge/alignment/merged.bam</arg>
+        <arg>~/sge/alignment/align1.bam</arg>
+        <arg>~/sge/alignment/align2.bam</arg>
+        <arg>~/sge/alignment/align3.bam</arg>
+        <arg>~/sge/alignment/align4.bam</arg>
+        <arg>~/sge/alignment/align5.bam</arg>
       </prog-args>
       <prog-opts/>
       <deps>
@@ -312,10 +312,10 @@
     <job>
       <name>index-bam</name>
       <prog-name>SAMtools</prog-name>
-      <prog-exec-loc>~echeran/ngs/samtools/samtools-0.1.18/samtools</prog-exec-loc>
+      <prog-exec-loc>~/ngs/samtools/samtools-0.1.18/samtools</prog-exec-loc>
       <prog-args>
         <arg>index</arg>
-        <arg>~/wfeditor/sge/alignment/merged-rg.sam</arg>
+        <arg>~/sge/alignment/merged-rg.sam</arg>
       </prog-args>
       <deps>
         <dep>add-read-group</dep>
@@ -341,11 +341,11 @@
         </opt>
         <opt>
           <flag>-I</flag>
-          <val>~/wfeditor/sge/alignment/merged-rg.bam</val>
+          <val>~/sge/alignment/merged-rg.bam</val>
         </opt>
         <opt>
           <flag>-o</flag>
-          <val>~/wfeditor/sge/alignment/snps.raw.vcf</val>
+          <val>~/sge/alignment/snps.raw.vcf</val>
         </opt>
       </prog-opts>
       <deps>
