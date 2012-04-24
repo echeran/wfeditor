@@ -277,6 +277,12 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
   [str]
   (ByteArrayInputStream. (.getBytes str)))
 
+(defn wfinstance-from-string
+  "return a workflow instance from a string"
+  [str]
+  (let [str-stream (string-input-stream str)]
+    (wfinstance-from-stream str-stream)))
+
 ;;
 ;; developer-friendly high-level functions for loading and saving
 ;; datatypes from/to XML

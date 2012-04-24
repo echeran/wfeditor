@@ -4,6 +4,7 @@
             [wfeditor.model.workflow :as wflow]
             [clojure.string :as string]
             [popen :as popen]
+            [clj-commons-exec :as commons-exec]
             [wfeditor.io.relay.client :as wfeclient])
   (:import wfeditor.model.workflow.Job))
 
@@ -240,15 +241,46 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
 ;; functions for running jobs on a grid engine
 ;;
 
+(defn enqueue-job-sge
+  "enqueue a job using SGE and return the job with the new id"
+  [wf job]
+  (let [job-name (:name job)
+        deps (wflow/depends-upon wf job)
+        deps-str-list (when (seq deps)
+                        ["-hold_jid" (string/join "," (map :id deps))])
+        job-cmd-str (job-command job)
+        qsub-cmd-parts ["qsub" "-o" "/home/echeran/sge/qsub/out.txt" "-e" "/home/echeran/sge/qsub/err.txt"]
+        qsub-cmd-parts (concat qsub-cmd-parts deps-str-list)
+        commons-exec-sh-opts-map {:in job-cmd-str}
+        commons-exec-sh-all-args (concat qsub-cmd-parts commons-exec-sh-opts-map)
+        ;; TODO: use internal id's for qsub's -o and -e, and store the
+        ;; translation between internal id and SGE job id
+        result-map-prom (apply commons-exec/sh commons-exec-sh-all-args)
+        qsub-output (:out @result-map-prom)
+        qsub-job-id (Integer/parseInt (nth (string/split #"\s+" qsub-output) 2))]
+    (assoc job :id qsub-job-id)))
+
+(defn enqueue-wf-sge
+  "enqueue the workflow using SGE and return the workflow with the new job id's"
+  [wf]
+  (let [dep-order-job-seq (wflow/wf-job-seq wf)]
+    (loop [current-wf wf
+           jobs dep-order-job-seq]
+      (if (empty? jobs)
+        current-wf
+        (let [job (first jobs)
+              job-with-id (enqueue-job-sge current-wf job)
+              new-wf (wflow/replace-job job job-with-id)]
+          (recur new-wf (rest jobs)))))))
+
 (defn cmds-in-dep-order
   "return a sequence of job commands in order of which is depended on by which following jobs"
   [wf]
   (let [dep-order-job-seq (wflow/wf-job-seq wf)
-        jobs (wflow/wf-jobs wf)
-        dep-graph (wflow/dep-graph wf)]
+        jobs (wflow/wf-jobs wf)]
     (for [job dep-order-job-seq]
       (let [job-name (:name job)
-            deps ((:neighbors dep-graph) job)
+            deps (wflow/depends-upon wf job)
             deps-str (if (seq deps)
                        (str "-hold_jid " (string/join "," (map :id deps)))
                        "")
@@ -263,12 +295,11 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
     (doseq [cmd cmd-seq]
       (println cmd))))
 
-;;
-;; generalized execution functions
-;;
 
-(defmulti update-wfinst (comp :exec-domain first vector))
-(defmethod update-wfinst "SGE" [wfinst & conn-args] (apply wfeclient/response-wfinst wfinst conn-args))
+
+;;
+;; global status functions
+;;
 
 (defn global-statuses
   "a convenience function to deref the global-job-statuses map ref"
@@ -285,6 +316,14 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
                                            [(:id job) (:task-statuses job)]))}]
     (dosync
      (alter global-job-statuses update-map newer-info-map))))
+
+;;
+;; client-process execution functions
+;;
+
+(defmulti update-wfinst (comp :exec-domain first vector))
+(defmethod update-wfinst "SGE" [wfinst & conn-args] (apply wfeclient/response-wfinst wfinst conn-args))
+(defmethod update-wfinst "rem-piped-shell" [wfinst & conn-args] (apply wfeclient/response-wfinst wfinst conn-args))
 
 (defn update-wfinst-and-set-everywhere
   "a convenience function that updates the WFInstance object and records the new info (workflow, its jobs' task statuses) where necessary.  use this instead of update-wfinst if possible"

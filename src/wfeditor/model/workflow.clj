@@ -136,15 +136,37 @@ note: this is the reverse of the dep-graph"
       (when (seq jobs)
         (some #(when (= val (field %)) %) jobs))))
 
+(defn replace-job
+  "return the input workflow where an existing job is replaced by a new job. updates deps accordingly"
+  [wf job new-job]
+  (let [dep-graph (dep-graph wf)
+        job-set (:nodes dep-graph)
+        new-job-set (conj (disj job-set job) new-job)
+        neighbors-map (:neighbors dep-graph)
+        new-neighbors-map (into {} (for [[j deps] neighbors-map]
+                                     (let [new-deps (replace {job new-job} deps)
+                                           j2 (if (= j job) new-job job)]
+                                       [j2 new-deps])))
+        new-dep-graph (-> dep-graph
+                          (assoc :nodes new-job-set)
+                          (assoc :neighbors new-neighbors-map))
+        new-wf (assoc wf :graph new-dep-graph)]
+    new-wf))
+
 (defn depends-upon
   "return the obects that this job depends upon based on the state of the graph"
-  [job]
-  (get (:neighbors (dep-graph)) job))
+  ([job]
+     (get (:neighbors (dep-graph)) job))
+  ([wf job]
+     (get (:neighbors (dep-graph wf)) job))
+  )
 
 (defn dependent-upon
   "return the job objects that are dependent upon the provided job based on the current state of the graph"
-  [job]
-  (get (:neighbors (flow-graph)) job))
+  ([job]
+     (get (:neighbors (flow-graph)) job))
+  ([wf job]
+     (get (:neighbors (flow-graph wf)) job)))
 
 (defn set-depends-upon
   "set the map indicating which jobs depend on which jobs"

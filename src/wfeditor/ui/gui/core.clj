@@ -89,7 +89,7 @@
       (.setLayoutData (GridData. GridData/HORIZONTAL_ALIGN_BEGINNING)))
     (doto exec-dom-combo
       (.add "SGE")
-      (.add "shell")
+      (.add "rem-piped-shell")
       (.select 0)
       (.setLayoutData (GridData. GridData/FILL_HORIZONTAL)))
     (doto rem-host-label

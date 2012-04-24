@@ -78,8 +78,10 @@
   "extract the WFInstance object encoded in the HTTP response message sent back from the server"
   [resp]
   (let [wfinst-str (response-msg resp)
-        wfinst-str-stream (fformat/string-input-stream wfinst-str)
-        wfinst (fformat/wfinstance-from-stream wfinst-str-stream)]
+        ;; wfinst-str-stream (fformat/string-input-stream wfinst-str)
+        ;; wfinst (fformat/wfinstance-from-stream wfinst-str-stream)
+        wfinst (fformat/wfinstance-from-string wfinst-str)
+        ]
     wfinst))
 
 (defn- sge-response-wfinst
@@ -95,3 +97,4 @@
 ;; update operation)
 (defmulti response-wfinst (comp :exec-domain first vector))
 (defmethod response-wfinst "SGE" [wfinst & conn-args] (apply sge-response-wfinst wfinst conn-args))
+(defmethod response-wfinst "rem-piped-shell" [wfinst & conn-args] (apply sge-response-wfinst wfinst conn-args))
