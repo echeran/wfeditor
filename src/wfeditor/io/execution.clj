@@ -246,18 +246,21 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
   [wf job]
   (let [job-name (:name job)
         deps (wflow/depends-upon wf job)
-        deps-str-list (when (seq deps)
-                        ["-hold_jid" (string/join "," (map :id deps))])
+        deps-list-str (when (seq deps)
+                        "-hold_jid" (string/join "," (map :id deps)))
         job-cmd-str (job-command job)
         qsub-cmd-parts ["qsub" "-o" "/home/echeran/sge/qsub/out.txt" "-e" "/home/echeran/sge/qsub/err.txt"]
-        qsub-cmd-parts (concat qsub-cmd-parts deps-str-list)
+        qsub-cmd-parts (into qsub-cmd-parts deps-list-str)
         commons-exec-sh-opts-map {:in job-cmd-str}
-        commons-exec-sh-all-args (concat qsub-cmd-parts commons-exec-sh-opts-map)
+        commons-exec-sh-all-args (conj qsub-cmd-parts commons-exec-sh-opts-map)
+        _ (println "clj-commons-exec sh args: " commons-exec-sh-all-args)
         ;; TODO: use internal id's for qsub's -o and -e, and store the
         ;; translation between internal id and SGE job id
         result-map-prom (apply commons-exec/sh commons-exec-sh-all-args)
         qsub-output (:out @result-map-prom)
-        qsub-job-id (Integer/parseInt (nth (string/split #"\s+" qsub-output) 2))]
+        _ (println "qsub-output = " qsub-output)
+        _ (println "(string/split qsub-output #\"s+\")" (string/split qsub-output #"\s+"))
+        qsub-job-id (Integer/parseInt (nth (string/split qsub-output #"\s+") 2))]
     (assoc job :id qsub-job-id)))
 
 (defn enqueue-wf-sge
@@ -270,7 +273,7 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
         current-wf
         (let [job (first jobs)
               job-with-id (enqueue-job-sge current-wf job)
-              new-wf (wflow/replace-job job job-with-id)]
+              new-wf (wflow/replace-job current-wf job job-with-id)]
           (recur new-wf (rest jobs)))))))
 
 (defn cmds-in-dep-order

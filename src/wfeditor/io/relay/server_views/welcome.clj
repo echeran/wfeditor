@@ -44,7 +44,7 @@
     ;; (exec/print-deps-in-order new-wf)
     ;; (println "now running the command as piped shell commands...")
     ;; (exec/run-workflow new-wf)
-    (println "enqueuing jobs via SGE... (SGE hard-coded a.t.m.")
+    (println "enqueuing jobs via SGE... (SGE hard-coded a.t.m.)")
     ;; TODO: turn enqueuing into multi-method where SGE is just one poss.
     (let [new-wf (exec/enqueue-wf-sge wf)
           new-wfinst (assoc wfinst :workflow new-wf)]
