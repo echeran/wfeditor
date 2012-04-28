@@ -253,13 +253,10 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
         qsub-cmd-parts (into qsub-cmd-parts deps-list-str)
         commons-exec-sh-opts-map {:in job-cmd-str}
         commons-exec-sh-all-args (conj qsub-cmd-parts commons-exec-sh-opts-map)
-        _ (println "clj-commons-exec sh args: " commons-exec-sh-all-args)
         ;; TODO: use internal id's for qsub's -o and -e, and store the
         ;; translation between internal id and SGE job id
         result-map-prom (apply commons-exec/sh commons-exec-sh-all-args)
         qsub-output (:out @result-map-prom)
-        _ (println "qsub-output = " qsub-output)
-        _ (println "(string/split qsub-output #\"s+\")" (string/split qsub-output #"\s+"))
         qsub-job-id (Integer/parseInt (nth (string/split qsub-output #"\s+") 2))]
     (assoc job :id qsub-job-id)))
 
