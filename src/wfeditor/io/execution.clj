@@ -246,12 +246,12 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
   [wf job]
   (let [job-name (:name job)
         deps (wflow/depends-upon wf job)
-        deps-list-str (when (seq deps)
-                        "-hold_jid" (string/join "," (map :id deps)))
+        hold_jid_parts (when (seq deps)
+                         ["-hold_jid" (string/join "," (map :id deps))])
         job-cmd-str (job-command job)
         qsub-cmd-parts ["qsub" "-o" "/home/echeran/sge/qsub/out.txt" "-e" "/home/echeran/sge/qsub/err.txt"]
-        qsub-cmd-parts (into qsub-cmd-parts deps-list-str)
-        commons-exec-sh-opts-map {:in job-cmd-str}
+        qsub-cmd-parts (into qsub-cmd-parts hold_jid_parts)
+        commons-exec-sh-opts-map {:in job-cmd-str :flush-input? true}
         commons-exec-sh-all-args (conj qsub-cmd-parts commons-exec-sh-opts-map)
         ;; TODO: use internal id's for qsub's -o and -e, and store the
         ;; translation between internal id and SGE job id

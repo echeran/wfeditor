@@ -145,7 +145,7 @@ note: this is the reverse of the dep-graph"
         neighbors-map (:neighbors dep-graph)
         new-neighbors-map (into {} (for [[j deps] neighbors-map]
                                      (let [new-deps (replace {job new-job} deps)
-                                           j2 (if (= j job) new-job job)]
+                                           j2 (or ({job new-job} j) j)]
                                        [j2 new-deps])))
         new-dep-graph (-> dep-graph
                           (assoc :nodes new-job-set)
@@ -204,6 +204,30 @@ note: this is the reverse of the dep-graph"
         new-dep-graph { :nodes new-jobs :neighbors new-dep-graph-neighbors}]
     (assoc wf :graph new-dep-graph)))
 
+;;
+;; debugging functions
+;;
+
+(defn- debug-job-id-name
+  "given a Job, return a vector of the name and id of the job"
+  [job]
+  [(:name job) (:id job)])
+
+(defn- debug-dep-map-id-names
+  "given the neighbors map in a Graph object, return a printable map showing the name and id for each job"
+  [dep-map]
+  (into {} (for [j (keys dep-map)]
+             [(debug-job-id-name j) (map debug-job-id-name (dep-map j))])))
+
+(defn- debug-dep-graph-id-names
+  "return a Graph object containing a printable representation of a WF's dep-graph that shows job-name and id for each job"
+  [wf]
+  (let [dep-graph (dep-graph wf)
+        jobs (:nodes dep-graph)
+        deps (:neighbors dep-graph)
+        pr-jobs (map debug-job-id-name jobs)
+        pr-deps (debug-dep-map-id-names deps)]
+    (Graph. pr-jobs pr-deps)))
 
 ;;
 ;; initialization functions
