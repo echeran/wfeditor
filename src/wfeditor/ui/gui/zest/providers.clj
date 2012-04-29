@@ -1,6 +1,7 @@
 (ns wfeditor.ui.gui.zest.providers
   (:require [wfeditor.model.workflow :as wflow]
-            [wfeditor.io.execution :as exec])
+            [wfeditor.io.execution :as exec]
+            [clojure.string :as string])
   ;; need to import the Clojure defrecord, etc. (Java-interop types)
   ;; as according to
   ;; http://dbostwick.posterous.com/using-clojures-deftype-and-defrecord-and-name
@@ -39,9 +40,14 @@
     (getForegroundColour [entity]
       nil)
     (getTooltip [entity]
-      (if (= (class entity) wfeditor.model.workflow.Job)
-        (Label. (exec/job-command entity))
-        nil))
+      (when (= (class entity) wfeditor.model.workflow.Job)
+        (let [tooltip-field-names ["Name" "ID" "Prog. Name" "Command"]
+              tooltip-field-vals [(:name entity) (:id entity) (:prog-name entity) (exec/job-command entity)]
+              tooltip-field-fn (fn [name val] (let [pr-val (or val "")] (str name ": " pr-val)))
+              tooltip-string-parts (map tooltip-field-fn tooltip-field-names tooltip-field-vals)
+              tooltip-string (string/join "\n" tooltip-string-parts)]
+          (Label. tooltip-string))
+        ))
     (fisheyeNode [entity]
       false)
     ;; IEntityConnectionStyleProvider methods
