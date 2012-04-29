@@ -243,35 +243,43 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
 
 (defn enqueue-job-sge
   "enqueue a job using SGE and return the job with the new id"
-  [wf job]
-  (let [job-name (:name job)
-        deps (wflow/depends-upon wf job)
-        hold_jid_parts (when (seq deps)
-                         ["-hold_jid" (string/join "," (map :id deps))])
-        job-cmd-str (job-command job)
-        qsub-cmd-parts ["qsub" "-o" "/home/echeran/sge/qsub/out.txt" "-e" "/home/echeran/sge/qsub/err.txt"]
-        qsub-cmd-parts (into qsub-cmd-parts hold_jid_parts)
-        commons-exec-sh-opts-map {:in job-cmd-str :flush-input? true}
-        commons-exec-sh-all-args (conj qsub-cmd-parts commons-exec-sh-opts-map)
-        ;; TODO: use internal id's for qsub's -o and -e, and store the
-        ;; translation between internal id and SGE job id
-        result-map-prom (apply commons-exec/sh commons-exec-sh-all-args)
-        qsub-output (:out @result-map-prom)
-        qsub-job-id (Integer/parseInt (nth (string/split qsub-output #"\s+") 2))]
-    (assoc job :id qsub-job-id)))
+  ([wf job]
+     (enqueue-job-sge nil wf job))
+  ([username wf job]
+     (let [job-name (:name job)
+           deps (wflow/depends-upon wf job)
+           hold_jid_parts (when (seq deps)
+                            ["-hold_jid" (string/join "," (map :id deps))])
+           job-cmd-str (job-command job)
+           qsub-cmd-parts []
+           qsub-cmd-parts (into qsub-cmd-parts (when username ["sudo" "-u" username "-i"]))
+           qsub-cmd-parts (into qsub-cmd-parts ["qsub" "-o" "/home/echeran/sge/qsub/out.txt" "-e" "/home/echeran/sge/qsub/err.txt"])
+           qsub-cmd-parts (into qsub-cmd-parts hold_jid_parts)
+           commons-exec-sh-opts-map {:in job-cmd-str :flush-input? true}
+           commons-exec-sh-all-args (conj qsub-cmd-parts commons-exec-sh-opts-map)
+           ;; TODO: use internal id's for qsub's -o and -e, and store the
+           ;; translation between internal id and SGE job id
+           result-map-prom (apply commons-exec/sh commons-exec-sh-all-args)
+           qsub-output (:out @result-map-prom)
+           qsub-job-id (Integer/parseInt (nth (string/split qsub-output #"\s+") 2))]
+       (assoc job :id qsub-job-id))))
 
-(defn enqueue-wf-sge
-  "enqueue the workflow using SGE and return the workflow with the new job id's"
-  [wf]
-  (let [dep-order-job-seq (wflow/wf-job-seq wf)]
-    (loop [current-wf wf
-           jobs dep-order-job-seq]
-      (if (empty? jobs)
-        current-wf
-        (let [job (first jobs)
-              job-with-id (enqueue-job-sge current-wf job)
-              new-wf (wflow/replace-job current-wf job job-with-id)]
-          (recur new-wf (rest jobs)))))))
+(defn enqueue-wfinst-sge
+  "enqueue the WFInstance using SGE and return the workflow with the new job id's"
+  [wfinst]
+  (let [username (:username wfinst)
+        wf (:workflow wfinst)
+        dep-order-job-seq (wflow/wf-job-seq wf)
+        new-wf (loop [current-wf wf
+                      jobs dep-order-job-seq]
+                 (if (empty? jobs)
+                   current-wf
+                   (let [job (first jobs)
+                         job-with-id (enqueue-job-sge username current-wf job)
+                         new-wf (wflow/replace-job current-wf job job-with-id)]
+                     (recur new-wf (rest jobs)))))
+        new-wfinst (assoc wfinst :workflow new-wf)]
+    new-wfinst))
 
 (defn cmds-in-dep-order
   "return a sequence of job commands in order of which is depended on by which following jobs"

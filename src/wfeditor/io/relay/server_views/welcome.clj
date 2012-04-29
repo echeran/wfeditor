@@ -36,20 +36,11 @@
 
 (defpage [:get "/wfinstance"] []
   (let [wfinst (wfinst-from-req)
-        wf (:workflow wfinst)
-        ;; new-wf (wflow/wf-with-internal-ids wf)
-        ]
-    ;; TODO: replace these printing statements with actual code execution
-    ;; (println "I have pretended to run via SGE/OGS:")
-    ;; (exec/print-deps-in-order new-wf)
-    ;; (println "now running the command as piped shell commands...")
-    ;; (exec/run-workflow new-wf)
+        new-wfinst (exec/enqueue-wfinst-sge wfinst)]
     (println "enqueuing jobs via SGE... (SGE hard-coded a.t.m.)")
     ;; TODO: turn enqueuing into multi-method where SGE is just one poss.
-    (let [new-wf (exec/enqueue-wf-sge wf)
-          new-wfinst (assoc wfinst :workflow new-wf)]
-      (println "hopefully finished enqueuing jobs via SGE")
-      (fformat/workflow-instance-to-string new-wfinst))))
+    (println "finished enqueuing jobs via SGE")
+    (fformat/workflow-instance-to-string new-wfinst)))
 
 (defpage [:put "/wfinstance"] []
   "POST: Create a new instance of a workflow")
