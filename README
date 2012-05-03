@@ -1,13 +1,30 @@
 # wfeditor
 
-FIXME: write description
+WFEditor allows one to run a workflow on a compute cluster by interacting with a visual interface on a personal computer.
+
+## Requirements
+
+WFEditor requires Java SE 6 or higher.  
+
+The server process should be run in a typical POSIX environment (e.g., UNIX, Linux) with typical characteristics -- piping of streams, a set of standard command line tools, and an SSH server.
 
 ## Usage
 
-FIXME: write
+The client can be run as
+java -jar wfeditor-<arch>.jar
+The server can be run just like the client, but with an extra -S flag
+java -jar wfeditor-<arch>.jar -S
+
+The Mac OS X client in GUI mode requires the extra flag -XstartOnFirstThread
+java -XstartOnFirstThread -jar wfeditor-macosx.jar
+
+The client can be run in a GUI mode or a command-line mode.  The full command-line options are given when the -h flag is given
+java -jar wfeditor-macosx.jar -h
 
 ## License
 
-Copyright (C) 2011 FIXME
+Copyright (C) 2011-2012 Palmyra Software
 
-Distributed under the Eclipse Public License, the same as Clojure.
+WFEditor is distributed to the user as per the WFEditor End-User License Agreement.
+
+Other code is distributed under the Eclipse Public License, the same as Clojure, and/or the Apache License.
