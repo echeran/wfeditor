@@ -43,7 +43,16 @@
 ;; refs (declarations here, initial bindings below)
 ;;
 
+;; nested structure containing the status of all jobs run
+;; in server mode, stores locally-run jobs
+;; in client mode, stores all jobs known across domains
 (declare global-job-statuses)
+
+;; counter for unique id's to assign internally to jobs (akin to SQL autoincrement)
+(declare internal-job-id-counter)
+
+;; a map to translate grid engine job id's to internal job id's
+(declare job-id-translate-map)
 
 ;;
 ;; functions
@@ -241,7 +250,18 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
 ;; functions for running jobs on a grid engine
 ;;
 
-(defn enqueue-job-sge
+(defn- assoc-internal-job-id
+  "create an entry in the global map to translate the grid engine id to the internal id, and return global map"
+  [grid-engine-id internal-id]
+  (dosync
+   (alter job-id-translate-map assoc grid-engine-id internal-id)))
+
+(defn- next-internal-id
+  "increment and return the next internal job id from the counter"
+  []
+  (swap! internal-job-id-counter inc))
+
+(defn- enqueue-job-sge
   "enqueue a job using SGE and return the job with the new id"
   ([wf job]
      (enqueue-job-sge nil wf job))
@@ -251,9 +271,12 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
            hold_jid_parts (when (seq deps)
                             ["-hold_jid" (string/join "," (map :id deps))])
            job-cmd-str (job-command job)
+           internal-job-id (next-internal-id)
            qsub-cmd-parts []
            qsub-cmd-parts (into qsub-cmd-parts (when username ["sudo" "-u" username "-i"]))
-           qsub-cmd-parts (into qsub-cmd-parts ["qsub" "-o" "/home/echeran/sge/qsub/out.txt" "-e" "/home/echeran/sge/qsub/err.txt"])
+           std-out-file (str "/home/echeran/sge/qsub/" internal-job-id ".out")
+           std-err-file (str "/home/echeran/sge/qsub/" internal-job-id ".err")
+           qsub-cmd-parts (into qsub-cmd-parts ["qsub" "-o" std-out-file "-e" std-err-file])
            qsub-cmd-parts (into qsub-cmd-parts hold_jid_parts)
            commons-exec-sh-opts-map {:in job-cmd-str :flush-input? true}
            commons-exec-sh-all-args (conj qsub-cmd-parts commons-exec-sh-opts-map)
@@ -262,7 +285,12 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
            result-map-prom (apply commons-exec/sh commons-exec-sh-all-args)
            qsub-output (:out @result-map-prom)
            qsub-job-id (Integer/parseInt (nth (string/split qsub-output #"\s+") 2))]
-       (assoc job :id qsub-job-id))))
+       (do
+         (assoc-internal-job-id qsub-job-id internal-job-id))
+       (assoc job
+         :id qsub-job-id
+         :std-out-file std-out-file
+         :std-err-file std-err-file))))
 
 (defn enqueue-wfinst-sge
   "enqueue the WFInstance using SGE and return the workflow with the new job id's"
@@ -345,3 +373,7 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
 ;;
 
 (def global-job-statuses (ref {}))
+
+(def internal-job-id-counter (atom 0))
+
+(def job-id-translate-map (ref {}))

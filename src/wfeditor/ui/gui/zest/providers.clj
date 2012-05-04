@@ -41,8 +41,8 @@
       nil)
     (getTooltip [entity]
       (when (= (class entity) wfeditor.model.workflow.Job)
-        (let [tooltip-field-names ["Name" "ID" "Prog. Name" "Command"]
-              tooltip-field-vals [(:name entity) (:id entity) (:prog-name entity) (exec/job-command entity)]
+        (let [tooltip-field-names ["Name" "ID" "Prog. Name" "Command" "Out file" "Err file"]
+              tooltip-field-vals [(:name entity) (:id entity) (:prog-name entity) (exec/job-command entity) (:std-out-file entity) (:std-err-file entity)]
               tooltip-field-fn (fn [name val] (let [pr-val (or val "")] (str name ": " pr-val)))
               tooltip-string-parts (map tooltip-field-fn tooltip-field-names tooltip-field-vals)
               tooltip-string (string/join "\n" tooltip-string-parts)]
