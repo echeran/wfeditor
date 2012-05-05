@@ -32,13 +32,12 @@
         </opt>
       </prog-opts>
     </job>
-
     <job>
       <name>align1</name>
       <prog-exec-loc>~/ngs/bowtie/bowtie-0.12.7/bowtie</prog-exec-loc>
       <prog-args>
         <arg>hg19</arg>
-        <arg>~/ngs/reads/c20_reads/split_by_i/i_reads1.fasta</arg>
+        <arg>~/ngs/reads/c20_reads/alignable/split_by_i/i_reads1.fasta</arg>
         <arg>~/sge/alignment/align1.sam</arg>
       </prog-args>
       <prog-opts>
@@ -60,7 +59,7 @@
       <prog-exec-loc>~/ngs/bowtie/bowtie-0.12.7/bowtie</prog-exec-loc>
       <prog-args>
         <arg>hg19</arg>
-        <arg>~/ngs/reads/c20_reads/split_by_i/i_reads2.fasta</arg>
+        <arg>~/ngs/reads/c20_reads/alignable/split_by_i/i_reads2.fasta</arg>
         <arg>~/sge/alignment/align2.sam</arg>
       </prog-args>
       <prog-opts>
@@ -82,7 +81,7 @@
       <prog-exec-loc>~/ngs/bowtie/bowtie-0.12.7/bowtie</prog-exec-loc>
       <prog-args>
         <arg>hg19</arg>
-        <arg>~/ngs/reads/c20_reads/split_by_i/i_reads3.fasta</arg>
+        <arg>~/ngs/reads/c20_reads/alignable/split_by_i/i_reads3.fasta</arg>
         <arg>~/sge/alignment/align3.sam</arg>
       </prog-args>
       <prog-opts>
@@ -104,7 +103,7 @@
       <prog-exec-loc>~/ngs/bowtie/bowtie-0.12.7/bowtie</prog-exec-loc>
       <prog-args>
         <arg>hg19</arg>
-        <arg>~/ngs/reads/c20_reads/split_by_i/i_reads4.fasta</arg>
+        <arg>~/ngs/reads/c20_reads/alignable/split_by_i/i_reads4.fasta</arg>
         <arg>~/sge/alignment/align4.sam</arg>
       </prog-args>
       <prog-opts>
@@ -126,7 +125,7 @@
       <prog-exec-loc>~/ngs/bowtie/bowtie-0.12.7/bowtie</prog-exec-loc>
       <prog-args>
         <arg>hg19</arg>
-        <arg>~/ngs/reads/c20_reads/split_by_i/i_reads5.fasta</arg>
+        <arg>~/ngs/reads/c20_reads/alignable/split_by_i/i_reads5.fasta</arg>
         <arg>~/sge/alignment/align5.sam</arg>
       </prog-args>
       <prog-opts>
@@ -161,7 +160,7 @@
         </opt>
         <opt>
           <flag>-o</flag>
-          <val>align1.bam</val>
+          <val>~/sge/alignment/align1.bam</val>
         </opt>
       </prog-opts>
       <deps>
@@ -186,7 +185,7 @@
         </opt>
         <opt>
           <flag>-o</flag>
-          <val>align2.bam</val>
+          <val>~/sge/alignment/align2.bam</val>
         </opt>
       </prog-opts>
       <deps>
@@ -211,7 +210,7 @@
         </opt>
         <opt>
           <flag>-o</flag>
-          <val>align3.bam</val>
+          <val>~/sge/alignment/align3.bam</val>
         </opt>
       </prog-opts>
       <deps>
@@ -236,7 +235,7 @@
         </opt>
         <opt>
           <flag>-o</flag>
-          <val>align4.bam</val>
+          <val>~/sge/alignment/align4.bam</val>
         </opt>
       </prog-opts>
       <deps>
@@ -261,7 +260,7 @@
         </opt>
         <opt>
           <flag>-o</flag>
-          <val>align5.bam</val>
+          <val>~/sge/alignment/align5.bam</val>
         </opt>
       </prog-opts>
       <deps>
