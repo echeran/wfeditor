@@ -47,9 +47,13 @@
 ;; in server mode, stores locally-run jobs
 ;; in client mode, stores all jobs known across domains
 (declare global-job-statuses)
+;; TODO: save this to file periodically, and if the server restarts or
+;; crahess, pick up the latest value from file
 
 ;; counter for unique id's to assign internally to jobs (akin to SQL autoincrement)
 (declare internal-job-id-counter)
+;; TODO: save this to file periodically, and if the server restarts,
+;; pick up the latest value of the counter from file
 
 ;; a map to translate grid engine job id's to internal job id's
 (declare job-id-translate-map)
@@ -280,8 +284,6 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
            qsub-cmd-parts (into qsub-cmd-parts hold_jid_parts)
            commons-exec-sh-opts-map {:in job-cmd-str :flush-input? true}
            commons-exec-sh-all-args (conj qsub-cmd-parts commons-exec-sh-opts-map)
-           ;; TODO: use internal id's for qsub's -o and -e, and store the
-           ;; translation between internal id and SGE job id
            result-map-prom (apply commons-exec/sh commons-exec-sh-all-args)
            qsub-output (:out @result-map-prom)
            qsub-job-id (Integer/parseInt (nth (string/split qsub-output #"\s+") 2))]
