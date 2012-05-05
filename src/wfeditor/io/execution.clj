@@ -103,7 +103,7 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
         opts (:prog-opts job)
         args-str (string/join sep args)
         opts-str (opts-str opts)]
-    (string/join sep [exec opts-str args-str])))
+    (string/join sep [exec args-str opts-str])))
 
 (defn wf-command-linked-list
   "return the command(s) necessary to run all of the jobs in the workflow according to the dependencies specified.  this assumes that there is only one path in the dependency graph"
