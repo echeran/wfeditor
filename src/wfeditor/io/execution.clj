@@ -278,8 +278,8 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
            internal-job-id (next-internal-id)
            qsub-cmd-parts []
            qsub-cmd-parts (into qsub-cmd-parts (when username ["sudo" "-u" username "-i"]))
-           std-out-file (str "/home/echeran/sge/qsub/" internal-job-id ".out")
-           std-err-file (str "/home/echeran/sge/qsub/" internal-job-id ".err")
+           std-out-file (or (:std-out-file job) (str "/home/echeran/sge/qsub/" internal-job-id ".out"))
+           std-err-file (or (:std-err-file job) (str "/home/echeran/sge/qsub/" internal-job-id ".err"))
            qsub-cmd-parts (into qsub-cmd-parts ["qsub" "-o" std-out-file "-e" std-err-file])
            qsub-cmd-parts (into qsub-cmd-parts hold_jid_parts)
            commons-exec-sh-opts-map {:in job-cmd-str :flush-input? true}
