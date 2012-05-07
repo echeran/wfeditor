@@ -280,9 +280,13 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
            qsub-cmd-parts (into qsub-cmd-parts (when username ["sudo" "-u" username "-i"]))
            std-out-file (or (:std-out-file job) (str "/home/echeran/sge/qsub/" internal-job-id ".out"))
            std-err-file (or (:std-err-file job) (str "/home/echeran/sge/qsub/" internal-job-id ".err"))
-           qsub-cmd-parts (into qsub-cmd-parts ["qsub" "-o" std-out-file "-e" std-err-file])
+           ;; qsub-cmd-parts (into qsub-cmd-parts ["qsub" "-o" std-out-file "-e" std-err-file])
+           qsub-cmd-parts (into qsub-cmd-parts ["qsub"])
            qsub-cmd-parts (into qsub-cmd-parts hold_jid_parts)
-           commons-exec-sh-opts-map {:in job-cmd-str :flush-input? true}
+           qsub-script-header-map {"-o" std-out-file "-e" std-err-file}
+           qsub-script-header-strings (for [[k v] qsub-script-header-map] (str "#$ " k " " v))
+           qsub-script (string/join "\n" (conj (into [] qsub-script-header-strings) job-cmd-str))
+           commons-exec-sh-opts-map {:in qsub-script :flush-input? true}
            commons-exec-sh-all-args (conj qsub-cmd-parts commons-exec-sh-opts-map)
            result-map-prom (apply commons-exec/sh commons-exec-sh-all-args)
            qsub-output (:out @result-map-prom)
