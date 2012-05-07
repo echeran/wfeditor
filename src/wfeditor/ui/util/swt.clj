@@ -34,6 +34,29 @@
 ;; (test5 charAt "hello world" 0)
 ;; ;=> \h
 
+;; almost works
+;; (defmacro test6 [method] `(fn [obj# & args#] (~concat (. obj# ~method) args#)))
+;; ((test6 charAt) "hello world" 0)
+;; ; IllegalArgumentException No matching field found: charAt for class java.lang.String  clojure.lang.Reflector.getInstanceField (Reflector.java:289)
+
+;; works, albeit potentially ugly
+;; (defmacro test7 [method] `(fn [obj# & args#] (eval (concat (list '. obj# '~method) args#))))
+;; ((test7 charAt) "hello world" 2)
+;; ;=> \l
+
+;; doesn't work
+;; (defmacro test8 [method] (fn [obj# & args#] (concat `(. obj# ~method) args#)))
+;; ((test8 charAt) "hello world" 2)
+;; ; IllegalArgumentException No matching ctor found for class user$test8$fn__1054  clojure.lang.Reflector.invokeConstructor (Reflector.java:166)
+
+;; TODO: figure out if this is the best way to achieve function-ifying
+;; a Java method
+(defmacro fnify
+  "take the name of a Java member method and return a Clojure function that represents that Java method taking an object and optional other values as arguments"
+  [method-name]
+  `(fn [obj# & args#]
+     (eval (concat (list '. obj# '~method) args#))))
+
 (defn update-button
   "update an SWT Button using a map of options. options map keys and values:
 :text  String of the button's text
