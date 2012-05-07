@@ -39,8 +39,9 @@ Note: This has compiled but never run for me without generating an exception, so
         opts-fns-map {:text (memfn setText s)
                       :widget-select-fn (memfn addSelectionListener f)}
         opts-fns-reduce-fn (fn [b [k v]]
-                             (let [b-upd-fn (opts-fns-map k)]
+                             (if-let [b-upd-fn (opts-fns-map k)]
                                (doto b
-                                 (b-upd-fn v))))
+                                 (b-upd-fn v))
+                               b))
         updated-button (reduce opts-fns-reduce-fn button opts)]
     updated-button))
