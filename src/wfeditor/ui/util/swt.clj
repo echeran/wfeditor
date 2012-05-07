@@ -1,4 +1,6 @@
-(ns wfeditor.ui.util.swt)
+(ns wfeditor.ui.util.swt
+  (:import
+   (org.eclipse.swt.events SelectionEvent SelectionAdapter)))
 
 (defmacro new-widget [widget-class parent style]
   `(do (new ~widget-class ~parent ~style)))
@@ -17,7 +19,8 @@
    :else (when-let [parent (.getParent widget)] (get-ancestor-shell parent))))
 
 (defmacro fnify
-  "take the name of a Java member method and return a Clojure function that represents that Java method taking an object and optional other values as arguments.  Use this when you do not want to be restricted by clojure.core/memfn to specifying the number of arguments that the function should accept upfront."
+  "take the name of a Java member method and return a Clojure function that represents that Java method taking an object and optional other values as arguments.  Use this when you do not want to be restricted by clojure.core/memfn to specifying the number of arguments that the function should accept upfront.
+Note: This has compiled but never run for me without generating an exception, so use at your own risk"
   [method-name]
   `(fn [obj# & args#]
      (eval (concat (list '. obj# '~method-name) args#))))
@@ -25,10 +28,19 @@
 (defn update-button
   "update an SWT Button using a map of options. options map keys and values:
 :text  String of the button's text
-:select-fn  a fn of one argument (rep.'ing the selection event) that extends the SelectionAdapter and is given to the SelectionListener"
+:widget-select-fn  a fn of one argument (rep.'ing the selection event) that extends the SelectionAdapter and is given to the SelectionListener"
   [button opts]
-  (let [opts-fns-map {:text (fnify setText) :select-fn (fnify addSelectionListener)}
-        ;; opts-fns-map-fn (fn [k v] (if k (fn [b] ((opts-fns-map k) b v)) identity))
-        opts-fns-reduce-fn (fn [b [k v]] (if k ((opts-fns-map k) b v) b))
-        updated-button (reduce opts-fns-reduce-fn button opts-fns-map)]
+  (let [ws-fn (:widget-select-fn opts)
+        proxied-adapter-ws-fn (proxy [SelectionAdapter]
+                  []
+                (widgetSelected [event]
+                  (ws-fn event)))
+        opts (assoc opts :widget-select-fn proxied-adapter-ws-fn)
+        opts-fns-map {:text (memfn setText s)
+                      :widget-select-fn (memfn addSelectionListener f)}
+        opts-fns-reduce-fn (fn [b [k v]]
+                             (let [b-upd-fn (opts-fns-map k)]
+                               (doto b
+                                 (b-upd-fn v))))
+        updated-button (reduce opts-fns-reduce-fn button opts)]
     updated-button))
