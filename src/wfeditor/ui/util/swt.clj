@@ -32,9 +32,9 @@ Note: This has compiled but never run for me without generating an exception, so
   [button opts]
   (let [ws-fn (:widget-select-fn opts)
         proxied-adapter-ws-fn (proxy [SelectionAdapter]
-                  []
-                (widgetSelected [event]
-                  (ws-fn event)))
+                                  []
+                                (widgetSelected [event]
+                                  (ws-fn event)))
         opts (assoc opts :widget-select-fn proxied-adapter-ws-fn)
         opts-fns-map {:text (memfn setText s)
                       :widget-select-fn (memfn addSelectionListener f)}
