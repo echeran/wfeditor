@@ -270,20 +270,20 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
   ([wf job]
      (enqueue-job-sge nil wf job))
   ([username wf job]
-     (let [job-name (:name job)
-           deps (wflow/depends-upon wf job)
+     (let [deps (wflow/depends-upon wf job)
            hold_jid_parts (when (seq deps)
                             ["-hold_jid" (string/join "," (map :id deps))])
            job-cmd-str (job-command job)
            internal-job-id (next-internal-id)
            qsub-cmd-parts []
-           qsub-cmd-parts (into qsub-cmd-parts (when username ["sudo" "-u" username "-i"]))
-           std-out-file (or (:std-out-file job) (str "/home/echeran/sge/qsub/" internal-job-id ".out"))
-           std-err-file (or (:std-err-file job) (str "/home/echeran/sge/qsub/" internal-job-id ".err"))
-           ;; qsub-cmd-parts (into qsub-cmd-parts ["qsub" "-o" std-out-file "-e" std-err-file])
+           qsub-cmd-parts (into qsub-cmd-parts (when (not= username (. System getProperty "user.name")) ["sudo" "-u" username "-i"]))
            qsub-cmd-parts (into qsub-cmd-parts ["qsub"])
            qsub-cmd-parts (into qsub-cmd-parts hold_jid_parts)
-           qsub-script-header-map {"-o" std-out-file "-e" std-err-file}
+           std-out-file (or (:std-out-file job) (str "/home/echeran/sge/qsub/" internal-job-id ".out"))
+           std-err-file (or (:std-err-file job) (str "/home/echeran/sge/qsub/" internal-job-id ".err"))
+           job-name (:name job)
+           qsub-script-header-map {"-o" std-out-file "-e" std-err-file "-N" job-name}
+           qsub-script-header-map (into {} (filter (comp not nil? val) qsub-script-header-map))
            qsub-script-header-strings (for [[k v] qsub-script-header-map] (str "#$ " k " " v))
            qsub-script (string/join "\n" (conj (into [] qsub-script-header-strings) job-cmd-str))
            commons-exec-sh-opts-map {:in qsub-script :flush-input? true}
