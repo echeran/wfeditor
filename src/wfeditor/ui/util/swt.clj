@@ -20,7 +20,7 @@
 
 (defmacro fnify
   "take the name of a Java member method and return a Clojure function that represents that Java method taking an object and optional other values as arguments.  Use this when you do not want to be restricted by clojure.core/memfn to specifying the number of arguments that the function should accept upfront.
-Note: This has compiled but never run for me without generating an exception, so use at your own risk"
+Note: This has compiled but never run for me (aside from test cases in an interactive REPL) without generating an exception, so use at your own risk"
   [method-name]
   `(fn [obj# & args#]
      (eval (concat (list '. obj# '~method-name) args#))))
