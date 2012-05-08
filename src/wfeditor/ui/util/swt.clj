@@ -2,8 +2,15 @@
   (:import
    (org.eclipse.swt.events SelectionEvent SelectionAdapter)))
 
-(defmacro new-widget [widget-class parent style]
+(defmacro new-widget2 [widget-class parent style]
   `(do (new ~widget-class ~parent ~style)))
+
+(defmacro new-widget
+  "create a new SWT widget of type widget-class, with given parent, and properties (incl. style) as determined by opts map.
+opts map keys and values:
+:styles - vector of SWT style constants for this widget
+:text - a string to be added to the widget via .setText"
+  [widget-class parent opts])
 
 (defmacro create-widgets-with-names [parent widget-class style names]
   `(dorun (map #(.setText (new ~widget-class ~parent ~style) %1) ~names)))
