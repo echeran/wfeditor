@@ -8,7 +8,13 @@
    org.eclipse.swt.SWT
    (org.eclipse.swt.layout FillLayout RowLayout GridLayout GridData)
    (org.eclipse.swt.widgets Label Button FileDialog Group Text Combo)
-   (org.eclipse.swt.events SelectionEvent SelectionAdapter)))
+   (org.eclipse.swt.events SelectionEvent SelectionAdapter ModifyListener ModifyEvent)))
+
+;;
+;; refs (declarations here, initial bindings below)
+;;
+
+(declare exec-props)
 
 ;;
 ;; functions
@@ -39,8 +45,15 @@
       (.setText "Enter username:")
       (.setLayoutData (GridData. GridData/HORIZONTAL_ALIGN_BEGINNING)))
     (doto user-text
-      (.setText (. System getProperty "user.name"))
-      (.setLayoutData (GridData. GridData/FILL_HORIZONTAL)))
+      ;; (.setText (. System getProperty "user.name"))
+      (.setText (:user @exec-props))
+      (.setLayoutData (GridData. GridData/FILL_HORIZONTAL))
+      (.addModifyListener (reify ModifyListener
+                            (modifyText [this event]
+                              (let [widget (. event widget)
+                                    user (.getText widget)]
+                                (dosync
+                                 (alter exec-props assoc :user user)))))))
     (doto exec-dom-label
       (.setText "Select execution domain:")
       (.setLayoutData (GridData. GridData/HORIZONTAL_ALIGN_BEGINNING)))
@@ -48,25 +61,59 @@
       (.add "SGE")
       (.add "rem-piped-shell")
       (.select 0)
-      (.setLayoutData (GridData. GridData/FILL_HORIZONTAL)))
+      ;; default selected value should match (:exec-dom @exec-props)
+      (.setLayoutData (GridData. GridData/FILL_HORIZONTAL))
+      (.addSelectionListener (proxy [SelectionAdapter]
+                                 []
+                               (widgetSelected [event]
+                                 (let [exec-domain (.getItem exec-dom-combo (.getSelectionIndex exec-dom-combo))]
+                                   (dosync
+                                    (alter exec-props assoc :exec-dom exec-domain)))))))
     (doto rem-host-label
       (.setText "Remote host:")
       (.setLayoutData (GridData. GridData/HORIZONTAL_ALIGN_BEGINNING)))
     (doto rem-host-text
-      (.setText io-const/DEFAULT-HOST)
-      (.setLayoutData (GridData. GridData/FILL_HORIZONTAL)))
+      ;; (.setText io-const/DEFAULT-HOST)
+      (.setText (:rem-host @exec-props))
+      (.setLayoutData (GridData. GridData/FILL_HORIZONTAL))
+      (.addModifyListener (reify ModifyListener
+                            (modifyText [this event]
+                              (let [widget (. event widget)
+                                    rem-host (.getText widget)]
+                                (dosync
+                                 (alter exec-props assoc :rem-host rem-host)))))))
     (doto rem-port-label
       (.setText "Remote port:")
       (.setLayoutData (GridData. GridData/HORIZONTAL_ALIGN_BEGINNING)))
     (doto rem-port-text
-      (.setText (str io-const/DEFAULT-PORT))
-      (.setLayoutData (GridData. GridData/FILL_HORIZONTAL)))
+      ;; (.setText (str io-const/DEFAULT-PORT))
+      (.setText (str (:rem-port @exec-props)))
+      (.setLayoutData (GridData. GridData/FILL_HORIZONTAL))
+      (.addModifyListener (reify ModifyListener
+                            (modifyText [this event]
+                              (let [widget (. event widget)
+                                    rem-port (Integer/parseInt (.getText widget))]
+                                (try
+                                  (dosync
+                                   (alter exec-props assoc :rem-port rem-port))
+                                  (catch Exception e nil)
+                                  (catch NumberFormatException e nil)))))))
     (doto loc-port-label
       (.setText "Local port:")
       (.setLayoutData (GridData. GridData/HORIZONTAL_ALIGN_BEGINNING)))
     (doto loc-port-text
-      (.setText (str io-const/DEFAULT-LOCAL-PORT))
-      (.setLayoutData (GridData. GridData/FILL_HORIZONTAL)))
+      ;; (.setText (str io-const/DEFAULT-LOCAL-PORT))
+      (.setText (str (:loc-port @exec-props)))
+      (.setLayoutData (GridData. GridData/FILL_HORIZONTAL))
+      (.addModifyListener (reify ModifyListener
+                            (modifyText [this event]
+                              (let [widget (. event widget)
+                                    loc-port (Integer/parseInt (.getText widget))]
+                                (dosync
+                                 (try
+                                   (alter exec-props assoc :loc-port loc-port) 
+                                   (catch Exception e nil)
+                                   (catch NumberFormatException e nil))))))))
     exec-group))
 
 (defn- button-group-create
@@ -121,22 +168,29 @@
     (update-button print-wf-inst-button
                    {:text "Print WF instance"
                     :widget-select-fn (fn [event]
-                                        (let [username (.getText user-text)
+                                        (let [
+                                              ;; username (.getText user-text)
                                               workflow (wflow/workflow)
-                                              exec-domain (.getItem exec-dom-combo (.getSelectionIndex exec-dom-combo))
-                                              wf-inst (wflow/new-wfinstance-fn username exec-domain workflow)
+                                              ;; exec-domain (.getItem exec-dom-combo (.getSelectionIndex exec-dom-combo))
+                                              {:keys [user exec-dom]} @exec-props
+                                              _ (println "exec-props= " @exec-props)
+                                              _ (println "user= " user)
+                                              _ (println "exec-dom= " exec-dom)
+                                              wf-inst (wflow/new-wfinstance-fn user exec-dom workflow)
                                               wf-inst-str (fformat/workflow-instance-to-string wf-inst)]
                                           (println wf-inst-str)))})
     (update-button update-wf-inst-button
                    {:text "Update WF instance via server"
                     :widget-select-fn (fn [event]
-                                        (let [username (.getText user-text)
-                                              workflow (wflow/workflow)
-                                              exec-domain (.getItem exec-dom-combo (.getSelectionIndex exec-dom-combo))
-                                              wf-inst (wflow/new-wfinstance-fn username exec-domain workflow)
-                                              rem-host (.getText rem-host-text)
-                                              rem-port (Integer/parseInt (.getText rem-port-text))
-                                              loc-port (Integer/parseInt (.getText loc-port-text))
+                                        (let [workflow (wflow/workflow)
+                                              ;; username (.getText user-text)
+                                              ;; exec-domain (.getItem exec-dom-combo (.getSelectionIndex exec-dom-combo))
+                                              ;; wf-inst (wflow/new-wfinstance-fn username exec-domain workflow)
+                                              ;; rem-host (.getText rem-host-text)
+                                              ;; rem-port (Integer/parseInt (.getText rem-port-text))
+                                              ;; loc-port (Integer/parseInt (.getText loc-port-text))
+                                              {:keys [user exec-dom rem-host rem-port loc-port]} @exec-props
+                                              wf-inst (wflow/new-wfinstance-fn user exec-dom workflow)
                                               loc-host io-const/DEFAULT-LOCAL-HOST
                                               server-host io-const/DEFAULT-SERVER-HOST-REL-TO-REMOTE]
                                           (exec/update-wfinst-and-set-everywhere wf-inst rem-host rem-port loc-port loc-host server-host)))})
@@ -166,3 +220,13 @@
       (create-widgets-with-names testing-group Button SWT/RADIO ["Radio 1" "Radio 2" "Radio 3"])
       (create-widgets-with-names testing-group Button SWT/TOGGLE ["Tog 1" "Tog 2" "Tog 3"])
       (create-widgets-with-names testing-group Button SWT/CHECK [ "Check one" "...two" "...three"]))))
+
+;;
+;; refs - binding initial values
+;;
+
+(def exec-props (ref {:user (. System getProperty "user.name")
+                      :exec-dom "SGE"
+                      :rem-host io-const/DEFAULT-HOST
+                      :rem-port io-const/DEFAULT-PORT
+                      :loc-port io-const/DEFAULT-LOCAL-PORT}))
