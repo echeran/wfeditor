@@ -45,7 +45,6 @@
       (.setText "Enter username:")
       (.setLayoutData (GridData. GridData/HORIZONTAL_ALIGN_BEGINNING)))
     (doto user-text
-      ;; (.setText (. System getProperty "user.name"))
       (.setText (:user @exec-props))
       (.setLayoutData (GridData. GridData/FILL_HORIZONTAL))
       (.addModifyListener (reify ModifyListener
@@ -73,7 +72,6 @@
       (.setText "Remote host:")
       (.setLayoutData (GridData. GridData/HORIZONTAL_ALIGN_BEGINNING)))
     (doto rem-host-text
-      ;; (.setText io-const/DEFAULT-HOST)
       (.setText (:rem-host @exec-props))
       (.setLayoutData (GridData. GridData/FILL_HORIZONTAL))
       (.addModifyListener (reify ModifyListener
@@ -86,7 +84,6 @@
       (.setText "Remote port:")
       (.setLayoutData (GridData. GridData/HORIZONTAL_ALIGN_BEGINNING)))
     (doto rem-port-text
-      ;; (.setText (str io-const/DEFAULT-PORT))
       (.setText (str (:rem-port @exec-props)))
       (.setLayoutData (GridData. GridData/FILL_HORIZONTAL))
       (.addModifyListener (reify ModifyListener
@@ -102,7 +99,6 @@
       (.setText "Local port:")
       (.setLayoutData (GridData. GridData/HORIZONTAL_ALIGN_BEGINNING)))
     (doto loc-port-text
-      ;; (.setText (str io-const/DEFAULT-LOCAL-PORT))
       (.setText (str (:loc-port @exec-props)))
       (.setLayoutData (GridData. GridData/FILL_HORIZONTAL))
       (.addModifyListener (reify ModifyListener
@@ -168,14 +164,8 @@
     (update-button print-wf-inst-button
                    {:text "Print WF instance"
                     :widget-select-fn (fn [event]
-                                        (let [
-                                              ;; username (.getText user-text)
-                                              workflow (wflow/workflow)
-                                              ;; exec-domain (.getItem exec-dom-combo (.getSelectionIndex exec-dom-combo))
+                                        (let [workflow (wflow/workflow)
                                               {:keys [user exec-dom]} @exec-props
-                                              _ (println "exec-props= " @exec-props)
-                                              _ (println "user= " user)
-                                              _ (println "exec-dom= " exec-dom)
                                               wf-inst (wflow/new-wfinstance-fn user exec-dom workflow)
                                               wf-inst-str (fformat/workflow-instance-to-string wf-inst)]
                                           (println wf-inst-str)))})
@@ -183,12 +173,6 @@
                    {:text "Update WF instance via server"
                     :widget-select-fn (fn [event]
                                         (let [workflow (wflow/workflow)
-                                              ;; username (.getText user-text)
-                                              ;; exec-domain (.getItem exec-dom-combo (.getSelectionIndex exec-dom-combo))
-                                              ;; wf-inst (wflow/new-wfinstance-fn username exec-domain workflow)
-                                              ;; rem-host (.getText rem-host-text)
-                                              ;; rem-port (Integer/parseInt (.getText rem-port-text))
-                                              ;; loc-port (Integer/parseInt (.getText loc-port-text))
                                               {:keys [user exec-dom rem-host rem-port loc-port]} @exec-props
                                               wf-inst (wflow/new-wfinstance-fn user exec-dom workflow)
                                               loc-host io-const/DEFAULT-LOCAL-HOST
