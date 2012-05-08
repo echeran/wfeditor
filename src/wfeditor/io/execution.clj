@@ -287,8 +287,7 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
            qsub-script-header-strings (for [[k v] qsub-script-header-map] (str "#$ " k " " v))
            qsub-script (string/join "\n" (conj (into [] qsub-script-header-strings) job-cmd-str))
            commons-exec-sh-opts-map {:in qsub-script :flush-input? true}
-           commons-exec-sh-all-args (conj qsub-cmd-parts commons-exec-sh-opts-map)
-           result-map-prom (apply commons-exec/sh commons-exec-sh-all-args)
+           result-map-prom (commons-exec/sh qsub-cmd-parts commons-exec-sh-opts-map)
            qsub-output (:out @result-map-prom)
            qsub-job-id (Integer/parseInt (nth (string/split qsub-output #"\s+") 2))]
        (do

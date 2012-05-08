@@ -17,24 +17,11 @@
             ExecuteWatchdog
             ExecuteStreamHandler
             StreamPumper
-            InputStreamPumper
             ShutdownHookProcessDestroyer
             Watchdog
             PumpStreamHandler]
            [org.apache.commons.exec.environment
             EnvironmentUtils]))
-
-(defn parse-args [args]
-  (split-with string? args))
-
-(defn parse-args-pipe [args]
-  (split-with sequential? args))
-
-(deftest parse-args-test
-  (is (= [["ls" "-l"] {:dir "foo"}]
-           (parse-args ["ls" "-l" {:dir "foo"}])))
-  (is (= [["ls" "-l" "src"] {:dir "foo"}]
-           (parse-args ["ls" "-l" "src" {:dir "foo"}]))))
 
 (defn convert-baos-into-x [st ^String enc]
   (when (instance? ByteArrayOutputStream st)
@@ -68,57 +55,69 @@
             {:exit (.getExitValue e)
              :out (convert-baos-into-x out (:encode opts))
              :err (convert-baos-into-x err (:encode opts))
-             :fail e})))
+             :exception e})))
+
+(defrecord FlushStreamPumper [^InputStream is ^OutputStream os]
+  Runnable
+  (run [_]
+    (loop []
+      (let [b (.read is)]
+        (if (< 0 b)
+          (do (.write os b)
+              (.flush os)
+              (recur))
+          (try (.close os)
+               (catch IOException _)))))))
 
 ;; PumpStreamHandler flushes input stream only when input stream is System/in.
 ;; http://stackoverflow.com/questions/7113007/trouble-providing-multiple-input-to-a-command-using-apache-commons-exec-and-extr
 ;; ported from http://svn.apache.org/viewvc/commons/proper/exec/tags/EXEC_1_1/src/main/java/org/apache/commons/exec/PumpStreamHandler.java?view=markup
 ;; and add flush-input? option.
-(defn flush-pump-stream-handler [out err in flush-input?]
-  (let [threads (atom [])
-        isp (atom nil)]
+(defn flush-pump-stream-handler
+  [^InputStream in ^OutputStream out ^OutputStream err flush-input?]
+  (let [threads (atom [])]
     (reify
-     ExecuteStreamHandler
-     (setProcessOutputStream
-      [_ is] ;;InputStream
-      (when out
-        (let [t (Thread. (StreamPumper. is out))]
-          (swap! threads conj t)
-          (.setDaemon t true))))
-     (setProcessErrorStream
-      [_ is] ;;InputStream
-      (when err
-        (let [t (Thread. (StreamPumper. is err))]
-          (swap! threads conj t)
-          (.setDaemon t true))))
-     (setProcessInputStream
-      [_ os] ;;OutputStream
-      (if in
-        (let [pumper (if flush-input?
-                       (reset! isp (InputStreamPumper. in os))
-                       (StreamPumper. in os))
-              t (Thread. pumper)]
-          (swap! threads conj t)
-          (.setDaemon t true))
-        (try (.close os)
-             (catch IOException e))))
-     (start [_]
-            (doseq [t @threads] (.start t)))
-     (stop [_]
-           (when @isp
-             (.stopProcessing @isp))
-           (doseq [t @threads]
-             (try (.join t)
-                  (catch InterruptedException _)))))))
+      ExecuteStreamHandler
+      (setProcessOutputStream
+        [_ is] ;;InputStream
+        (when out
+          (let [t (Thread. (StreamPumper. is out true))]
+            (swap! threads conj t)
+            (.setDaemon t true))))
+      (setProcessErrorStream
+        [_ is] ;;InputStream
+        (when err
+          (let [t (Thread. (StreamPumper. is err true))]
+            (swap! threads conj t)
+            (.setDaemon t true))))
+      (setProcessInputStream
+        [_ os] ;;OutputStream
+        (if in
+          (let [pumper (if flush-input?
+                         (FlushStreamPumper. in os)
+                         (StreamPumper. in os true))
+                t (Thread. ^Runnable pumper)]
+            (swap! threads conj t)
+            (.setDaemon t true))
+          (try (.close os)
+               (catch IOException e))))
+      (start [_]
+        (doseq [^Thread t @threads] (.start t)))
+      (stop [_]
+        (doseq [^Thread t @threads]
+          (try (.join t)
+               (catch InterruptedException _)))
+        (when err (try (.flush err) (catch IOException _)))
+        (when out (try (.flush out) (catch IOException _)))))))
 
 (defn string->input-stream [^String s & [^String encode]]
   (ByteArrayInputStream. (.getBytes (str s \newline) (or encode (System/getProperty "file.encoding")))))
 
-(defn sh [& args-and-opts]
-  (let [[[^String comm & args] [opts]] (parse-args args-and-opts)
-        command (CommandLine. comm)
-        in  (when-let [i (:in opts)]
-              (if (string? i) (string->input-stream i (:encode opts)) i))
+(defn sh [[^String comm & args] & [opts]]
+  (let [command (CommandLine. comm)
+        handle-quoting? (-> opts :handle-quoting? boolean)
+        in  (when-let [in (:in opts)]
+              (if (string? in) (string->input-stream in (:encode opts)) in))
         out (or (:out opts) (ByteArrayOutputStream.))
         err (or (:err opts) (ByteArrayOutputStream.))
         result (promise)
@@ -126,11 +125,10 @@
         ^ExecuteResultHandler result-handler
         ((or (:result-handler-fn opts) ->DefaultResultHandler) result in out err opts)
 
-        stream-handler (flush-pump-stream-handler out err in (:flush-input? opts))
-        stream-handler (PumpStreamHandler. out err in)
+        stream-handler (flush-pump-stream-handler in out err (:flush-input? opts))
         executor (DefaultExecutor.)]
     (doseq [arg args]
-      (.addArgument command arg))
+      (.addArgument command arg handle-quoting?))
     (when-let [dir (:dir opts)]
       (.setWorkingDirectory executor (javaio/file dir)))
     (when-let [success (:as-success opts)]
@@ -152,28 +150,25 @@
         (.execute executor command result-handler)))
     result))
 
+(defn parse-args-pipe [args]
+  (split-with sequential? args))
+
 (defn sh-pipe [& args-and-opts]
   (let [[cmds-list [opts]] (parse-args-pipe args-and-opts)
-        in  (when-let [i (:in opts)]
-              (if (string? i) (string->input-stream i (:encode opts)) i))
-        out (or (:out opts) (ByteArrayOutputStream.))
-        err (or (:err opts) (ByteArrayOutputStream.))
-        num-cmds (count cmds-list)
-        first-stream-set [nil nil in]
-        middle-stream-sets (reduce concat
-                                   (for [_ (range (dec num-cmds))]
-                                     (let [pos (java.io.PipedOutputStream.)
-                                           pis (java.io.PipedInputStream. pos)]
-                                       [[pos nil nil] [nil nil pis]])))
-        last-stream-set [out err nil]
-        all-stream-sets (concat [first-stream-set] middle-stream-sets [last-stream-set])
-        all-streams (map (fn [[set1 set2]] (map (fn [stream1 stream2] (or stream1 stream2)) set1 set2)) (partition 2 all-stream-sets)) 
-        exec-fn (fn [cmd-and-args [cmd-out cmd-err cmd-in]]
-                  (let [new-opts (-> opts
-                                     (assoc :out cmd-out)
-                                     (assoc :err cmd-err)
-                                     (assoc :in cmd-in))
-                        sh-fn-args (concat cmd-and-args [new-opts])]
-                    (apply sh sh-fn-args)))]
-    (last (doall
-           (map exec-fn cmds-list all-streams)))))
+        first-in (when-let [in (:in opts)]
+                   (if (string? in) (string->input-stream in (:encode opts)) in))
+        num-cmds-1 (-> cmds-list count dec)
+        pouts (repeatedly num-cmds-1 #(PipedOutputStream.))
+        pins (map (fn [^PipedOutputStream pos] (PipedInputStream. pos)) pouts)
+        outs (concat pouts [(:out opts)])
+        errs (concat (repeat num-cmds-1 nil) [(:err opts)])
+        ins (cons first-in pins)
+        opts-list (map (fn [in out err] (assoc opts :in in :out out :err err))
+                       ins outs errs)]
+    (doall
+     (map sh cmds-list opts-list))))
+
+(defn env
+  "return a map of environment variables and their values, all as strings"
+  []
+  (into {} (EnvironmentUtils/getProcEnvironment)))
