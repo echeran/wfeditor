@@ -91,13 +91,13 @@
       (.setLayoutData (GridData. GridData/FILL_HORIZONTAL))
       (.addModifyListener (reify ModifyListener
                             (modifyText [this event]
-                              (let [widget (. event widget)
-                                    rem-port (Integer/parseInt (.getText widget))]
+                              (let [widget (. event widget)]
                                 (try
-                                  (dosync
-                                   (alter exec-props assoc :rem-port rem-port))
-                                  (catch Exception e nil)
-                                  (catch NumberFormatException e nil)))))))
+                                  (let [rem-port (Integer/parseInt (.getText widget))]
+                                    (dosync
+                                     (alter exec-props assoc :rem-port rem-port)))
+                                  (catch NumberFormatException e
+                                    (.setText widget (str (:rem-port @exec-props))))))))))
     (doto loc-port-label
       (.setText "Local port:")
       (.setLayoutData (GridData. GridData/HORIZONTAL_ALIGN_BEGINNING)))
@@ -107,13 +107,13 @@
       (.setLayoutData (GridData. GridData/FILL_HORIZONTAL))
       (.addModifyListener (reify ModifyListener
                             (modifyText [this event]
-                              (let [widget (. event widget)
-                                    loc-port (Integer/parseInt (.getText widget))]
-                                (dosync
-                                 (try
-                                   (alter exec-props assoc :loc-port loc-port) 
-                                   (catch Exception e nil)
-                                   (catch NumberFormatException e nil))))))))
+                              (let [widget (. event widget)]
+                                (try
+                                  (let [loc-port (Integer/parseInt (.getText widget))]
+                                    (dosync 
+                                     (alter exec-props assoc :loc-port loc-port)))
+                                  (catch NumberFormatException e
+                                    (.setText widget (str (:loc-port @exec-props))))))))))
     exec-group))
 
 (defn- button-group-create
