@@ -5,7 +5,8 @@
             [clojure.string :as string]
             [popen :as popen]
             [clj-commons-exec :as commons-exec]
-            [wfeditor.io.relay.client :as wfeclient])
+            [wfeditor.io.relay.client :as wfeclient]
+            [clojure.java.io :as clj-io])
   (:import wfeditor.model.workflow.Job))
 
 ;;
@@ -260,6 +261,23 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
   (dosync
    (alter job-id-translate-map assoc grid-engine-id internal-id)))
 
+(defn- first-internal-id
+  "return the value of the SGE job counter, or 0 if that is not possible"
+  []
+  (let [env-map (commons-exec/env)
+        sge-root (env-map "SGE_ROOT")
+        ;; TODO: should consider the fs library as mentioned in this
+        ;; SO post: http://stackoverflow.com/questions/8566531/listing-files-in-a-directory-in-clojure
+        sge-jobseqnum-file (clj-io/file sge-root "default/spool/qmaster/jobseqnum")
+        sge-jobseqnum-file-path (.getAbsolutePath sge-jobseqnum-file)
+        cmd (commons-exec/sh ["cat" sge-jobseqnum-file-path])
+        result @cmd
+        jobseqnum (when (= 0 (:exit result))
+                    (try (Integer/parseInt (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. (:out result)))]
+                                             (first (line-seq rdr))))
+                         (catch NumberFormatException e nil)))]
+    (or jobseqnum 0)))
+
 (defn- next-internal-id
   "increment and return the next internal job id from the counter"
   []
@@ -379,6 +397,6 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
 
 (def global-job-statuses (ref {}))
 
-(def internal-job-id-counter (atom 0))
+(def internal-job-id-counter (atom (first-internal-id)))
 
 (def job-id-translate-map (ref {}))
