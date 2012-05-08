@@ -2,7 +2,9 @@
   (:import
    (org.eclipse.swt.events SelectionEvent SelectionAdapter)))
 
-(defmacro new-widget2 [widget-class parent style]
+;; naming convention using asterisk at end explained in this SO post:
+;; http://stackoverflow.com/questions/5082850/whats-the-convention-for-using-an-asterisk-at-the-end-of-a-function-name-in-clo
+(defmacro new-widget* [widget-class parent style]
   `(do (new ~widget-class ~parent ~style)))
 
 (defmacro new-widget

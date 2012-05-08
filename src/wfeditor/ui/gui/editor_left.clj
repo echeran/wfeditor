@@ -17,17 +17,17 @@
 (defn- execution-group-create
   "create the group in the navpane storing the fields required for executing jobs on the remote server"
   [parent]
-  (let [exec-group (new-widget2 Group parent SWT/SHADOW_ETCHED_IN)
-        user-label (new-widget2 Label exec-group SWT/LEFT)
-        user-text (new-widget2 Text exec-group (bit-or SWT/SINGLE SWT/BORDER))
-        exec-dom-label (new-widget2 Label exec-group SWT/LEFT)
-        exec-dom-combo (new-widget2 Combo exec-group (bit-or SWT/DROP_DOWN SWT/READ_ONLY))
-        rem-host-label (new-widget2 Label exec-group SWT/LEFT)
-        rem-host-text (new-widget2 Text exec-group (bit-or SWT/SINGLE SWT/BORDER))
-        rem-port-label (new-widget2 Label exec-group SWT/LEFT)
-        rem-port-text (new-widget2 Text exec-group (bit-or SWT/SINGLE SWT/BORDER))
-        loc-port-label (new-widget2 Label exec-group SWT/LEFT)
-        loc-port-text (new-widget2 Text exec-group (bit-or SWT/SINGLE SWT/BORDER))]
+  (let [exec-group (new-widget* Group parent SWT/SHADOW_ETCHED_IN)
+        user-label (new-widget* Label exec-group SWT/LEFT)
+        user-text (new-widget* Text exec-group (bit-or SWT/SINGLE SWT/BORDER))
+        exec-dom-label (new-widget* Label exec-group SWT/LEFT)
+        exec-dom-combo (new-widget* Combo exec-group (bit-or SWT/DROP_DOWN SWT/READ_ONLY))
+        rem-host-label (new-widget* Label exec-group SWT/LEFT)
+        rem-host-text (new-widget* Text exec-group (bit-or SWT/SINGLE SWT/BORDER))
+        rem-port-label (new-widget* Label exec-group SWT/LEFT)
+        rem-port-text (new-widget* Text exec-group (bit-or SWT/SINGLE SWT/BORDER))
+        loc-port-label (new-widget* Label exec-group SWT/LEFT)
+        loc-port-text (new-widget* Text exec-group (bit-or SWT/SINGLE SWT/BORDER))]
     (doto exec-group
       (.setText "Execution Properties")
       (.setLayoutData (GridData. GridData/FILL_HORIZONTAL)))
@@ -73,16 +73,16 @@
   "create the Group widget containing all of the buttons in th left navpane that do something"
   [parent]
   (let [
-        button-group (new-widget2 Group parent SWT/SHADOW_NONE)
-        print-wf-cmd-button (new-widget2 Button button-group SWT/PUSH)
-        print-wf-sge-test-button (new-widget2 Button button-group SWT/PUSH)
-        run-wf-button (new-widget2 Button button-group SWT/PUSH)
-        print-wf-button (new-widget2 Button button-group SWT/PUSH)
-        load-wf-button (new-widget2 Button button-group SWT/PUSH)
-        save-wf-button (new-widget2 Button button-group SWT/PUSH)
-        print-wf-inst-button (new-widget2 Button button-group SWT/PUSH)
-        update-wf-inst-button (new-widget2 Button button-group SWT/PUSH)
-        print-global-statuses-button (new-widget2 Button button-group SWT/PUSH)
+        button-group (new-widget* Group parent SWT/SHADOW_NONE)
+        print-wf-cmd-button (new-widget* Button button-group SWT/PUSH)
+        print-wf-sge-test-button (new-widget* Button button-group SWT/PUSH)
+        run-wf-button (new-widget* Button button-group SWT/PUSH)
+        print-wf-button (new-widget* Button button-group SWT/PUSH)
+        load-wf-button (new-widget* Button button-group SWT/PUSH)
+        save-wf-button (new-widget* Button button-group SWT/PUSH)
+        print-wf-inst-button (new-widget* Button button-group SWT/PUSH)
+        update-wf-inst-button (new-widget* Button button-group SWT/PUSH)
+        print-global-statuses-button (new-widget* Button button-group SWT/PUSH)
         ]
     (doto button-group
       (.setLayout (FillLayout. SWT/VERTICAL))
@@ -151,7 +151,7 @@
   [parent]
   (let [exec-group (execution-group-create parent)
         button-group (button-group-create parent) 
-        testing-group (new-widget2 Group parent SWT/SHADOW_ETCHED_OUT)
+        testing-group (new-widget* Group parent SWT/SHADOW_ETCHED_OUT)
         label2 (Label. testing-group  SWT/CENTER)]
     (do
       (.setLayout parent (GridLayout.))) 
