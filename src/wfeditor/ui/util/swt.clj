@@ -14,12 +14,12 @@ opts map keys and values:
 :styles - vector of SWT style constants for this widget
 :text - a string to be added to the widget via .setText"
   [widget-class parent opts]
-  (let [{:keys [styles text]} opts
-        style (condp = (count styles)
+  (let [{:keys [styles text]} opts]
+    `(let [style# (condp = (count ~styles)
                 0 SWT/NONE
-                1 (first styles)
-                (apply bit-or (eval styles)))]
-    `(let [widget# (new ~widget-class ~parent ~style)]
+                1 (first ~styles)
+                (apply bit-or ~styles))
+           widget# (new ~widget-class ~parent style#)]
        (when ~text (.setText widget# ~text))
        widget#)))
 
