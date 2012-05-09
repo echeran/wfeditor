@@ -1,18 +1,27 @@
 (ns wfeditor.ui.util.swt
   (:import
+   org.eclipse.swt.SWT
    (org.eclipse.swt.events SelectionEvent SelectionAdapter)))
 
 ;; naming convention using asterisk at end explained in this SO post:
 ;; http://stackoverflow.com/questions/5082850/whats-the-convention-for-using-an-asterisk-at-the-end-of-a-function-name-in-clo
 (defmacro new-widget* [widget-class parent style]
-  `(do (new ~widget-class ~parent ~style)))
+  `(new ~widget-class ~parent ~style))
 
 (defmacro new-widget
   "create a new SWT widget of type widget-class, with given parent, and properties (incl. style) as determined by opts map.
 opts map keys and values:
 :styles - vector of SWT style constants for this widget
 :text - a string to be added to the widget via .setText"
-  [widget-class parent opts])
+  [widget-class parent opts]
+  (let [{:keys [styles text]} opts
+        style (condp = (count styles)
+                0 SWT/NONE
+                1 (first styles)
+                (apply bit-or (eval styles)))]
+    `(let [widget# (new ~widget-class ~parent ~style)]
+       (when ~text (.setText widget# ~text))
+       widget#)))
 
 (defmacro create-widgets-with-names [parent widget-class style names]
   `(dorun (map #(.setText (new ~widget-class ~parent ~style) %1) ~names)))
