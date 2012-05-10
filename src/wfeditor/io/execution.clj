@@ -305,6 +305,7 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
            qsub-script-header-strings (for [[k v] qsub-script-header-map] (str "#$ " k " " v))
            qsub-script (string/join "\n" (conj (into [] qsub-script-header-strings) job-cmd-str))
            commons-exec-sh-opts-map {:in qsub-script :flush-input? true}
+           ;; TODO: add a timeout to the exec/sh call opts map
            result-map-prom (commons-exec/sh qsub-cmd-parts commons-exec-sh-opts-map)
            qsub-output (:out @result-map-prom)
            qsub-job-id (Integer/parseInt (nth (string/split qsub-output #"\s+") 2))]
@@ -328,6 +329,50 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
                    (let [job (first jobs)
                          job-with-id (enqueue-job-sge username current-wf job)
                          new-wf (wflow/replace-job current-wf job job-with-id)]
+                     (recur new-wf (rest jobs)))))
+        new-wfinst (assoc wfinst :workflow new-wf)]
+    new-wfinst))
+
+
+
+
+(defn update-wfinst-sge
+  "check the status of the jobs in WFInstance using SGE and return the workflow with the updated status in the job's"
+  [wfinst]
+  (let [username (:username wfinst)
+        wf (:workflow wfinst)
+        dep-order-job-seq (wflow/wf-job-seq wf)
+        qstat-recently-done-cmd-parts ["qstat" "-s" "z" "-u" username]
+        recently-done-prom (commons-exec/sh qstat-recently-done-cmd-parts)
+        ;; TODO: add a timeout to the exec/sh call opts map
+        recently-done-result @recently-done-prom
+        recently-done-map (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. (:out recently-done-result)))]
+                            (merge
+                             (map #({(get % 0) (get % 4)})
+                                  (map #(string/split #"\s" %)
+                                       (drop 2 (line-seq rdr))))))
+        qstat-not-done-cmd-parts ["qstat" "-u" username]
+        not-done-prom (commons-exec/sh qstat-not-done-cmd-parts)
+        ;; TODO: add a timeout to the exec/sh call opts map
+        not-done-result @not-done-prom
+        not-done-map (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. (:out not-done-result)))]
+                            (merge
+                             (map #({(get % 0) (get % 4)})
+                                  (map #(string/split #"\s" %)
+                                       (drop 2 (line-seq rdr))))))
+        new-wf (loop [current-wf wf
+                      jobs dep-order-job-seq]
+                 (if (empty? jobs)
+                   current-wf
+                   (let [job (first jobs)
+                         job-id (:id job)
+                         status (cond
+                                 (not-done-map job-id) (get {"r" :running "qw" :waiting "hqw" :waiting} (not-done-map job-id) :waiting)
+                                 (recently-done-map job-id) :done
+                                 :else nil)
+                         task-id 0
+                         job-updated-status (assoc-in job [:task-statuses task-id] status)
+                         new-wf (wflow/replace-job current-wf job job-updated-status)]
                      (recur new-wf (rest jobs)))))
         new-wfinst (assoc wfinst :workflow new-wf)]
     new-wfinst))
@@ -381,8 +426,8 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
 ;;
 
 (defmulti update-wfinst (comp :exec-domain first vector))
-(defmethod update-wfinst "SGE" [wfinst & conn-args] (apply wfeclient/response-wfinst wfinst conn-args))
-(defmethod update-wfinst "rem-piped-shell" [wfinst & conn-args] (apply wfeclient/response-wfinst wfinst conn-args))
+(defmethod update-wfinst "SGE" [wfinst & conn-args] (apply wfeclient/response-wfinst wfinst :update conn-args))
+(defmethod update-wfinst "rem-piped-shell" [wfinst op & conn-args] (apply wfeclient/response-wfinst wfinst :update conn-args))
 
 (defn update-wfinst-and-set-everywhere
   "a convenience function that updates the WFInstance object and records the new info (workflow, its jobs' task statuses) where necessary.  use this instead of update-wfinst if possible"
@@ -390,6 +435,18 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
   (let [updated-wfinst (apply update-wfinst wfinst conn-args)]
     (add-wfinst-to-global-statuses updated-wfinst)
     (wflow/set-workflow (:workflow updated-wfinst))))
+
+(defmulti create-wfinst (comp :exec-domain first vector))
+(defmethod create-wfinst "SGE" [wfinst & conn-args] (apply wfeclient/response-wfinst wfinst :create conn-args))
+(defmethod create-wfinst "rem-piped-shell" [wfinst op & conn-args] (apply wfeclient/response-wfinst wfinst :create conn-args))
+
+(defn create-wfinst-and-set-everywhere
+  "a convenience function that updates the WFInstance object and records the new info (workflow, its jobs' task statuses) where necessary.  use this instead of update-wfinst if possible"
+  [wfinst & conn-args]
+  (let [created-wfinst (apply create-wfinst wfinst conn-args)]
+    (add-wfinst-to-global-statuses created-wfinst)
+    (wflow/set-workflow (:workflow created-wfinst))))
+
 
 ;;
 ;; ref initializations

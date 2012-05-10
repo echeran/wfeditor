@@ -62,12 +62,26 @@
   ([wfinst host port]
      (req-wfinst :get wfinst "/wfinstance" host port)))
 
+(defn- create-request
+  "send an HTTP POST request to the server to instantiate the execution of a wf-instance on the server, and the response message is returned"
+  ([wfinst]
+     (create-request wfinst const/DEFAULT-HOST const/DEFAULT-PORT))
+  ([wfinst host port]
+     (req-wfinst :post wfinst "/wfinstance" host port)))
+
 (defn- update-request-over-ssh-tunnel
   "same as update-request, but over an ssh-tunnel"
   ([wfinst]
      (apply update-request-over-ssh-tunnel wfinst (default-ssh-tunnel-params)))
   ([wfinst rem-host rem-port loc-port loc-host server-host]
      (req-wfinst-over-ssh-tunnel :get wfinst "/wfinstance" rem-host rem-port loc-port loc-host server-host)))
+
+(defn- create-request-over-ssh-tunnel
+  "same as create-request, but over an ssh-tunnel"
+  ([wfinst]
+     (apply create-request-over-ssh-tunnel wfinst (default-ssh-tunnel-params)))
+  ([wfinst rem-host rem-port loc-port loc-host server-host]
+     (req-wfinst-over-ssh-tunnel :post wfinst "/wfinstance" rem-host rem-port loc-port loc-host server-host)))
 
 (defn- response-msg
   "retrieve the body of the HTTP response message from the server"
@@ -84,7 +98,7 @@
         ]
     wfinst))
 
-(defn- sge-response-wfinst
+(defn- update-sge-response-wfinst
   "take the WFInstance input, send it to the server running SGE, and return the WFInstance returned containing an updated state"
   [wfinst & conn-args]
   (let [
@@ -93,8 +107,21 @@
         ]
     (wfinst-from-response-msg resp)))
 
+(defn- create-sge-response-wfinst
+  "take the WFInstance input, send it to the server running SGE, and return the WFInstance returned containing the state after enqueuing the jobs"
+  [wfinst & conn-args]
+  (let [
+        ;; resp (update-request wfinst)
+        resp (apply create-request-over-ssh-tunnel wfinst conn-args)
+        ]
+    (wfinst-from-response-msg resp)))
+
 ;; return the response WFInstance returned by the server (from an
 ;; update operation)
-(defmulti response-wfinst (comp :exec-domain first vector))
-(defmethod response-wfinst "SGE" [wfinst & conn-args] (apply sge-response-wfinst wfinst conn-args))
-(defmethod response-wfinst "rem-piped-shell" [wfinst & conn-args] (apply sge-response-wfinst wfinst conn-args))
+;; op is the operation being performed on the WFInstance.  The possible values for op are
+;;  #{:create :update}
+(defmulti response-wfinst (juxt (comp :exec-domain first vector) (comp second vector)))
+(defmethod response-wfinst ["SGE" :create] [wfinst op & conn-args] (apply create-sge-response-wfinst wfinst conn-args))
+(defmethod response-wfinst ["rem-piped-shell" :create] [wfinst op & conn-args] (apply create-sge-response-wfinst wfinst conn-args))
+(defmethod response-wfinst ["SGE" :update] [wfinst op & conn-args] (apply update-sge-response-wfinst wfinst conn-args))
+(defmethod response-wfinst ["rem-piped-shell" :update] [wfinst op & conn-args] (apply update-sge-response-wfinst wfinst conn-args))

@@ -159,7 +159,7 @@
                                               wf-inst (wflow/new-wfinstance-fn user exec-dom workflow)
                                               loc-host io-const/DEFAULT-LOCAL-HOST
                                               server-host io-const/DEFAULT-SERVER-HOST-REL-TO-REMOTE]
-                                          (exec/update-wfinst-and-set-everywhere wf-inst rem-host rem-port loc-port loc-host server-host)))})
+                                          (exec/create-wfinst-and-set-everywhere wf-inst rem-host rem-port loc-port loc-host server-host)))})
     (update-button update-wf-inst-button
                    {:widget-select-fn (fn [event]
                                         (let [workflow (wflow/workflow)
