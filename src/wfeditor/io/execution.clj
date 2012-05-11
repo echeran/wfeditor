@@ -347,19 +347,19 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
         ;; TODO: add a timeout to the exec/sh call opts map
         recently-done-result @recently-done-prom
         recently-done-map (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. (:out recently-done-result)))]
-                            (merge
-                             (map #({(get % 0) (get % 4)})
-                                  (map #(string/split #"\s" %)
-                                       (drop 2 (line-seq rdr))))))
+                            (into {}
+                                  (map (juxt #(nth % 0) #(nth % 4))
+                                       (map #(remove (fn [s] (or (nil? s) (= "" s)) ) %)
+                                            (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
         qstat-not-done-cmd-parts ["qstat" "-u" username]
         not-done-prom (commons-exec/sh qstat-not-done-cmd-parts)
         ;; TODO: add a timeout to the exec/sh call opts map
         not-done-result @not-done-prom
         not-done-map (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. (:out not-done-result)))]
-                            (merge
-                             (map #({(get % 0) (get % 4)})
-                                  (map #(string/split #"\s" %)
-                                       (drop 2 (line-seq rdr))))))
+                       (into {}
+                             (map (juxt #(nth % 0) #(nth % 4))
+                                  (map #(remove (fn [s] (or (nil? s) (= "" s)) ) %)
+                                       (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
         new-wf (loop [current-wf wf
                       jobs dep-order-job-seq]
                  (if (empty? jobs)
@@ -367,8 +367,8 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
                    (let [job (first jobs)
                          job-id (:id job)
                          status (cond
-                                 (not-done-map job-id) (get {"r" :running "qw" :waiting "hqw" :waiting} (not-done-map job-id) :waiting)
                                  (recently-done-map job-id) :done
+                                 (not-done-map job-id) (get {"r" :running "qw" :waiting "hqw" :waiting "Eqw" :error} (not-done-map job-id) :uncertain)
                                  :else nil)
                          task-id 0
                          job-updated-status (assoc-in job [:task-statuses task-id] status)
