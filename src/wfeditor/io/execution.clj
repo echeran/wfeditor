@@ -1,12 +1,13 @@
 (ns wfeditor.io.execution
   (:require [clojure.contrib.graph :as contrib-graph]
             [clojure.contrib.map-utils :as map-utils]
-            [wfeditor.model.workflow :as wflow]
             [clojure.string :as string]
             [popen :as popen]
             [clj-commons-exec :as commons-exec]
+            [clojure.java.io :as clj-io]
             [wfeditor.io.relay.client :as wfeclient]
-            [clojure.java.io :as clj-io])
+            [wfeditor.model.workflow :as wflow]
+            [wfeditor.io.util.const :as io-const])
   (:import wfeditor.model.workflow.Job))
 
 ;;
@@ -78,6 +79,11 @@
   [s]
   (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. s))]
     (first (line-seq rdr))))
+
+(defn user-home
+  "return the string of the user's home directory, assuming we're on a traditional POSIX system where ~<user> expands to <user>'s home"
+  [username]
+  (first-line (:out @(commons-exec/sh ["/bin/sh" "-c" (str "echo " "~" username)]))))
 
 ;;
 ;; functions for piped shell commands
@@ -302,8 +308,8 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
            qsub-cmd-parts (into qsub-cmd-parts (when (not= username (. System getProperty "user.name")) ["sudo" "-u" username "-i"]))
            qsub-cmd-parts (into qsub-cmd-parts ["qsub"])
            qsub-cmd-parts (into qsub-cmd-parts hold_jid_parts)
-           std-out-file (or (:std-out-file job) (str "/home/echeran/sge/qsub/" internal-job-id ".out"))
-           std-err-file (or (:std-err-file job) (str "/home/echeran/sge/qsub/" internal-job-id ".err"))
+           std-out-file (or (:std-out-file job) (str (user-home username)  io-const/DEFAULT-HOME-OUTPUT-DIR internal-job-id ".out"))
+           std-err-file (or (:std-err-file job) (str (user-home username) io-const/DEFAULT-HOME-OUTPUT-DIR internal-job-id ".err"))
            job-name (:name job)
            qsub-script-header-map {"-o" std-out-file "-e" std-err-file "-N" job-name}
            qsub-script-header-map (into {} (filter (comp not nil? val) qsub-script-header-map))

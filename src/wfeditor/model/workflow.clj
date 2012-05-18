@@ -229,6 +229,14 @@ note: this is the reverse of the dep-graph"
         pr-deps (debug-dep-map-id-names deps)]
     (Graph. pr-jobs pr-deps)))
 
+(defn debug-wfinst-status
+  "given a WFInstance, return a map associating a job id to the task-statuses array"
+  [wfinst]
+  (let [wf (:workflow wfinst)
+        job-seq (wf-job-seq wf)]
+    (into {} (for [j job-seq]
+               [(:id j) (:task-statuses j)]))))
+
 ;;
 ;; initialization functions
 ;;
