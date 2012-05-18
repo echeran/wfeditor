@@ -73,6 +73,12 @@
   (letfn [(merge-fn [& vals] (last (concat vals)))]
     (map-utils/deep-merge-with base-map newer-map)))
 
+(defn first-line
+  "return the first line of a string, where the string may have some \newline characters"
+  [s]
+  (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. s))]
+    (first (line-seq rdr))))
+
 ;;
 ;; functions for piped shell commands
 ;;
@@ -273,8 +279,7 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
         cmd (commons-exec/sh ["cat" sge-jobseqnum-file-path])
         result @cmd
         jobseqnum (when (= 0 (:exit result))
-                    (try (Integer/parseInt (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. (:out result)))]
-                                             (first (line-seq rdr))))
+                    (try (Integer/parseInt (first-line (:out result)))
                          (catch NumberFormatException e nil)))]
     (or jobseqnum 0)))
 
@@ -342,22 +347,26 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
   (let [username (:username wfinst)
         wf (:workflow wfinst)
         dep-order-job-seq (wflow/wf-job-seq wf)
-        qstat-recently-done-cmd-parts ["qstat" "-s" "z" "-u" username]
+        qstat-recently-done-cmd-parts []
+        qstat-recently-done-cmd-parts (into qstat-recently-done-cmd-parts (when (not= username (. System getProperty "user.name")) ["sudo" "-u" username "-i"]))
+        qstat-recently-done-cmd-parts (into qstat-recently-done-cmd-parts ["qstat" "-s" "z" "-u" username])
         recently-done-prom (commons-exec/sh qstat-recently-done-cmd-parts)
         ;; TODO: add a timeout to the exec/sh call opts map
         recently-done-result @recently-done-prom
         recently-done-map (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. (:out recently-done-result)))]
                             (into {}
-                                  (map (juxt #(nth % 0) #(nth % 4))
+                                  (map (juxt #(Integer/parseInt (nth % 0)) #(nth % 4))
                                        (map #(remove (fn [s] (or (nil? s) (= "" s)) ) %)
                                             (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
-        qstat-not-done-cmd-parts ["qstat" "-u" username]
+        qstat-not-done-cmd-parts []
+        qstat-not-done-cmd-parts (into qstat-not-done-cmd-parts (when (not= username (. System getProperty "user.name")) ["sudo" "-u" username "-i"]))
+        qstat-not-done-cmd-parts (into qstat-not-done-cmd-parts ["qstat" "-u" username])
         not-done-prom (commons-exec/sh qstat-not-done-cmd-parts)
         ;; TODO: add a timeout to the exec/sh call opts map
         not-done-result @not-done-prom
         not-done-map (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. (:out not-done-result)))]
                        (into {}
-                             (map (juxt #(nth % 0) #(nth % 4))
+                             (map (juxt #(Integer/parseInt (nth % 0)) #(nth % 4))
                                   (map #(remove (fn [s] (or (nil? s) (= "" s)) ) %)
                                        (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
         new-wf (loop [current-wf wf

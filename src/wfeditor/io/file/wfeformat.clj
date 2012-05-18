@@ -194,14 +194,17 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
         field-map (apply merge
                          (letfn [(field-val [field]
                                    (condp = field
+                                     :id (when-let [id-str (scalar-from-zip z field)] (Integer/parseInt id-str))
                                      :prog-args (vector-from-zip z field)
                                      :prog-opts (map-of-coll-vals-from-zip z field)
-                                     :task-statuses (map-from-zip z field)
+                                     :task-statuses (when-let [task-statuses-map (map-from-zip z field)] (into {} (map (fn [[k v]] (if (string? k) [(Integer/parseInt k) v] [k v])) task-statuses-map)))
                                      (scalar-from-zip z field)))]
                            (for [f fields :when (not (#{:deps} f))]
                              {f (field-val f)})))
+        ;; keep reqd-fields as vector for the apply func call
         reqd-fields [:name :prog-exec-loc :prog-args :prog-opts]
         reqd-vals (map #(field-map %) reqd-fields)
+        ;; keep optional-fields as vector like reqd-fields just in case
         optional-fields (remove (set reqd-fields) fields)
         optional-field-vals (map-to-flat-vector field-map (fn [[k v]] (when ((set optional-fields) k) [k v])))]
     ;; TODO: make sure that required and optional fields match up with
