@@ -25,7 +25,8 @@
                    ;; commenting out these deps so that leiningen
                    ;; doesn't keep overwriting them for each lein deps
                    ;; or lein uberjar operation
-                   
+
+                   ;; [fs "1.0.0"]
                    ;; [popen "0.2.0"]
                    ;; [clj-ssh "0.3.0"]
                    ;; [noir "1.2.1"]
