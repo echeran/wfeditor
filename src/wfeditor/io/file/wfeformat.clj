@@ -198,6 +198,11 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
                                      :id (when-let [id-str (scalar-from-zip z field)] (Integer/parseInt id-str))
                                      :prog-args (vector-from-zip z field)
                                      :prog-opts (map-of-coll-vals-from-zip z field)
+                                     ;; TODO: generalize parsing of
+                                     ;; task-statuses (and even the
+                                     ;; scalar-from-zip that other
+                                     ;; fn's call) by storing type of
+                                     ;; each element of format hierarchy
                                      :task-statuses (when-let [task-statuses-map (map-from-zip z field)] (into {} (map (fn [[k v]] (let [k (if (string? k) (Integer/parseInt k) k) v (if (string? v) (keyword v) v)] [k v])) task-statuses-map)))
                                      (scalar-from-zip z field)))]
                            (for [f fields :when (not (#{:deps} f))]
