@@ -50,7 +50,8 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
                                          {:tag keyval-tag :attrs nil :content
                                           [(xml-subtree key-tag k)
                                            (xml-subtree val-tag v)]})))})
-   ;; we need all scalars to be cast to Strings for the purposes
+   (keyword? val) {:tag tag :attrs nil :content [(name val)]}
+   ;; we need all other scalars to be cast to Strings for the purposes
    ;; of the Clojure XML emit function
    true {:tag tag :attrs nil :content [(str val)]}))
 
@@ -197,7 +198,7 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
                                      :id (when-let [id-str (scalar-from-zip z field)] (Integer/parseInt id-str))
                                      :prog-args (vector-from-zip z field)
                                      :prog-opts (map-of-coll-vals-from-zip z field)
-                                     :task-statuses (when-let [task-statuses-map (map-from-zip z field)] (into {} (map (fn [[k v]] (if (string? k) [(Integer/parseInt k) v] [k v])) task-statuses-map)))
+                                     :task-statuses (when-let [task-statuses-map (map-from-zip z field)] (into {} (map (fn [[k v]] (let [k (if (string? k) (Integer/parseInt k) k) v (if (string? v) (keyword v) v)] [k v])) task-statuses-map)))
                                      (scalar-from-zip z field)))]
                            (for [f fields :when (not (#{:deps} f))]
                              {f (field-val f)})))
