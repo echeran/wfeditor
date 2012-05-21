@@ -13,23 +13,12 @@
    org.eclipse.zest.layouts.LayoutStyles
    org.eclipse.swt.layout.GridData))
 
-;; a ref to hold the GraphViewer object that maintains the state of
-;; the Zest GEF canvas
-(def gv (ref nil))
 
-;; repainting of the canvas happens automatically whenever the
-;; workflow object changes value, using the add-watch mechanism. we
-;; have to trust that following this add-watch, the graphviewer gets
-;; instantiated before the workflow changes
-(add-watch wflow/wf :re-bind (fn [key r old new]
-                         (let [jarr-input (into-array (wflow/wf-jobs new))
-                               return-viewer-with-new-input-fn (fn [viewer input]
-                                          (.setInput viewer input)
-                                          ;; since using in alter
-                                          ;; statement, have to return viewer
-                                          viewer)]
-                           (dosync
-                            (alter gv return-viewer-with-new-input-fn jarr-input)))))
+;;
+;; ref declarations (initial bindings below)
+;;
+
+(declare gv)
 
 ;;
 ;; functions
@@ -78,3 +67,28 @@
       (.applyLayout))
     (dosync
      (ref-set gv viewer))))
+
+
+;;
+;; ref initial bindings
+;;
+
+;; a ref to hold the GraphViewer object that maintains the state of
+;; the Zest GEF canvas
+(def gv (ref nil))
+
+;; repainting of the canvas happens automatically whenever the
+;; workflow object changes value, using the add-watch mechanism. we
+;; have to trust that following this add-watch, the graphviewer gets
+;; instantiated before the workflow changes
+(add-watch wflow/wf :re-bind (fn [key r old new]
+                         ;; (let [jarr-input (into-array (wflow/wf-jobs new))
+                         ;;       return-viewer-with-new-input-fn (fn [viewer input]
+                         ;;                  (.setInput viewer input)
+                         ;;                  ;; since using in alter
+                         ;;                  ;; statement, have to return viewer
+                         ;;                  viewer)]
+                         ;;   (dosync
+                         ;;    (alter gv return-viewer-with-new-input-fn jarr-input)))
+                         (set-graph-jobs (wflow/wf-jobs new))
+                         ))
