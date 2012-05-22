@@ -76,5 +76,9 @@
     (getElements [input]
       ;; assume the input parameter is WF containing the Job objects in
       ;; the canvas
+      ;; TODO: generalize this, as necessary, based on type of input.
+      ;; regardless of type, must return coll. of Job's as the Zest Element's
+      ;; (ex: if input is WFInstance, not plain WF, then do diff work
+      ;; to pull out Job's)
       (to-array (:nodes (wflow/dep-graph input)))
       )))
