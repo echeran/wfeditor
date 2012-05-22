@@ -51,9 +51,6 @@
       ;; default value is returned)
       (when-let [status (and (= (class entity) wfeditor.model.workflow.Job)
                              (get (:task-statuses entity) 0))]
-        (println "job= " entity)
-        (println "task-statuses= " (:task-statuses entity))
-        (println "status= " status)
         (let [rgb (condp = status
                     :done [0 255 0]
                     :running [255 255 0]
@@ -61,9 +58,7 @@
                     :waiting [86 160 211]
                     :error [255 0 0]
                     :uncertain [255 127 0])
-              _ (println "rgb= " rgb)
-              color (apply swt-util/create-color rgb)
-              _ (println "color= " color)]
+              color (apply swt-util/create-color rgb)]
           (dosync
            (alter job-swt-colors assoc-in [entity :background] color))
           color)))

@@ -359,22 +359,26 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
         recently-done-prom (commons-exec/sh qstat-recently-done-cmd-parts)
         ;; TODO: add a timeout to the exec/sh call opts map
         recently-done-result @recently-done-prom
-        recently-done-map (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. (:out recently-done-result)))]
-                            (into {}
-                                  (map (juxt #(Integer/parseInt (nth % 0)) #(nth % 4))
-                                       (map #(remove (fn [s] (or (nil? s) (= "" s)) ) %)
-                                            (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
+        recently-done-map (if-let [stdout-str (:out recently-done-result)]
+                            (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. stdout-str))]
+                              (into {}
+                                    (map (juxt #(Integer/parseInt (nth % 0)) #(nth % 4))
+                                         (map #(remove (fn [s] (or (nil? s) (= "" s)) ) %)
+                                              (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
+                            {})
         qstat-not-done-cmd-parts []
         qstat-not-done-cmd-parts (into qstat-not-done-cmd-parts (when (not= username (. System getProperty "user.name")) ["sudo" "-u" username "-i"]))
         qstat-not-done-cmd-parts (into qstat-not-done-cmd-parts ["qstat" "-u" username])
         not-done-prom (commons-exec/sh qstat-not-done-cmd-parts)
         ;; TODO: add a timeout to the exec/sh call opts map
         not-done-result @not-done-prom
-        not-done-map (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. (:out not-done-result)))]
-                       (into {}
-                             (map (juxt #(Integer/parseInt (nth % 0)) #(nth % 4))
-                                  (map #(remove (fn [s] (or (nil? s) (= "" s)) ) %)
-                                       (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
+        not-done-map (if-let [stdout-str (:out not-done-result)]
+                       (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. stdout-str))]
+                         (into {}
+                               (map (juxt #(Integer/parseInt (nth % 0)) #(nth % 4))
+                                    (map #(remove (fn [s] (or (nil? s) (= "" s)) ) %)
+                                         (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
+                       {})
         new-wf (loop [current-wf wf
                       jobs dep-order-job-seq]
                  (if (empty? jobs)
