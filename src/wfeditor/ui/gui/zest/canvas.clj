@@ -34,17 +34,16 @@
     (CompositeLayoutAlgorithm. style (into-array LayoutAlgorithm [tree-layout ]))
     ))
 
-(defn set-graph-jobs
+(defn set-graph-from-wf
   "give a collection of workflow Job's to be set as the new canvas graph content. subsequently, refresh the graph"
-  [jobs]
-  (let [jarr-input (into-array jobs)
-        return-viewer-with-new-input-fn (fn [viewer input]
+  [wf]
+  (let [return-viewer-with-new-input-fn (fn [viewer input]
                                           (.setInput viewer input)
                                           ;; since using in alter
                                           ;; statement, have to return viewer
                                           viewer)]
     (dosync
-     (alter gv return-viewer-with-new-input-fn jarr-input))))
+     (alter gv return-viewer-with-new-input-fn wf))))
 
 (defn graph-viewer-create
   "create (but don't return?) the Zest GraphViewer object creating the whole Zest canvas"
@@ -52,17 +51,16 @@
   (let [viewer (GraphViewer. parent SWT/BORDER)
         content-provider (zproviders/node-content-provider-proxy)
         label-provider (zproviders/label-provider-proxy)
-        init-input (:nodes (wflow/dep-graph))
+        init-input (wflow/workflow)
         ;; have to convert the Clojure seq into a Java array to make
         ;; the Java classes of GEF/Zest happy
-        jarr-init-input (into-array init-input)        
         layout (graph-viewer-layout)
         parent-grid-data (GridData. (GridData/FILL_BOTH))]
     (.setLayoutData (.getControl viewer) parent-grid-data)
     (doto viewer
       (.setContentProvider content-provider)
       (.setLabelProvider label-provider)
-      (.setInput jarr-init-input)
+      (.setInput init-input)
       (.setLayoutAlgorithm layout true)
       (.applyLayout))
     (dosync
@@ -82,13 +80,4 @@
 ;; have to trust that following this add-watch, the graphviewer gets
 ;; instantiated before the workflow changes
 (add-watch wflow/wf :re-bind (fn [key r old new]
-                         ;; (let [jarr-input (into-array (wflow/wf-jobs new))
-                         ;;       return-viewer-with-new-input-fn (fn [viewer input]
-                         ;;                  (.setInput viewer input)
-                         ;;                  ;; since using in alter
-                         ;;                  ;; statement, have to return viewer
-                         ;;                  viewer)]
-                         ;;   (dosync
-                         ;;    (alter gv return-viewer-with-new-input-fn jarr-input)))
-                         (set-graph-jobs (wflow/wf-jobs new))
-                         ))
+                               (set-graph-from-wf new)))

@@ -74,7 +74,7 @@
         Job (to-array (wflow/dependent-upon entity))
         (RuntimeException. "Type not supported")))
     (getElements [input]
-      ;; assume the input parameter is an array of the Job objects in
+      ;; assume the input parameter is WF containing the Job objects in
       ;; the canvas
-      (to-array input)
+      (to-array (:nodes (wflow/dep-graph input)))
       )))
