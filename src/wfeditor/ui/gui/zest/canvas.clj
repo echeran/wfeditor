@@ -20,6 +20,8 @@
 
 (declare gv)
 
+(declare all-wf-swt-colors)
+
 ;;
 ;; functions
 ;;
@@ -43,6 +45,7 @@
                                           ;; statement, have to return viewer
                                           viewer)]
     (dosync
+     (zproviders/dispose-job-swt-colors)
      (alter gv return-viewer-with-new-input-fn wf))))
 
 (defn graph-viewer-create
@@ -66,6 +69,20 @@
     (dosync
      (ref-set gv viewer))))
 
+;;
+;; SWT util functions
+;;
+
+(defn dispose-all-wf-swt-colors
+  "dispose the SWT Color objects created across all WF's and the current WF"
+  []
+  (dosync
+   (doseq [wf-map (vals @all-wf-swt-colors)
+           job-map (vals wf-map)
+           color (vals job-map)]
+     (.dispose color))
+   (ref-set all-wf-swt-colors {})
+   (zproviders/dispose-job-swt-colors)))
 
 ;;
 ;; ref initial bindings
@@ -81,3 +98,8 @@
 ;; instantiated before the workflow changes
 (add-watch wflow/wf :re-bind (fn [key r old new]
                                (set-graph-from-wf new)))
+
+;; the ref's value is a multi-level map:
+;; key 1: a Workflow object (record)
+;; values returned by key 1 will be entries in wfeditor.ui.gui.zest.providers/job-swt-colors
+(def all-wf-swt-colors (ref {}))

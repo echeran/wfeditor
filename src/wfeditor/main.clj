@@ -5,7 +5,8 @@
   (:require clojure.tools.cli)
   (:require wfeditor.ui.gui.core
             [wfeditor.model.workflow :as wflow]
-            [wfeditor.io.relay.server :as server])
+            [wfeditor.io.relay.server :as server]
+            [wfeditor.ui.util.swt-dispose :as swt-dispose])
   (:import
    org.eclipse.swt.widgets.Display))
 
@@ -39,6 +40,7 @@ TODO: handle options and args coming in from the CLI"
     
     (. app-win setBlockOnOpen true)
     (. app-win open)
+    (swt-dispose/dispose-all)
     (when-let [display (. Display getCurrent)]
         (.dispose display))))
 

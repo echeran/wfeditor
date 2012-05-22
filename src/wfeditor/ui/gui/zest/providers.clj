@@ -1,7 +1,8 @@
 (ns wfeditor.ui.gui.zest.providers
   (:require [wfeditor.model.workflow :as wflow]
             [wfeditor.io.execution :as exec]
-            [clojure.string :as string])
+            [clojure.string :as string]
+            [wfeditor.ui.util.swt :as swt-util])
   ;; need to import the Clojure defrecord, etc. (Java-interop types)
   ;; as according to
   ;; http://dbostwick.posterous.com/using-clojures-deftype-and-defrecord-and-name
@@ -13,6 +14,16 @@
    [org.eclipse.zest.core.viewers IGraphEntityContentProvider IEntityStyleProvider IEntityConnectionStyleProvider]
    org.eclipse.draw2d.Label
    org.eclipse.zest.core.widgets.ZestStyles))
+
+;;
+;; ref declarations (initial bindings below)
+;;
+
+(declare job-swt-colors)
+
+;;
+;; functions
+;;
 
 (defn label-provider-proxy
   "Return a proxy (anon. impl.) of a label provider for a GraphViewer of the Zest+JFace MVC setup"
@@ -36,7 +47,26 @@
     (getBorderWidth [entity]
       -1)
     (getBackgroundColour [entity]
-      nil)
+      ;; remember, returning nil means method is ignored (i.e.,
+      ;; default value is returned)
+      (when-let [status (and (= (class entity) wfeditor.model.workflow.Job)
+                             (get (:task-statuses entity) 0))]
+        (println "job= " entity)
+        (println "task-statuses= " (:task-statuses entity))
+        (println "status= " status)
+        (let [rgb (condp = status
+                    :done [0 255 0]
+                    :running [255 255 0]
+                    ;; using UNC blue for waiting state color, from http://en.wikipedia.org/wiki/Carolina_blue
+                    :waiting [86 160 211]
+                    :error [255 0 0]
+                    :uncertain [255 127 0])
+              _ (println "rgb= " rgb)
+              color (apply swt-util/create-color rgb)
+              _ (println "color= " color)]
+          (dosync
+           (alter job-swt-colors assoc-in [entity :background] color))
+          color)))
     (getForegroundColour [entity]
       nil)
     (getTooltip [entity]
@@ -82,3 +112,28 @@
       ;; to pull out Job's)
       (to-array (:nodes (wflow/dep-graph input)))
       )))
+
+
+;;
+;; SWT util functions
+;; 
+
+(defn dispose-job-swt-colors
+  "dispose the SWT Color objects created"
+  []
+  (dosync
+   (doseq [job-map (vals @job-swt-colors)
+           color (vals job-map)]
+     (.dispose color))
+   (ref-set job-swt-colors {})))
+
+;;
+;; ref initial bindings
+;;
+
+;; the ref's value is a multi-level map:
+;; key 1: a Job object (record) that exists in the workflow
+;; key 2: a key indicating what the color corresponds to, in
+;; the set: #{:background}
+;; value: a Color object (or nil) for the 
+(def job-swt-colors (ref {}))

@@ -1,7 +1,9 @@
 (ns wfeditor.ui.util.swt
   (:import
    org.eclipse.swt.SWT
-   (org.eclipse.swt.events SelectionEvent SelectionAdapter)))
+   (org.eclipse.swt.events SelectionEvent SelectionAdapter)
+   (org.eclipse.swt.graphics Color RGB)
+   org.eclipse.swt.widgets.Display))
 
 ;; naming convention using asterisk at end explained in this SO post:
 ;; http://stackoverflow.com/questions/5082850/whats-the-convention-for-using-an-asterisk-at-the-end-of-a-function-name-in-clo
@@ -63,3 +65,15 @@ Note: This has compiled but never run for me (aside from test cases in an intera
                                b))
         updated-button (reduce opts-fns-reduce-fn button opts)]
     updated-button))
+
+(defn create-color
+  "create and return a Color object given the RGB values. can optionally provide a Widget at the beginning of the arg list whose Display should be used to construct the Color"
+  ([r g b]
+     (create-color (. Display getCurrent) r g b))
+  ([widget r g b]
+     (let [disp (if (= (class widget) Display)
+                  widget
+                  (.getDisplay (get-ancestor-shell widget)))
+           rgb (new RGB r g b)
+           color (new Color disp rgb)]
+       color)))
