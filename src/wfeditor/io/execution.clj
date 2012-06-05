@@ -85,6 +85,75 @@
   [username]
   (first-line (:out @(commons-exec/sh ["/bin/sh" "-c" (str "echo " "~" username)]))))
 
+
+
+;;
+;; global status functions
+;;
+
+(defn global-statuses
+  "a convenience function to deref the global-job-statuses map ref. for as many values are provided, the sub-map given from nested get calls (as given by get-in) will be returned"
+  ([& levels]
+     (get-in @global-job-statuses levels)))
+
+(defn add-wfinst-to-global-statuses
+  "take the status information from the input wfinst"
+  [wfinst]
+  (let [exec-domain (:exec-domain wfinst)
+        wf (:workflow wfinst)
+        jobs (wflow/wf-jobs wf)
+        newer-info-map {exec-domain (into {} (for [job jobs]
+                                           [(:id job) (:task-statuses job)]))}]
+    (dosync
+     (alter global-job-statuses update-map newer-info-map))))
+
+(defn update-global-statuses
+  "update the information of job execution statuses"
+  ([exec-domain username]
+     (let [qstat-recently-done-cmd-parts []
+           qstat-recently-done-cmd-parts (into qstat-recently-done-cmd-parts (when (not= username (. System getProperty "user.name")) ["sudo" "-u" username "-i"]))
+           qstat-recently-done-cmd-parts (into qstat-recently-done-cmd-parts ["qstat" "-s" "z" "-u" username])
+           recently-done-prom (commons-exec/sh qstat-recently-done-cmd-parts)
+           ;; TODO: add a timeout to the exec/sh call opts map
+           recently-done-result @recently-done-prom
+           recently-done-map (if-let [stdout-str (:out recently-done-result)]
+                               (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. stdout-str))]
+                                 (into {}
+                                       (map (juxt #(Integer/parseInt (nth % 0)) #(nth % 4))
+                                            (map #(remove (fn [s] (or (nil? s) (= "" s)) ) %)
+                                                 (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
+                               {})
+           qstat-not-done-cmd-parts []
+           qstat-not-done-cmd-parts (into qstat-not-done-cmd-parts (when (not= username (. System getProperty "user.name")) ["sudo" "-u" username "-i"]))
+           qstat-not-done-cmd-parts (into qstat-not-done-cmd-parts ["qstat" "-u" username])
+           not-done-prom (commons-exec/sh qstat-not-done-cmd-parts)
+           ;; TODO: add a timeout to the exec/sh call opts map
+           not-done-result @not-done-prom
+           not-done-map (if-let [stdout-str (:out not-done-result)]
+                          (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. stdout-str))]
+                            (into {}
+                                  (map (juxt #(Integer/parseInt (nth % 0)) #(nth % 4))
+                                       (map #(remove (fn [s] (or (nil? s) (= "" s)) ) %)
+                                            (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
+                          {})
+           new-status-map {}
+           new-status-map (into new-status-map (for [[jid sge-status-str] not-done-map]
+                                                 (let [task-id 0
+                                                       status (condp = sge-status-str
+                                                                "r" :running
+                                                                "qw" :waiting
+                                                                "hqw" :waiting
+                                                                "Eqw" :error
+                                                                :uncertain)]
+                                                   [jid {task-id status}])))
+           new-status-map (into new-status-map (for [[jid sge-status-str] recently-done-map]
+                                                 (let [task-id 0
+                                                       status :done]
+                                                   [jid {task-id status}])))
+           global-status-update-map {exec-domain {username new-status-map}}]
+       (dosync
+        (alter global-job-statuses update-map global-status-update-map)))))
+
 ;;
 ;; functions for piped shell commands
 ;;
@@ -347,54 +416,78 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
 
 
 
+;; (defn update-wfinst-sge
+;;   "check the status of the jobs in WFInstance using SGE and return the workflow with the updated status in the job's"
+;;   [wfinst]
+;;   (let [username (:username wfinst)
+;;         wf (:workflow wfinst)
+;;         dep-order-job-seq (wflow/wf-job-seq wf)
+;;         qstat-recently-done-cmd-parts []
+;;         qstat-recently-done-cmd-parts (into qstat-recently-done-cmd-parts (when (not= username (. System getProperty "user.name")) ["sudo" "-u" username "-i"]))
+;;         qstat-recently-done-cmd-parts (into qstat-recently-done-cmd-parts ["qstat" "-s" "z" "-u" username])
+;;         recently-done-prom (commons-exec/sh qstat-recently-done-cmd-parts)
+;;         ;; TODO: add a timeout to the exec/sh call opts map
+;;         recently-done-result @recently-done-prom
+;;         recently-done-map (if-let [stdout-str (:out recently-done-result)]
+;;                             (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. stdout-str))]
+;;                               (into {}
+;;                                     (map (juxt #(Integer/parseInt (nth % 0)) #(nth % 4))
+;;                                          (map #(remove (fn [s] (or (nil? s) (= "" s)) ) %)
+;;                                               (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
+;;                             {})
+;;         qstat-not-done-cmd-parts []
+;;         qstat-not-done-cmd-parts (into qstat-not-done-cmd-parts (when (not= username (. System getProperty "user.name")) ["sudo" "-u" username "-i"]))
+;;         qstat-not-done-cmd-parts (into qstat-not-done-cmd-parts ["qstat" "-u" username])
+;;         not-done-prom (commons-exec/sh qstat-not-done-cmd-parts)
+;;         ;; TODO: add a timeout to the exec/sh call opts map
+;;         not-done-result @not-done-prom
+;;         not-done-map (if-let [stdout-str (:out not-done-result)]
+;;                        (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. stdout-str))]
+;;                          (into {}
+;;                                (map (juxt #(Integer/parseInt (nth % 0)) #(nth % 4))
+;;                                     (map #(remove (fn [s] (or (nil? s) (= "" s)) ) %)
+;;                                          (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
+;;                        {})
+;;         new-wf (loop [current-wf wf
+;;                       jobs dep-order-job-seq]
+;;                  (if (empty? jobs)
+;;                    current-wf
+;;                    (let [job (first jobs)
+;;                          job-id (:id job)
+;;                          status (cond
+;;                                  (recently-done-map job-id) :done
+;;                                  (not-done-map job-id) (get {"r" :running "qw" :waiting "hqw" :waiting "Eqw" :error} (not-done-map job-id) :uncertain)
+;;                                  :else nil)
+;;                          task-id 0
+;;                          job-updated-status (assoc-in job [:task-statuses task-id] status)
+;;                          new-wf (wflow/replace-job current-wf job job-updated-status)]
+;;                      (recur new-wf (rest jobs)))))
+;;         new-wfinst (assoc wfinst :workflow new-wf)]
+;;     new-wfinst))
+
 (defn update-wfinst-sge
   "check the status of the jobs in WFInstance using SGE and return the workflow with the updated status in the job's"
   [wfinst]
   (let [username (:username wfinst)
+        exec-domain (:exec-domain wfinst)
         wf (:workflow wfinst)
         dep-order-job-seq (wflow/wf-job-seq wf)
-        qstat-recently-done-cmd-parts []
-        qstat-recently-done-cmd-parts (into qstat-recently-done-cmd-parts (when (not= username (. System getProperty "user.name")) ["sudo" "-u" username "-i"]))
-        qstat-recently-done-cmd-parts (into qstat-recently-done-cmd-parts ["qstat" "-s" "z" "-u" username])
-        recently-done-prom (commons-exec/sh qstat-recently-done-cmd-parts)
-        ;; TODO: add a timeout to the exec/sh call opts map
-        recently-done-result @recently-done-prom
-        recently-done-map (if-let [stdout-str (:out recently-done-result)]
-                            (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. stdout-str))]
-                              (into {}
-                                    (map (juxt #(Integer/parseInt (nth % 0)) #(nth % 4))
-                                         (map #(remove (fn [s] (or (nil? s) (= "" s)) ) %)
-                                              (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
-                            {})
-        qstat-not-done-cmd-parts []
-        qstat-not-done-cmd-parts (into qstat-not-done-cmd-parts (when (not= username (. System getProperty "user.name")) ["sudo" "-u" username "-i"]))
-        qstat-not-done-cmd-parts (into qstat-not-done-cmd-parts ["qstat" "-u" username])
-        not-done-prom (commons-exec/sh qstat-not-done-cmd-parts)
-        ;; TODO: add a timeout to the exec/sh call opts map
-        not-done-result @not-done-prom
-        not-done-map (if-let [stdout-str (:out not-done-result)]
-                       (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. stdout-str))]
-                         (into {}
-                               (map (juxt #(Integer/parseInt (nth % 0)) #(nth % 4))
-                                    (map #(remove (fn [s] (or (nil? s) (= "" s)) ) %)
-                                         (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
-                       {})
+        
         new-wf (loop [current-wf wf
                       jobs dep-order-job-seq]
                  (if (empty? jobs)
                    current-wf
                    (let [job (first jobs)
                          job-id (:id job)
-                         status (cond
-                                 (recently-done-map job-id) :done
-                                 (not-done-map job-id) (get {"r" :running "qw" :waiting "hqw" :waiting "Eqw" :error} (not-done-map job-id) :uncertain)
-                                 :else nil)
                          task-id 0
+                         status (global-statuses exec-domain username job-id task-id)
                          job-updated-status (assoc-in job [:task-statuses task-id] status)
                          new-wf (wflow/replace-job current-wf job job-updated-status)]
                      (recur new-wf (rest jobs)))))
         new-wfinst (assoc wfinst :workflow new-wf)]
     new-wfinst))
+
+
 
 (defn cmds-in-dep-order
   "return a sequence of job commands in order of which is depended on by which following jobs"
@@ -419,27 +512,6 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
       (println cmd))))
 
 
-
-;;
-;; global status functions
-;;
-
-(defn global-statuses
-  "a convenience function to deref the global-job-statuses map ref"
-  []
-  @global-job-statuses)
-
-(defn add-wfinst-to-global-statuses
-  "take the status information from the input wfinst"
-  [wfinst]
-  (let [exec-domain (:exec-domain wfinst)
-        wf (:workflow wfinst)
-        jobs (wflow/wf-jobs wf)
-        newer-info-map {exec-domain (into {} (for [job jobs]
-                                           [(:id job) (:task-statuses job)]))}]
-    (dosync
-     (alter global-job-statuses update-map newer-info-map))))
-
 ;;
 ;; client-process execution functions
 ;;
@@ -452,7 +524,7 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
   "a convenience function that updates the WFInstance object and records the new info (workflow, its jobs' task statuses) where necessary.  use this instead of update-wfinst if possible"
   [wfinst & conn-args]
   (let [updated-wfinst (apply update-wfinst wfinst conn-args)]
-    (add-wfinst-to-global-statuses updated-wfinst)
+    ;; (add-wfinst-to-global-statuses updated-wfinst)
     (wflow/set-workflow (:workflow updated-wfinst))))
 
 (defmulti create-wfinst (comp :exec-domain first vector))
@@ -463,9 +535,13 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
   "a convenience function that updates the WFInstance object and records the new info (workflow, its jobs' task statuses) where necessary.  use this instead of update-wfinst if possible"
   [wfinst & conn-args]
   (let [created-wfinst (apply create-wfinst wfinst conn-args)]
-    (add-wfinst-to-global-statuses created-wfinst)
+    ;; (add-wfinst-to-global-statuses created-wfinst)
     (wflow/set-workflow (:workflow created-wfinst))))
 
+(defn update-server-statuses-sge
+  "get the server to update its own stats"
+  [exec-domain username & conn-args]
+  (apply wfeclient/status-update-over-ssh-tunnel exec-domain username conn-args))
 
 ;;
 ;; ref initializations

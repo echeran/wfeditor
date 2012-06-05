@@ -103,20 +103,23 @@
     exec-group))
 
 (defn- button-group-create
-  "create the Group widget containing all of the buttons in th left navpane that do something"
+  "create the Group widget containing all of the buttons in the left navpane that do something"
   [parent]
   (let [
         button-group (new-widget Group parent {:styles [SWT/SHADOW_NONE] :text "Buttons"})
+        load-wf-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Load workflow"})
+        save-wf-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Save workflow"})
+        run-wf-inst-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Run WF instance via server"})
+        update-wf-inst-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Update WF instance via server"})
+        update-server-statuses-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Update statuses on server"})
+        print-global-statuses-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Print global statuses"})
+
         print-wf-cmd-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Print workflow command"})
         print-wf-sge-test-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Print SGE commands test"})
         run-wf-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Run workflow"})
-        print-wf-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Print workflow"                    })
-        load-wf-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Load workflow"})
-        save-wf-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Save workflow"})
+        print-wf-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Print workflow"})
         print-wf-inst-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Print WF instance"})
-        run-wf-inst-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Run WF instance via server"})
-        update-wf-inst-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Update WF instance via server"})
-        print-global-statuses-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Print global statuses"})
+
         ]
     (doto button-group
       (.setLayout (FillLayout. SWT/VERTICAL))
@@ -171,6 +174,12 @@
     (update-button print-global-statuses-button
                    {:widget-select-fn (fn [event]
                                         (println (exec/global-statuses)))})
+    (update-button update-server-statuses-button
+                   {:widget-select-fn (fn [event]
+                                        (let [{:keys [user exec-dom rem-host rem-port loc-port]} @exec-props
+                                              loc-host io-const/DEFAULT-LOCAL-HOST
+                                              server-host io-const/DEFAULT-SERVER-HOST-REL-TO-REMOTE]
+                                          (exec/update-server-statuses-sge exec-dom user rem-host rem-port loc-port loc-host server-host)))})
     button-group))
 
 (defn ui-editor-left-create

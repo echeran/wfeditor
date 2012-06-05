@@ -34,6 +34,19 @@
             ]
         wfinst))))
 
+(defn user-from-req
+  "return the username string that is encoded in the body of the current request object"
+  []
+  ;; TODO: generalize this function to return a map of basic
+  ;; properties
+  ;; TODO: use JSON to encode the information when generalizing to
+  ;; more than one entity
+  (let [req-body-parser (:body (ring-request))]
+    (with-open [rdr (clojure.java.io/reader req-body-parser)]
+      (let [body-str (slurp rdr)
+            username body-str]
+        username))))
+
 (defpage [:get "/wfinstance"] []
     (let [wfinst (wfinst-from-req)
         new-wfinst (exec/update-wfinst-sge wfinst)]
@@ -49,3 +62,13 @@
     ;; TODO: turn enqueuing into multi-method where SGE is just one poss.
     (println "finished enqueuing jobs via SGE")
     (fformat/workflow-instance-to-string new-wfinst)))
+
+(defpage [:post "/status"] []
+  (let [username (user-from-req)
+        exec-domain "SGE"]
+    ;; TODO: figure out a way to include the exec-domain info
+    (println "updating global statuses")
+    ;; TODO: turn enqueuing into multi-method where SGE is just one poss.
+    (exec/update-global-statuses exec-domain username)
+    (println "finished updating global statuses")
+    "HTTP response body text to signify that the operation is successful"))
