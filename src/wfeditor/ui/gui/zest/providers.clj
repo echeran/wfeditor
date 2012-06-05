@@ -57,7 +57,8 @@
                     ;; using UNC blue for waiting state color, from http://en.wikipedia.org/wiki/Carolina_blue
                     :waiting [86 160 211]
                     :error [255 0 0]
-                    :uncertain [255 127 0])
+                    :uncertain [255 127 0]
+                    :killed [255 0 0])
               color (apply swt-util/create-color rgb)]
           (dosync
            (alter job-swt-colors assoc-in [entity :background] color))
