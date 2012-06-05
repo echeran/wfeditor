@@ -105,39 +105,16 @@
 (defn- button-group-create
   "create the Group widget containing all of the buttons in the left navpane that do something"
   [parent]
-  (let [
-        button-group (new-widget Group parent {:styles [SWT/SHADOW_NONE] :text "Buttons"})
+  (let [button-group (new-widget Group parent {:styles [SWT/SHADOW_NONE] :text "Buttons"})
         load-wf-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Load workflow"})
         save-wf-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Save workflow"})
         run-wf-inst-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Run WF instance via server"})
         update-wf-inst-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Update WF instance via server"})
         update-server-statuses-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Update statuses on server"})
-        print-global-statuses-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Print global statuses"})
-
-        print-wf-cmd-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Print workflow command"})
-        print-wf-sge-test-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Print SGE commands test"})
-        run-wf-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Run workflow"})
-        print-wf-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Print workflow"})
-        print-wf-inst-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Print WF instance"})
-
-        ]
+        print-global-statuses-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Print global statuses"})]
     (doto button-group
       (.setLayout (FillLayout. SWT/VERTICAL))
       (.setLayoutData (GridData. GridData/FILL_BOTH)))
-    (update-button print-wf-cmd-button
-                   {:widget-select-fn (fn [event]
-                                        (exec/print-wf-command (wflow/workflow)))})
-    
-    (update-button print-wf-sge-test-button
-                   {:widget-select-fn (fn [event]
-                                        (let [new-wf (wflow/wf-with-internal-ids (wflow/workflow))]
-                                                                   (exec/print-deps-in-order new-wf)))})
-    (update-button run-wf-button
-                   {:widget-select-fn (fn [event]
-                                        (exec/run-workflow (wflow/workflow)))})
-    (update-button print-wf-button
-                   {:widget-select-fn (fn [event]
-                                        (println (fformat/workflow-to-string (wflow/workflow))))})
     (update-button load-wf-button
                    {:widget-select-fn (fn [event]
                                         (let [fd (new FileDialog (get-ancestor-shell parent) SWT/OPEN)]
@@ -148,13 +125,6 @@
                                         (let [fd (FileDialog. (get-ancestor-shell parent) SWT/SAVE)]
                                           (when-let [out-file-name (.open fd)]
                                             (fformat/save-workflow-to-file (wflow/workflow) out-file-name))))})
-    (update-button print-wf-inst-button
-                   {:widget-select-fn (fn [event]
-                                        (let [workflow (wflow/workflow)
-                                              {:keys [user exec-dom]} @exec-props
-                                              wf-inst (wflow/new-wfinstance-fn user exec-dom workflow)
-                                              wf-inst-str (fformat/workflow-instance-to-string wf-inst)]
-                                          (println wf-inst-str)))})
     (update-button run-wf-inst-button
                    {:widget-select-fn (fn [event]
                                         (let [workflow (wflow/workflow)
@@ -182,11 +152,47 @@
                                           (exec/update-server-statuses-sge exec-dom user rem-host rem-port loc-port loc-host server-host)))})
     button-group))
 
+(defn button-testing-group-create
+  "create the Group widget containing all of the testing buttons in the left navpane that aren't (currently) directly useful for program execution"
+  [parent]
+  (let [button-group (new-widget Group parent {:styles [SWT/SHADOW_NONE] :text "Testing Buttons"})
+        print-wf-cmd-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Print workflow command"})
+        print-wf-sge-test-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Print SGE commands test"})
+        run-wf-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Run workflow"})
+        print-wf-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Print workflow"})
+        print-wf-inst-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Print WF instance"})]
+    (doto button-group
+      (.setLayout (FillLayout. SWT/VERTICAL))
+      (.setLayoutData (GridData. GridData/FILL_BOTH)))
+    (update-button print-wf-cmd-button
+                   {:widget-select-fn (fn [event]
+                                        (exec/print-wf-command (wflow/workflow)))})
+    
+    (update-button print-wf-sge-test-button
+                   {:widget-select-fn (fn [event]
+                                        (let [new-wf (wflow/wf-with-internal-ids (wflow/workflow))]
+                                                                   (exec/print-deps-in-order new-wf)))})
+    (update-button run-wf-button
+                   {:widget-select-fn (fn [event]
+                                        (exec/run-workflow (wflow/workflow)))})
+    (update-button print-wf-button
+                   {:widget-select-fn (fn [event]
+                                        (println (fformat/workflow-to-string (wflow/workflow))))})
+    (update-button print-wf-inst-button
+                   {:widget-select-fn (fn [event]
+                                        (let [workflow (wflow/workflow)
+                                              {:keys [user exec-dom]} @exec-props
+                                              wf-inst (wflow/new-wfinstance-fn user exec-dom workflow)
+                                              wf-inst-str (fformat/workflow-instance-to-string wf-inst)]
+                                          (println wf-inst-str)))})
+    button-group))
+
 (defn ui-editor-left-create
   "create the entire left-hand side navigation pane"
   [parent]
   (let [exec-group (execution-group-create parent)
-        button-group (button-group-create parent) 
+        button-group (button-group-create parent)
+        button-testing-group (button-testing-group-create parent)
         testing-group (new-widget* Group parent SWT/SHADOW_ETCHED_OUT)
         label2 (Label. testing-group  SWT/CENTER)]
     (do
