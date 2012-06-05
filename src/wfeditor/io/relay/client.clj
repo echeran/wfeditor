@@ -41,13 +41,6 @@
 
 (defn- req-wfinst-over-ssh-tunnel
   "send the HTTP request as in the fn req-wfinst, but do it over an ssh tunnel, a.k.a. local port forwarding. server-host is the host that WFEditor's server mode process is running on, relative to the remote host.  If the server process is running on the remote hos, then this is 'localhost' "
-  ;; ([req-type wfinst path]
-  ;;    (apply req-wfinst-over-ssh-tunnel req-type wfinst path (default-ssh-tunnel-params)))
-  ;; ([req-type wfinst path rem-host rem-port loc-port]
-  ;;    (req-wfinst-over-ssh-tunnel wfinst path rem-host rem-port loc-port const/DEFAULT-LOCAL-HOST))
-  ;; ([req-type wfinst path rem-host rem-port loc-port loc-host]
-  ;;    (println "params are= " {:req-type req-type :wfinst wfinst :path path :rem-host rem-host :rem-port rem-port :loc-port loc-port :loc-host loc-host})
-  ;;    (req-wfinst-over-ssh-tunnel wfinst path rem-host rem-port loc-port loc-host const/DEFAULT-SERVER-HOST-REL-TO-REMOTE))
   ([req-type wfinst path rem-host rem-port loc-port loc-host server-host]
      (with-ssh-agent  []
        (let [session (session rem-host :strict-host-key-checking :no)]
@@ -92,28 +85,19 @@
   "extract the WFInstance object encoded in the HTTP response message sent back from the server"
   [resp]
   (let [wfinst-str (response-msg resp)
-        ;; wfinst-str-stream (fformat/string-input-stream wfinst-str)
-        ;; wfinst (fformat/wfinstance-from-stream wfinst-str-stream)
-        wfinst (fformat/wfinstance-from-string wfinst-str)
-        ]
+        wfinst (fformat/wfinstance-from-string wfinst-str)]
     wfinst))
 
 (defn- update-sge-response-wfinst
   "take the WFInstance input, send it to the server running SGE, and return the WFInstance returned containing an updated state"
   [wfinst & conn-args]
-  (let [
-        ;; resp (update-request wfinst)
-        resp (apply update-request-over-ssh-tunnel wfinst conn-args)
-        ]
+  (let [resp (apply update-request-over-ssh-tunnel wfinst conn-args)]
     (wfinst-from-response-msg resp)))
 
 (defn- create-sge-response-wfinst
   "take the WFInstance input, send it to the server running SGE, and return the WFInstance returned containing the state after enqueuing the jobs"
   [wfinst & conn-args]
-  (let [
-        ;; resp (update-request wfinst)
-        resp (apply create-request-over-ssh-tunnel wfinst conn-args)
-        ]
+  (let [resp (apply create-request-over-ssh-tunnel wfinst conn-args)]
     (wfinst-from-response-msg resp)))
 
 ;; return the response WFInstance returned by the server (from an

@@ -413,58 +413,6 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
         new-wfinst (assoc wfinst :workflow new-wf)]
     new-wfinst))
 
-
-
-
-;; (defn update-wfinst-sge
-;;   "check the status of the jobs in WFInstance using SGE and return the workflow with the updated status in the job's"
-;;   [wfinst]
-;;   (let [username (:username wfinst)
-;;         wf (:workflow wfinst)
-;;         dep-order-job-seq (wflow/wf-job-seq wf)
-;;         qstat-recently-done-cmd-parts []
-;;         qstat-recently-done-cmd-parts (into qstat-recently-done-cmd-parts (when (not= username (. System getProperty "user.name")) ["sudo" "-u" username "-i"]))
-;;         qstat-recently-done-cmd-parts (into qstat-recently-done-cmd-parts ["qstat" "-s" "z" "-u" username])
-;;         recently-done-prom (commons-exec/sh qstat-recently-done-cmd-parts)
-;;         ;; TODO: add a timeout to the exec/sh call opts map
-;;         recently-done-result @recently-done-prom
-;;         recently-done-map (if-let [stdout-str (:out recently-done-result)]
-;;                             (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. stdout-str))]
-;;                               (into {}
-;;                                     (map (juxt #(Integer/parseInt (nth % 0)) #(nth % 4))
-;;                                          (map #(remove (fn [s] (or (nil? s) (= "" s)) ) %)
-;;                                               (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
-;;                             {})
-;;         qstat-not-done-cmd-parts []
-;;         qstat-not-done-cmd-parts (into qstat-not-done-cmd-parts (when (not= username (. System getProperty "user.name")) ["sudo" "-u" username "-i"]))
-;;         qstat-not-done-cmd-parts (into qstat-not-done-cmd-parts ["qstat" "-u" username])
-;;         not-done-prom (commons-exec/sh qstat-not-done-cmd-parts)
-;;         ;; TODO: add a timeout to the exec/sh call opts map
-;;         not-done-result @not-done-prom
-;;         not-done-map (if-let [stdout-str (:out not-done-result)]
-;;                        (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. stdout-str))]
-;;                          (into {}
-;;                                (map (juxt #(Integer/parseInt (nth % 0)) #(nth % 4))
-;;                                     (map #(remove (fn [s] (or (nil? s) (= "" s)) ) %)
-;;                                          (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
-;;                        {})
-;;         new-wf (loop [current-wf wf
-;;                       jobs dep-order-job-seq]
-;;                  (if (empty? jobs)
-;;                    current-wf
-;;                    (let [job (first jobs)
-;;                          job-id (:id job)
-;;                          status (cond
-;;                                  (recently-done-map job-id) :done
-;;                                  (not-done-map job-id) (get {"r" :running "qw" :waiting "hqw" :waiting "Eqw" :error} (not-done-map job-id) :uncertain)
-;;                                  :else nil)
-;;                          task-id 0
-;;                          job-updated-status (assoc-in job [:task-statuses task-id] status)
-;;                          new-wf (wflow/replace-job current-wf job job-updated-status)]
-;;                      (recur new-wf (rest jobs)))))
-;;         new-wfinst (assoc wfinst :workflow new-wf)]
-;;     new-wfinst))
-
 (defn update-wfinst-sge
   "check the status of the jobs in WFInstance using SGE and return the workflow with the updated status in the job's"
   [wfinst]
@@ -486,8 +434,6 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
                      (recur new-wf (rest jobs)))))
         new-wfinst (assoc wfinst :workflow new-wf)]
     new-wfinst))
-
-
 
 (defn cmds-in-dep-order
   "return a sequence of job commands in order of which is depended on by which following jobs"
