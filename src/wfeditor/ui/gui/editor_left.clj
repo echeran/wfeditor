@@ -187,16 +187,11 @@
                                           (println wf-inst-str)))})
     button-group))
 
-(defn ui-editor-left-create
-  "create the entire left-hand side navigation pane"
+(defn testing-group-create
+  "create a Group widget to contain all of the test code for widgets, etc."
   [parent]
-  (let [exec-group (execution-group-create parent)
-        button-group (button-group-create parent)
-        button-testing-group (button-testing-group-create parent)
-        testing-group (new-widget* Group parent SWT/SHADOW_ETCHED_OUT)
+  (let [testing-group (new-widget* Group parent SWT/SHADOW_ETCHED_OUT)
         label2 (Label. testing-group  SWT/CENTER)]
-    (do
-      (.setLayout parent (GridLayout.))) 
     (doto testing-group
       (.setText "Testing")
       (.setLayout (RowLayout. SWT/VERTICAL))
@@ -207,7 +202,18 @@
     (do
       (create-widgets-with-names testing-group Button SWT/RADIO ["Radio 1" "Radio 2" "Radio 3"])
       (create-widgets-with-names testing-group Button SWT/TOGGLE ["Tog 1" "Tog 2" "Tog 3"])
-      (create-widgets-with-names testing-group Button SWT/CHECK [ "Check one" "...two" "...three"]))))
+      (create-widgets-with-names testing-group Button SWT/CHECK [ "Check one" "...two" "...three"]))
+    testing-group))
+
+(defn ui-editor-left-create
+  "create the entire left-hand side navigation pane"
+  [parent]
+  (let [exec-group (execution-group-create parent)
+        button-group (button-group-create parent)
+        button-testing-group (button-testing-group-create parent)]
+    (do
+      (.setLayout parent (GridLayout.))) 
+))
 
 ;;
 ;; refs - binding initial values
