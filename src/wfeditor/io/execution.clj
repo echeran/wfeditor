@@ -85,7 +85,7 @@
   "a utility function that updates the contents of the base map by adding/replacing them with the values of the newer map, and doing this recursively through the map structure according to clojure.contrib.map-utils/deep-merge-with"
   [base-map newer-map]
   (letfn [(merge-fn [& vals] (last (concat vals)))]
-    (map-utils/deep-merge-with base-map newer-map)))
+    (map-utils/deep-merge-with merge-fn base-map newer-map)))
 
 (defn first-line
   "return the first line of a string, where the string may have some \newline characters"
@@ -121,54 +121,67 @@
      (alter global-job-statuses update-map newer-info-map))))
 
 (defn update-global-statuses
-  "update the information of job execution statuses. works for SGE, but needs work to be generalizable"
+  "update the information of job execution statuses. works only for SGE, and needs work to be generalizable. providing a nil username means job statuses for all users are updated. nil exec-domain defaults to SGE"
   ([]
-     ;; TODO: get rid of magic value default exec-domain being "SGE"
-     (update-global-statuses "SGE" "\"*\""))
+     (update-global-statuses nil nil))
   ([exec-domain]
-     (update-global-statuses exec-domain "\"*\""))
+     (update-global-statuses exec-domain nil))
   ([exec-domain username]
-     (let [qstat-recently-done-cmd-parts []
-           qstat-recently-done-cmd-parts (into qstat-recently-done-cmd-parts (when (not= username (. System getProperty "user.name")) ["sudo" "-u" username "-i"]))
-           qstat-recently-done-cmd-parts (into qstat-recently-done-cmd-parts ["qstat" "-s" "z" "-u" username])
+     ;; TODO: get rid of magic value default exec-domain being "SGE"
+     (let [exec-domain (or exec-domain "SGE")
+           qstat-status-map-fn (fn [qstat-out-str]
+                                 (if qstat-out-str
+                                   (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. qstat-out-str))]
+                                     (reduce (fn [m [jid user status]] (assoc-in m [user jid] status)) {}
+                                             (map (juxt #(Integer/parseInt (nth % 0)) #(nth % 3) #(nth % 4))
+                                                  (map #(remove (fn [s] (or (nil? s) (= "" s)) ) %)
+                                                       (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
+                                   {}))
+           qstat-recently-done-cmd-parts []
+           qstat-recently-done-cmd-parts (into qstat-recently-done-cmd-parts (when (and username (not= username (. System getProperty "user.name"))) ["sudo" "-u" username "-i"]))
+           qstat-recently-done-cmd-parts (into qstat-recently-done-cmd-parts ["qstat" "-s" "z" "-u" (or username "\"*\"")])
            recently-done-prom (commons-exec/sh qstat-recently-done-cmd-parts)
            ;; TODO: add a timeout to the exec/sh call opts map
            recently-done-result @recently-done-prom
-           recently-done-map (if-let [stdout-str (:out recently-done-result)]
-                               (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. stdout-str))]
-                                 (into {}
-                                       (map (juxt #(Integer/parseInt (nth % 0)) #(nth % 4))
-                                            (map #(remove (fn [s] (or (nil? s) (= "" s)) ) %)
-                                                 (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
-                               {})
+           recently-done-map (qstat-status-map-fn (:out recently-done-result))
+           ;; (if-let [stdout-str (:out recently-done-result)]
+           ;;                     (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. stdout-str))]
+           ;;                       (reduce (fn [m [jid user status]] (assoc-in m [user jid] status)) {}
+           ;;                             (map (juxt #(Integer/parseInt (nth % 0)) #(nth % 3) #(nth % 4))
+           ;;                                  (map #(remove (fn [s] (or (nil? s) (= "" s)) ) %)
+           ;;                                       (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
+           ;;                     {})
            qstat-not-done-cmd-parts []
-           qstat-not-done-cmd-parts (into qstat-not-done-cmd-parts (when (not= username (. System getProperty "user.name")) ["sudo" "-u" username "-i"]))
-           qstat-not-done-cmd-parts (into qstat-not-done-cmd-parts ["qstat" "-u" username])
+           qstat-not-done-cmd-parts (into qstat-not-done-cmd-parts (when (and username (not= username (. System getProperty "user.name"))) ["sudo" "-u" username "-i"]))
+           qstat-not-done-cmd-parts (into qstat-not-done-cmd-parts ["qstat" "-u" (or username "\"*\"")])
            not-done-prom (commons-exec/sh qstat-not-done-cmd-parts)
            ;; TODO: add a timeout to the exec/sh call opts map
            not-done-result @not-done-prom
-           not-done-map (if-let [stdout-str (:out not-done-result)]
-                          (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. stdout-str))]
-                            (into {}
-                                  (map (juxt #(Integer/parseInt (nth % 0)) #(nth % 4))
-                                       (map #(remove (fn [s] (or (nil? s) (= "" s)) ) %)
-                                            (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
-                          {})
+           not-done-map (qstat-status-map-fn (:out not-done-result))
+           ;; (if-let [stdout-str (:out not-done-result)]
+           ;;                (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. stdout-str))]
+           ;;                  (into {}
+           ;;                        (map (juxt #(Integer/parseInt (nth % 0)) #(nth % 4))
+           ;;                             (map #(remove (fn [s] (or (nil? s) (= "" s)) ) %)
+           ;;                                  (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
+           ;;                {})
            new-status-map {}
-           new-status-map (into new-status-map (for [[jid sge-status-str] not-done-map]
-                                                 (let [task-id 0
-                                                       status (condp = sge-status-str
-                                                                "r" :running
-                                                                "qw" :waiting
-                                                                "hqw" :waiting
-                                                                "Eqw" :error
-                                                                :uncertain)]
-                                                   [jid {task-id status}])))
-           new-status-map (into new-status-map (for [[jid sge-status-str] recently-done-map]
-                                                 (let [task-id 0
-                                                       status :done]
-                                                   [jid {task-id status}])))
-           global-status-update-map {exec-domain {username new-status-map}}]
+           new-status-map (reduce update-map new-status-map (for [[user user-map] not-done-map
+                                                                  [jid sge-status-str] user-map]
+                                                              (let [task-id 0
+                                                                    status (condp = sge-status-str
+                                                                             "r" :running
+                                                                             "qw" :waiting
+                                                                             "hqw" :waiting
+                                                                             "Eqw" :error
+                                                                             :uncertain)]
+                                                                {user {jid {task-id status}}})))
+           new-status-map (reduce update-map new-status-map (for [[user user-map] recently-done-map
+                                                                  [jid sge-status-str] user-map]
+                                                              (let [task-id 0
+                                                                    status :done]
+                                                                {user {jid {task-id status}}})))
+           global-status-update-map {exec-domain new-status-map}]
        (dosync
         (alter global-job-statuses update-map global-status-update-map)))))
 
