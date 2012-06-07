@@ -7,7 +7,8 @@
             [clojure.java.io :as clj-io]
             [wfeditor.io.relay.client :as wfeclient]
             [wfeditor.model.workflow :as wflow]
-            [wfeditor.io.util.const :as io-const])
+            [wfeditor.io.util.const :as io-const]
+            [wfeditor.io.util.thread :as thread-util])
   (:import wfeditor.model.workflow.Job))
 
 ;;
@@ -61,6 +62,18 @@
 (declare job-id-translate-map)
 
 ;;
+;; futures - background threads (declarations here, initial bindings below)
+;;
+
+;; using futures to handle execution of repeating background threads
+;; in Clojure as suggested by these Stackoverflow posts
+;; http://stackoverflow.com/questions/5291436/idiomatic-clojure-way-to-spawn-and-manage-background-threads
+;; http://stackoverflow.com/questions/5397955/sleeping-a-thread-inside-an-executorservice-java-clojure
+;; http://stackoverflow.com/questions/1768567/how-does-one-start-a-thread-in-clojure
+
+(declare status-updater-thread)
+
+;;
 ;; functions
 ;;
 
@@ -108,7 +121,12 @@
      (alter global-job-statuses update-map newer-info-map))))
 
 (defn update-global-statuses
-  "update the information of job execution statuses"
+  "update the information of job execution statuses. works for SGE, but needs work to be generalizable"
+  ([]
+     ;; TODO: get rid of magic value default exec-domain being "SGE"
+     (update-global-statuses "SGE" "\"*\""))
+  ([exec-domain]
+     (update-global-statuses exec-domain "\"*\""))
   ([exec-domain username]
      (let [qstat-recently-done-cmd-parts []
            qstat-recently-done-cmd-parts (into qstat-recently-done-cmd-parts (when (not= username (. System getProperty "user.name")) ["sudo" "-u" username "-i"]))
@@ -498,3 +516,24 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
 (def internal-job-id-counter (atom (first-internal-id)))
 
 (def job-id-translate-map (ref {}))
+
+;;
+;; futures - background threads - initial bindings, related fn's
+;;
+
+;; status-updater-thread - init fn
+
+(defn- create-bg-thread-status-updater-thread
+  "return a future that encapsulates an auto-repeating background thread that updates the global job statuses"
+  []
+  (thread-util/do-and-sleep-repeatedly-bg-thread io-const/DEFAULT-REPEATED-BG-THREAD-SLEEP-TIME update-global-statuses "SGE"))
+
+(defn init-bg-thread-status-updater-thread
+  "initialize the var containing background thread that updates the global job statuses"
+  []
+  (def status-updater-thread (create-bg-thread-status-updater-thread)))
+
+(defn stop-bg-thread-status-updater-thread
+  "stop the future that encapsulates the background thread for updating global job statuses"
+  []
+  (future-cancel status-updater-thread))

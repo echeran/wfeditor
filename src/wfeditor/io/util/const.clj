@@ -24,3 +24,10 @@
 
 ;; let this dir path be relative to the user's home dir
 (def DEFAULT-HOME-OUTPUT-DIR "/sge/qsub/")
+
+;;
+;; thread constants
+;;
+
+;; time in msec
+(def DEFAULT-REPEATED-BG-THREAD-SLEEP-TIME (* 2 1000))
