@@ -138,33 +138,19 @@
                                                        (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
                                    {}))
            qstat-recently-done-cmd-parts []
-           qstat-recently-done-cmd-parts (into qstat-recently-done-cmd-parts (when (and username (not= username (. System getProperty "user.name"))) ["sudo" "-u" username "-i"]))
+           qstat-recently-done-cmd-parts (into qstat-recently-done-cmd-parts (if (and username (not= username (. System getProperty "user.name"))) ["sudo" "-u" username "-i"] ["sudo" "-u" (. System getProperty "user.name") "-i"]))
            qstat-recently-done-cmd-parts (into qstat-recently-done-cmd-parts ["qstat" "-s" "z" "-u" (or username "\"*\"")])
-           recently-done-prom (commons-exec/sh qstat-recently-done-cmd-parts)
+           recently-done-prom (commons-exec/sh qstat-recently-done-cmd-parts {:handle-quoting? true})
            ;; TODO: add a timeout to the exec/sh call opts map
            recently-done-result @recently-done-prom
            recently-done-map (qstat-status-map-fn (:out recently-done-result))
-           ;; (if-let [stdout-str (:out recently-done-result)]
-           ;;                     (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. stdout-str))]
-           ;;                       (reduce (fn [m [jid user status]] (assoc-in m [user jid] status)) {}
-           ;;                             (map (juxt #(Integer/parseInt (nth % 0)) #(nth % 3) #(nth % 4))
-           ;;                                  (map #(remove (fn [s] (or (nil? s) (= "" s)) ) %)
-           ;;                                       (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
-           ;;                     {})
            qstat-not-done-cmd-parts []
-           qstat-not-done-cmd-parts (into qstat-not-done-cmd-parts (when (and username (not= username (. System getProperty "user.name"))) ["sudo" "-u" username "-i"]))
-           qstat-not-done-cmd-parts (into qstat-not-done-cmd-parts ["qstat" "-u" (or username "\"*\"")])
-           not-done-prom (commons-exec/sh qstat-not-done-cmd-parts)
+           qstat-not-done-cmd-parts (into qstat-not-done-cmd-parts (if (and username (not= username (. System getProperty "user.name"))) ["sudo" "-u" username "-i"] ["sudo" "-u" (. System getProperty "user.name") "-i"]))
+           qstat-not-done-cmd-parts (into qstat-not-done-cmd-parts ["qstat" "-u" (or username "'*'")])
+           not-done-prom (commons-exec/sh qstat-not-done-cmd-parts {:handle-quoting? true})
            ;; TODO: add a timeout to the exec/sh call opts map
            not-done-result @not-done-prom
            not-done-map (qstat-status-map-fn (:out not-done-result))
-           ;; (if-let [stdout-str (:out not-done-result)]
-           ;;                (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. stdout-str))]
-           ;;                  (into {}
-           ;;                        (map (juxt #(Integer/parseInt (nth % 0)) #(nth % 4))
-           ;;                             (map #(remove (fn [s] (or (nil? s) (= "" s)) ) %)
-           ;;                                  (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
-           ;;                {})
            new-status-map {}
            new-status-map (reduce update-map new-status-map (for [[user user-map] not-done-map
                                                                   [jid sge-status-str] user-map]
@@ -183,7 +169,8 @@
                                                                 {user {jid {task-id status}}})))
            global-status-update-map {exec-domain new-status-map}]
        (dosync
-        (alter global-job-statuses update-map global-status-update-map)))))
+        (alter global-job-statuses update-map global-status-update-map))
+       )))
 
 ;;
 ;; functions for piped shell commands
