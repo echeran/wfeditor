@@ -56,8 +56,8 @@ TODO: handle options and args coming in from the CLI"
   [options args]
   (let [port (:port options)
         new-server (server/new-running-server {:port port})]
-    (server/set-server new-server)
-    (wfeditor.io.util.thread-control/start-all-bg-threads-server)))
+    (wfeditor.io.util.thread-control/start-all-bg-threads-server)
+    (server/set-server new-server)))
 
 (defn parse-args
   "parse the command-line arguments and, as the clojure.tools.cli provides, returns a vector containing 3 elements: 1) the parsed options, 2) remaining arguments, and 3) a help banner. works well with user-args as a list of the command-line arguments"
