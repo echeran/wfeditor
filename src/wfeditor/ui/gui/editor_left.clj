@@ -2,6 +2,7 @@
   (:require [wfeditor.io.util.const :as io-const]
             [wfeditor.model.workflow :as wflow]
             [wfeditor.io.execution :as exec]
+            [wfeditor.io.status.task-run :as task-status]
             [wfeditor.io.file.wfeformat :as fformat])
   (:use [wfeditor.ui.util.swt :as swt-util])
   (:import
@@ -152,7 +153,7 @@
       (.setLayoutData (GridData. GridData/FILL_BOTH)))
     (update-button print-global-statuses-button
                    {:widget-select-fn (fn [event]
-                                        (println (exec/global-statuses)))})
+                                        (println (task-status/global-statuses)))})
     (update-button update-server-statuses-button
                    {:widget-select-fn (fn [event]
                                         (let [{:keys [user exec-dom rem-host rem-port loc-port]} @exec-props

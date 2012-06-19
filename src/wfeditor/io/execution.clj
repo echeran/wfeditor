@@ -1,6 +1,5 @@
 (ns wfeditor.io.execution
-  (:require [clojure.contrib.graph :as contrib-graph]
-            [clojure.contrib.map-utils :as map-utils]
+  (:require [clojure.contrib.graph :as contrib-graph] 
             [clojure.string :as string]
             [popen :as popen]
             [clj-commons-exec :as commons-exec]
@@ -8,7 +7,7 @@
             [wfeditor.io.relay.client :as wfeclient]
             [wfeditor.model.workflow :as wflow]
             [wfeditor.io.util.const :as io-const]
-            [wfeditor.io.util.thread :as thread-util])
+            [wfeditor.io.status.task-run :as task-status])
   (:import wfeditor.model.workflow.Job))
 
 ;;
@@ -46,13 +45,6 @@
 ;; refs (declarations here, initial bindings below)
 ;;
 
-;; nested structure containing the status of all jobs run
-;; in server mode, stores locally-run jobs
-;; in client mode, stores all jobs known across domains
-(declare global-job-statuses)
-;; TODO: save this to file periodically, and if the server restarts or
-;; crahess, pick up the latest value from file
-
 ;; counter for unique id's to assign internally to jobs (akin to SQL autoincrement)
 (declare internal-job-id-counter)
 ;; TODO: save this to file periodically, and if the server restarts,
@@ -62,30 +54,12 @@
 (declare job-id-translate-map)
 
 ;;
-;; futures - background threads (declarations here, initial bindings below)
-;;
-
-;; using futures to handle execution of repeating background threads
-;; in Clojure as suggested by these Stackoverflow posts
-;; http://stackoverflow.com/questions/5291436/idiomatic-clojure-way-to-spawn-and-manage-background-threads
-;; http://stackoverflow.com/questions/5397955/sleeping-a-thread-inside-an-executorservice-java-clojure
-;; http://stackoverflow.com/questions/1768567/how-does-one-start-a-thread-in-clojure
-
-(declare status-updater-thread)
-
-;;
 ;; functions
 ;;
 
 ;;
 ;; util functions
 ;;
-
-(defn update-map
-  "a utility function that updates the contents of the base map by adding/replacing them with the values of the newer map, and doing this recursively through the map structure according to clojure.contrib.map-utils/deep-merge-with"
-  [base-map newer-map]
-  (letfn [(merge-fn [& vals] (last (concat vals)))]
-    (map-utils/deep-merge-with merge-fn base-map newer-map)))
 
 (defn first-line
   "return the first line of a string, where the string may have some \newline characters"
@@ -96,81 +70,9 @@
 (defn user-home
   "return the string of the user's home directory, assuming we're on a traditional POSIX system where ~<user> expands to <user>'s home"
   [username]
+  ;; TODO: use fs.core instead of doing this the hard(er) way.  if
+  ;; done, also remove commons-exec from the ns :require list
   (first-line (:out @(commons-exec/sh ["/bin/sh" "-c" (str "echo " "~" username)]))))
-
-
-
-;;
-;; global status functions
-;;
-
-(defn global-statuses
-  "a convenience function to deref the global-job-statuses map ref. for as many values are provided, the sub-map given from nested get calls (as given by get-in) will be returned"
-  ([& levels]
-     (get-in @global-job-statuses levels)))
-
-(defn add-wfinst-to-global-statuses
-  "take the status information from the input wfinst"
-  [wfinst]
-  (let [exec-domain (:exec-domain wfinst)
-        wf (:workflow wfinst)
-        jobs (wflow/wf-jobs wf)
-        newer-info-map {exec-domain (into {} (for [job jobs]
-                                           [(:id job) (:task-statuses job)]))}]
-    (dosync
-     (alter global-job-statuses update-map newer-info-map))))
-
-(defn update-global-statuses
-  "update the information of job execution statuses. works only for SGE, and needs work to be generalizable. providing a nil username means job statuses for all users are updated. nil exec-domain defaults to SGE"
-  ([]
-     (update-global-statuses nil nil))
-  ([exec-domain]
-     (update-global-statuses exec-domain nil))
-  ([exec-domain username]
-     ;; TODO: get rid of magic value default exec-domain being "SGE"
-     (let [exec-domain (or exec-domain "SGE")
-           qstat-status-map-fn (fn [qstat-out-str]
-                                 (if qstat-out-str
-                                   (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. qstat-out-str))]
-                                     (reduce (fn [m [jid user status]] (assoc-in m [user jid] status)) {}
-                                             (map (juxt #(Integer/parseInt (nth % 0)) #(nth % 3) #(nth % 4))
-                                                  (map #(remove (fn [s] (or (nil? s) (= "" s)) ) %)
-                                                       (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
-                                   {}))
-           qstat-recently-done-cmd-parts []
-           qstat-recently-done-cmd-parts (into qstat-recently-done-cmd-parts (if (and username (not= username (. System getProperty "user.name"))) ["sudo" "-u" username "-i"] ["sudo" "-u" (. System getProperty "user.name") "-i"]))
-           qstat-recently-done-cmd-parts (into qstat-recently-done-cmd-parts ["qstat" "-s" "z" "-u" (or username "\"*\"")])
-           recently-done-prom (commons-exec/sh qstat-recently-done-cmd-parts {:handle-quoting? true})
-           ;; TODO: add a timeout to the exec/sh call opts map
-           recently-done-result @recently-done-prom
-           recently-done-map (qstat-status-map-fn (:out recently-done-result))
-           qstat-not-done-cmd-parts []
-           qstat-not-done-cmd-parts (into qstat-not-done-cmd-parts (if (and username (not= username (. System getProperty "user.name"))) ["sudo" "-u" username "-i"] ["sudo" "-u" (. System getProperty "user.name") "-i"]))
-           qstat-not-done-cmd-parts (into qstat-not-done-cmd-parts ["qstat" "-u" (or username "'*'")])
-           not-done-prom (commons-exec/sh qstat-not-done-cmd-parts {:handle-quoting? true})
-           ;; TODO: add a timeout to the exec/sh call opts map
-           not-done-result @not-done-prom
-           not-done-map (qstat-status-map-fn (:out not-done-result))
-           new-status-map {}
-           new-status-map (reduce update-map new-status-map (for [[user user-map] not-done-map
-                                                                  [jid sge-status-str] user-map]
-                                                              (let [task-id 0
-                                                                    status (condp = sge-status-str
-                                                                             "r" :running
-                                                                             "qw" :waiting
-                                                                             "hqw" :waiting
-                                                                             "Eqw" :error
-                                                                             :uncertain)]
-                                                                {user {jid {task-id status}}})))
-           new-status-map (reduce update-map new-status-map (for [[user user-map] recently-done-map
-                                                                  [jid sge-status-str] user-map]
-                                                              (let [task-id 0
-                                                                    status :done]
-                                                                {user {jid {task-id status}}})))
-           global-status-update-map {exec-domain new-status-map}]
-       (dosync
-        (alter global-job-statuses update-map global-status-update-map))
-       )))
 
 ;;
 ;; functions for piped shell commands
@@ -446,7 +348,7 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
                    (let [job (first jobs)
                          job-id (:id job)
                          task-id 0
-                         status (global-statuses exec-domain username job-id task-id)
+                         status (task-status/global-statuses exec-domain username job-id task-id)
                          job-updated-status (assoc-in job [:task-statuses task-id] status)
                          new-wf (wflow/replace-job current-wf job job-updated-status)]
                      (recur new-wf (rest jobs)))))
@@ -511,29 +413,6 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
 ;; ref initializations
 ;;
 
-(def global-job-statuses (ref {}))
-
 (def internal-job-id-counter (atom (first-internal-id)))
 
 (def job-id-translate-map (ref {}))
-
-;;
-;; futures - background threads - initial bindings, related fn's
-;;
-
-;; status-updater-thread - init fn
-
-(defn- create-bg-thread-status-updater-thread
-  "return a future that encapsulates an auto-repeating background thread that updates the global job statuses"
-  []
-  (thread-util/do-and-sleep-repeatedly-bg-thread io-const/DEFAULT-REPEATED-BG-THREAD-SLEEP-TIME update-global-statuses "SGE"))
-
-(defn init-bg-thread-status-updater-thread
-  "initialize the var containing background thread that updates the global job statuses"
-  []
-  (def status-updater-thread (create-bg-thread-status-updater-thread)))
-
-(defn stop-bg-thread-status-updater-thread
-  "stop the future that encapsulates the background thread for updating global job statuses"
-  []
-  (future-cancel status-updater-thread))

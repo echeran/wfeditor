@@ -3,6 +3,7 @@
             [wfeditor.io.file.wfeformat :as fformat]
             [wfeditor.io.execution :as exec]
             [wfeditor.model.workflow :as wflow]
+            [wfeditor.io.status.task-run :as task-status]
             [noir.content.getting-started]
             [noir.response :as resp]
             [noir.validation :as vali]
@@ -69,6 +70,6 @@
     ;; TODO: figure out a way to include the exec-domain info
     (println "updating global statuses")
     ;; TODO: turn enqueuing into multi-method where SGE is just one poss.
-    (exec/update-global-statuses exec-domain username)
+    (task-status/update-global-statuses exec-domain username)
     (println "finished updating global statuses")
     "HTTP response body text to signify that the operation is successful"))

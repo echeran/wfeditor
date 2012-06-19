@@ -31,3 +31,11 @@
 
 ;; time in msec
 (def DEFAULT-REPEATED-BG-THREAD-SLEEP-TIME (* 30 1000))
+
+;;
+;; status constants
+;;
+
+(def CONFIG-FILE-DIR-NAME ".wfeditor")
+
+(def TASK-RUN-FILE-NAME "job_statuses")
