@@ -7,9 +7,17 @@
             [wfeditor.model.workflow :as wflow]
             [wfeditor.io.relay.server :as server]
             [wfeditor.ui.util.swt-dispose :as swt-dispose]
-            [wfeditor.io.util.thread-control :as thread-control])
+            [wfeditor.io.util.thread-control :as thread-control]
+            [wfeditor.io.util.const :as io-const])
   (:import
    org.eclipse.swt.widgets.Display))
+
+
+
+
+;;
+;; functions
+;;
 
 (defn handle-common-args
   "handle arguments and options that are common for the entire program, whether the program is eventually run in command-line mode, gui mode, or etc."
@@ -24,6 +32,8 @@
   "The entry point to building the entire UI.  Uses a JFace idiom to do this, so UI code comes from an extended (proxied) ApplicationWindow.
 TODO: handle options and args coming in from the CLI"
   [options args]
+  (dosync (ref-set io-const/relay-type :client))
+
   ;; The JFace idiomatic way of displaying a window.  As it seems, using
   ;; the "plain SWT" idiom for displaying a window doesn't work for
   ;; situations like a simple Label attached to the Shell, in the
@@ -48,12 +58,14 @@ TODO: handle options and args coming in from the CLI"
 (defn cli-execute
   "The entry point for executing the CLI version of the program"
   [options args]
+  (dosync (ref-set io-const/relay-type :client))
   ;; TODO: create functionality of program!
   )
 
 (defn server-execute
   "The entry point for creating the server version of the program"
   [options args]
+  (dosync (ref-set io-const/relay-type :server))
   (let [port (:port options)
         new-server (server/new-running-server {:port port})]
     (wfeditor.io.util.thread-control/start-all-bg-threads-server)

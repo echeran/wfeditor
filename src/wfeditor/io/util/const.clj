@@ -36,6 +36,20 @@
 ;; status constants
 ;;
 
-(def CONFIG-FILE-DIR-NAME ".wfeditor")
+(def PROPS-DIR-NAME ".wfeditor")
+
+(def CONFIG-DIR-NAME "config")
+
+(def DATA-DIR-NAME "data")
 
 (def TASK-RUN-FILE-NAME "job_statuses")
+
+;;
+;; dynamically-set set-once refs ('constant refs'?; initializations happen from elsewhere)
+;;
+
+;; this ref is a keyword in the set #{:client :server} to indicate
+;; whether the program is being run in client- or server- mode.
+;; initialized to :client for at least the sake of REPL's
+;; this ref is set in wfeditor.main code
+(def relay-type (ref :client))
