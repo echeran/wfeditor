@@ -4,6 +4,8 @@
             [wfeditor.model.workflow :as wflow]
             [clojure.string :as string]
             [clj-commons-exec :as commons-exec]
+            [wfeditor.io.util.thread :as thread-util]
+            [cheshire.core :as cheshire]
             [fs.core :as fs])
   ;; (:use fs.core)
   )
@@ -30,6 +32,8 @@
 ;; http://stackoverflow.com/questions/1768567/how-does-one-start-a-thread-in-clojure
 
 (declare status-updater-thread)
+
+(declare status-output-thread)
 
 ;;
 ;; functions
@@ -120,8 +124,7 @@
                                                                 {user {jid {task-id status}}})))
            global-status-update-map {exec-domain new-status-map}]
        (dosync
-        (alter global-job-statuses update-map global-status-update-map))
-       )))
+        (alter global-job-statuses update-map global-status-update-map)))))
 
 ;;
 ;; task status file read/write operation functions
@@ -150,6 +153,78 @@
   []
   (fs/file (config-dir) io-const/TASK-RUN-FILE-NAME))
 
+(defn- parsed-statuses-map-flattened-entries
+  "this function takes the nested map of statuses given as input (or global-job-statuses if no argument supplied), assumes each 'leaf' value is at the same depth, and returns a seq of vectors, where each vector is like the concatenation of the 'coordinates' (as used by get-in and assoc-in) and the 'leaf' value.  the input nested map is assumed to be given by the Cheshire (JSON) parser.  the function also operates on values according to the structure of the global-job-statuses map. this function was initially created for further parsing (transforming) the output of Cheshire's parsing of JSON" 
+  ([parsed-statuses-map]
+     (for [[exec-dom ed-map] parsed-statuses-map
+           [username user-map] ed-map
+           [job-id-str job-map] user-map
+           [task-id-str status-str] job-map]
+       [exec-dom username job-id-str task-id-str status-str])))
+
+(defn- transform-statuses-map-flattened-entry
+  "the input of this function is an entry, as given by statuses-map-flattened-entries, which is of type vector.the entry's values are assumed to come from parsed-statuses-map-flattened-entries, which takes Cheshire (JSON) parser output as its input -- therefore, values as given by Cheshire's parser are transformed by this function into the right type"
+  [entry]
+  (let [[exec-dom username job-id-str task-id-str status-str] entry]
+    [exec-dom username (Integer/parseInt job-id-str) (Integer/parseInt task-id-str) (keyword status-str)]))
+
+(defn json-to-statuses-map
+  "given a JSON string representing the nested map representing job statuses, return a map of job statuses constructed just as global-job-statuses is constructed"
+  [statuses-map-json-str]
+  (let [parsed-map (cheshire/parse-string statuses-map-json-str)
+        parsed-map-entries (parsed-statuses-map-flattened-entries parsed-map)
+        transformed-parsed-map-entries (for [entry parsed-map-entries]
+                                         (transform-statuses-map-flattened-entry entry))
+        transformed-map (loop [new-map {}
+                               entries transformed-parsed-map-entries]
+                          (if (empty? entries)
+                            new-map
+                            (let [entry (first entries)
+                                  assoc-in-addr (butlast entry)
+                                  val (last entry)]
+                              (recur (assoc-in new-map assoc-in-addr val) (rest entries)))))]
+    transformed-map))
+
+(defn statuses-map-to-json
+  "return the JSON representation of the job statuses map. if no arguments, use global-job-statuses as input"
+  ([]
+     (statuses-map-to-json @global-job-statuses))
+  ([statuses-map]
+     (cheshire/generate-string statuses-map)))
+
+(defn file-to-statuses
+  "read contents of file, which is JSON-encoded version of global job statuses, and return type structure-specific formatted version. if no file provided, then file returned by task-run-file used"
+  ([]
+     (file-to-statuses (task-run-file)))
+  ([file]
+     (let [json-str (slurp file)
+           statuses-map (json-to-statuses-map json-str)]
+       statuses-map)))
+
+(defn statuses-to-file
+  "save global-job-statuses map in JSON format to the provided file. if no file provided, then file returned by task-run-file used"
+  ([]
+     (statuses-to-file (task-run-file)))
+  ([file]
+     (spit file (statuses-map-to-json))))
+
+;;
+;; pre-execution initialization functions
+;;
+
+(defn initialize-task-status-file-ops
+  "do initialization work so that dirs and files exist where statuses should be stored, and any existing status info is loaded"
+  []
+  (let [dir-structure-leaves [(config-dir) (data-dir)]]
+    (map fs/mkdirs dir-structure-leaves))
+  (let [task-run-file (task-run-file)]
+    (if (fs/exists? task-run-file)
+      (let [restored-job-statuses-map (file-to-statuses task-run-file)]
+        (dosync
+         (ref-set global-job-statuses restored-job-statuses-map)))
+      (fs/touch task-run-file))))
+
+
 ;;
 ;; ref initializations
 ;;
@@ -161,6 +236,7 @@
 ;; futures - background threads - initial bindings, related fn's
 ;;
 
+
 ;; status-updater-thread - init fn
 
 (defn- create-bg-thread-status-updater-thread
@@ -169,7 +245,7 @@
   (thread-util/do-and-sleep-repeatedly-bg-thread io-const/DEFAULT-REPEATED-BG-THREAD-SLEEP-TIME update-global-statuses "SGE"))
 
 (defn init-bg-thread-status-updater-thread
-  "initialize the var containing background thread that updates the global job statuses"
+  "initialize the var with a promise containing the background thread that updates the global job statuses"
   []
   (def status-updater-thread (create-bg-thread-status-updater-thread)))
 
@@ -177,3 +253,21 @@
   "stop the future that encapsulates the background thread for updating global job statuses"
   []
   (future-cancel status-updater-thread))
+
+
+;; status-output-thread - init fn
+
+(defn- create-bg-thread-status-output-thread
+  "return a future that encapsulates an auto-repeating background thread that saves the global job statuses to disk"
+  []
+  (thread-util/do-and-sleep-repeatedly-bg-thread (* 60 1000) statuses-to-file))
+
+(defn init-bg-thread-status-output-thread
+  "initialize the var with a promise containing the background thread that saves the global job statuses to disk"
+  []
+  (def status-output-thread (create-bg-thread-status-output-thread)))
+
+(defn stop-bg-thread-status-output-thread
+  "stop the future the encapsulates the background thread that saves the global job statuses to disk"
+  []
+  (future-cancel status-output-thread))

@@ -6,9 +6,11 @@
 (defn start-all-bg-threads-server
   "start all background threads necessary in the server process"
   []
-  (task-status/init-bg-thread-status-updater-thread))
+  (task-status/init-bg-thread-status-updater-thread)
+  (task-status/init-bg-thread-status-output-thread))
 
 (defn stop-all-bg-threads-server
   "stop all background threads that are running in the program"
   []
-  (task-status/stop-bg-thread-status-updater-thread))
+  (task-status/stop-bg-thread-status-updater-thread)
+  (task-status/stop-bg-thread-status-output-thread))

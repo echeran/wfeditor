@@ -7,7 +7,6 @@
             [wfeditor.model.workflow :as wflow]
             [wfeditor.io.relay.server :as server]
             [wfeditor.ui.util.swt-dispose :as swt-dispose]
-            [wfeditor.io.util.thread-control :as thread-control]
             [wfeditor.io.util.const :as io-const])
   (:import
    org.eclipse.swt.widgets.Display))
@@ -66,9 +65,9 @@ TODO: handle options and args coming in from the CLI"
   "The entry point for creating the server version of the program"
   [options args]
   (dosync (ref-set io-const/relay-type :server))
+  (server/initialize-server-process)
   (let [port (:port options)
         new-server (server/new-running-server {:port port})]
-    (wfeditor.io.util.thread-control/start-all-bg-threads-server)
     (server/set-server new-server)))
 
 (defn parse-args

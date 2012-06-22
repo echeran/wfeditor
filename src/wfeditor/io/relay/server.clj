@@ -2,7 +2,9 @@
   (:require [noir.server :as server]
             [wfeditor.io.util.const :as const]
             wfeditor.io.relay.server-views.welcome
-            wfeditor.io.relay.server-views.common))
+            wfeditor.io.relay.server-views.common
+            [wfeditor.io.util.thread-control :as thread-control]
+            [wfeditor.io.status.task-run :as task-status]))
 
 ;;
 ;; refs
@@ -54,3 +56,9 @@
     (common-load-views)
     (server/start port {:mode mode
                         :ns 'wfeditor.io.relay.server})))
+
+(defn initialize-server-process
+  "initialize everything that the server process needs in addition to the embedded [HTTP] server from new-running-server"
+  []
+  (task-status/initialize-task-status-file-ops)
+  (wfeditor.io.util.thread-control/start-all-bg-threads-server))
