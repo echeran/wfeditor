@@ -4,8 +4,9 @@
             [wfeditor.model.workflow :as wflow]
             [clojure.string :as string]
             [clj-commons-exec :as commons-exec]
-            [wfeditor.io.util.thread :as thread-util])
-  (:use fs.core))
+            [fs.core :as fs])
+  ;; (:use fs.core)
+  )
 
 ;;
 ;; refs (declarations here, initial bindings below)
@@ -129,25 +130,25 @@
 (defn- props-dir
   "return the full path of the directory in which all the properties info of the program (running as this user) is stored as a Java File object. this directory should also be specific to whether the program is being run as a client or a server (i.e., server mode should have a separate configuration from client mode). ('properties' includes job output files, configuration, etc., and by 'properties info directory' I basically mean the dot-directory in the home directory)"
   []
-  (let [home-dir (home)
+  (let [home-dir (fs/home)
         relay-type-name (name @io-const/relay-type)
-        props-dir (file home-dir io-const/PROPS-DIR-NAME relay-type-name)]
+        props-dir (fs/file home-dir io-const/PROPS-DIR-NAME relay-type-name)]
     props-dir))
 
 (defn config-dir
   "return the full path of the directory in which the configuration info of the program is stored. similar to props-dir, and should be within the props-dir"
   []
-  (file (props-dir) io-const/CONFIG-DIR-NAME))
+  (fs/file (props-dir) io-const/CONFIG-DIR-NAME))
 
 (defn data-dir
   "return the full path of the directory in which the data of the program are stored. similar to props-dir, and should be within the props-dir"
   []
-  (file (props-dir) io-const/DATA-DIR-NAME))
+  (fs/file (props-dir) io-const/DATA-DIR-NAME))
 
 (defn task-run-file
   "a File object representing the file where the jobs' tasks' statuses are stored"
   []
-  (file (config-dir) io-const/TASK-RUN-FILE-NAME))
+  (fs/file (config-dir) io-const/TASK-RUN-FILE-NAME))
 
 ;;
 ;; ref initializations
