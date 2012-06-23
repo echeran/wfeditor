@@ -147,7 +147,8 @@
   [parent]
   (let [button-group (new-widget Group parent {:styles [SWT/SHADOW_NONE] :text "Debugging Buttons"})
         print-global-statuses-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Print global statuses"})
-        update-server-statuses-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Update statuses on server"})]
+        update-server-statuses-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Update statuses on server"})
+        get-server-statuses-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Get statuses from server"})]
     (doto button-group
       (.setLayout (FillLayout. SWT/VERTICAL))
       (.setLayoutData (GridData. GridData/FILL_BOTH)))
@@ -159,7 +160,13 @@
                                         (let [{:keys [user exec-dom rem-host rem-port loc-port]} @exec-props
                                               loc-host io-const/DEFAULT-LOCAL-HOST
                                               server-host io-const/DEFAULT-SERVER-HOST-REL-TO-REMOTE]
-                                          (exec/update-server-statuses-sge exec-dom user rem-host rem-port loc-port loc-host server-host)))})
+                                          (exec/force-server-update-statuses-sge exec-dom user rem-host rem-port loc-port loc-host server-host)))})
+    (update-button get-server-statuses-button
+                   {:widget-select-fn (fn [event]
+                                        (let [{:keys [user exec-dom rem-host rem-port loc-port]} @exec-props
+                                              loc-host io-const/DEFAULT-LOCAL-HOST
+                                              server-host io-const/DEFAULT-SERVER-HOST-REL-TO-REMOTE]
+                                          (exec/update-statuses-sge exec-dom user rem-host rem-port loc-port loc-host server-host)))})
     button-group))
 
 (defn button-testing-group-create
