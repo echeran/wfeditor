@@ -171,35 +171,3 @@
      (apply status-force-server-update-request-over-ssh-tunnel (default-ssh-tunnel-params)))
   ([exec-domain username rem-host rem-port loc-port loc-host server-host]
      (req-status-over-ssh-tunnel :post exec-domain username "/status" rem-host rem-port loc-port loc-host server-host)))
-
-
-
-
-
-;;
-;; tying to phase these functions out with the functions above
-;;
-
-(defn status-update
-  "similar to req-wfinst function, but gets the server to update its local copy of job execution statuses"
-  [exec-domain username host port]
-  (let [req-fn client/post
-        path "/status"
-        url (str "http://" host ":" port path)]
-    ;; TODO: update this to use JSON (or XML, but in this case, JSON
-    ;; is better?)
-    ;; TODO: include info of the exec-domain at least, esp. if calls
-    ;; are being made from a remote client
-    ;; (req-fn url {:body "body not looked at, at least, not yet"})
-    (req-fn url {:body username})
-    ))
-
-(defn status-update-over-ssh-tunnel
-  "same as status-update, but over an ssh-tunnel"
-  [exec-domain username rem-host rem-port loc-port loc-host server-host]
-  (with-ssh-agent  []
-    (let [session (session rem-host :strict-host-key-checking :no)]
-      (with-connection session
-        (with-local-port-forward [session loc-port rem-port]
-          (status-update exec-domain username loc-host loc-port)))))
-  )

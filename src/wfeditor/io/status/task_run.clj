@@ -6,9 +6,7 @@
             [clj-commons-exec :as commons-exec]
             [wfeditor.io.util.thread :as thread-util]
             [cheshire.core :as cheshire]
-            [fs.core :as fs])
-  ;; (:use fs.core)
-  )
+            [fs.core :as fs]))
 
 ;;
 ;; refs (declarations here, initial bindings below)
