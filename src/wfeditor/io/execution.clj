@@ -407,7 +407,7 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
 (defn update-server-statuses-sge
   "get the server to update its own stats"
   [exec-domain username & conn-args]
-  (apply wfeclient/status-update-over-ssh-tunnel exec-domain username conn-args))
+  (apply wfeclient/status-force-server-update-request-over-ssh-tunnel exec-domain username conn-args))
 
 ;;
 ;; ref initializations

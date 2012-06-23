@@ -18,6 +18,10 @@
 ;; functions
 ;;
 
+;;
+;; WFInstance functions
+;;
+
 (defn- req-wfinst
   "send an HTTP request to the server containing a WFInstance. WFInstance sent as its XML string representation in the request body.  req-type (HTTP request type) is one of [:get :post]"
   ([req-type wfinst path host port]
@@ -109,6 +113,72 @@
 (defmethod response-wfinst ["rem-piped-shell" :create] [wfinst op & conn-args] (apply create-sge-response-wfinst wfinst conn-args))
 (defmethod response-wfinst ["SGE" :update] [wfinst op & conn-args] (apply update-sge-response-wfinst wfinst conn-args))
 (defmethod response-wfinst ["rem-piped-shell" :update] [wfinst op & conn-args] (apply update-sge-response-wfinst wfinst conn-args))
+
+;;
+;; job status functions
+;;
+
+(defn- req-status
+  "similar to req-wfinst function, but for job execution statuses"
+  [req-type exec-domain username path host port]
+  (let [req-fn (condp = req-type
+                 :get client/get
+                 :post client/post)
+        ;; path "/status"
+        url (str "http://" host ":" port path)]
+    ;; TODO: update this to use JSON (or XML, but in this case, JSON
+    ;; is better?)
+    ;; TODO: include info of the exec-domain at least, esp. if calls
+    ;; are being made from a remote client
+    ;; (req-fn url {:body "body not looked at, at least, not yet"})
+    (req-fn url {:body username})
+    ))
+
+(defn- req-status-over-ssh-tunnel
+  "same as req-status, but over an ssh-tunnel"
+  [req-type exec-domain username path rem-host rem-port loc-port loc-host server-host]
+  (with-ssh-agent  []
+    (let [session (session rem-host :strict-host-key-checking :no)]
+      (with-connection session
+        (with-local-port-forward [session loc-port rem-port]
+          (req-status req-type exec-domain username path loc-host loc-port)))))
+  )
+
+(defn- status-update-request
+  "same as update-request, but for job execution statuses"
+  ([exec-domain username]
+     (status-update-request exec-domain username const/DEFAULT-HOST const/DEFAULT-PORT))
+  ([exec-domain username host port]
+     (req-status :get exec-domain username "/status" host port)))
+
+(defn- status-force-server-update-request
+  "send an HTTP POST request to get the server to update its cache of job execution statuses"
+  ([exec-domain username]
+     (status-update-request exec-domain username const/DEFAULT-HOST const/DEFAULT-PORT))
+  ([exec-domain username host port]
+     (req-status :post exec-domain username "/status" host port)))
+
+(defn status-update-request-over-ssh-tunnel
+  "same as status-update-request, but over an ssh-tunnel"
+  ([exec-domain username]
+     (apply status-update-request-over-ssh-tunnel (default-ssh-tunnel-params)))
+  ([exec-domain username rem-host rem-port loc-port loc-host server-host]
+     (req-status-over-ssh-tunnel :get exec-domain username "/status" rem-host rem-port loc-port loc-host server-host)))
+
+(defn status-force-server-update-request-over-ssh-tunnel
+  "same as status-force-server-update-request, but over an ssh-tunnel"
+  ([exec-domain username]
+     (apply status-force-server-update-request-over-ssh-tunnel (default-ssh-tunnel-params)))
+  ([exec-domain username rem-host rem-port loc-port loc-host server-host]
+     (req-status-over-ssh-tunnel :post exec-domain username "/status" rem-host rem-port loc-port loc-host server-host)))
+
+
+
+
+
+;;
+;; tying to phase these functions out with the functions above
+;;
 
 (defn status-update
   "similar to req-wfinst function, but gets the server to update its local copy of job execution statuses"
