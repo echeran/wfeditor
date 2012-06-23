@@ -56,6 +56,12 @@
   ([& levels]
      (get-in @global-job-statuses levels)))
 
+(defn update-global-statuses-with-new-statuses
+  "given a map of new global statuses, do a deep merge of the new map into our existing global-job-statuses"
+  [new-status-map]
+  (dosync
+   (alter global-job-statuses update-map new-status-map)))
+
 (defn add-wfinst-to-global-statuses
   "take the status information from the input wfinst"
   [wfinst]
@@ -64,8 +70,7 @@
         jobs (wflow/wf-jobs wf)
         newer-info-map {exec-domain (into {} (for [job jobs]
                                            [(:id job) (:task-statuses job)]))}]
-    (dosync
-     (alter global-job-statuses update-map newer-info-map))))
+    (update-global-statuses-with-new-statuses newer-info-map)))
 
 (defn update-global-statuses
   "update the information of job execution statuses. works only for SGE, and needs work to be generalizable. providing a nil username means job statuses for all users are updated. nil exec-domain defaults to SGE"
@@ -121,8 +126,8 @@
                                                                     status :done]
                                                                 {user {jid {task-id status}}})))
            global-status-update-map {exec-domain new-status-map}]
-       (dosync
-        (alter global-job-statuses update-map global-status-update-map)))))
+       (update-global-statuses-with-new-statuses global-status-update-map))))
+
 
 ;;
 ;; task status file read/write operation functions

@@ -3,7 +3,8 @@
   (:require [clj-http.client :as client]
             [wfeditor.io.file.wfeformat :as fformat]
             [wfeditor.model.workflow :as wflow]
-            [wfeditor.io.util.const :as const]))
+            [wfeditor.io.util.const :as const]
+            [wfeditor.io.status.task-run :as task-status]))
 
 ;;
 ;; util functions
@@ -13,6 +14,11 @@
   "return the parameters (local and/or remote hosts and/or ports) necessary for an SSH tunnel from the client to server, as needed by the functions in this namespace"
   []
   [const/DEFAULT-HOST const/DEFAULT-PORT const/DEFAULT-LOCAL-PORT const/DEFAULT-LOCAL-HOST const/DEFAULT-SERVER-HOST-REL-TO-REMOTE])
+
+(defn- response-msg
+  "retrieve the body of the HTTP response message from the server"
+  [resp]
+  (:body resp))
 
 ;;
 ;; functions
@@ -80,11 +86,6 @@
   ([wfinst rem-host rem-port loc-port loc-host server-host]
      (req-wfinst-over-ssh-tunnel :post wfinst "/wfinstance" rem-host rem-port loc-port loc-host server-host)))
 
-(defn- response-msg
-  "retrieve the body of the HTTP response message from the server"
-  [resp]
-  (:body resp))
-
 (defn- wfinst-from-response-msg
   "extract the WFInstance object encoded in the HTTP response message sent back from the server"
   [resp]
@@ -117,6 +118,9 @@
 ;;
 ;; job status functions
 ;;
+;; at the moment, no multi-methods b/c exec-domain is assumed to be
+;; SGE for temporary convenience
+;;
 
 (defn- req-status
   "similar to req-wfinst function, but for job execution statuses"
@@ -145,7 +149,7 @@
   )
 
 (defn- status-update-request
-  "same as update-request, but for job execution statuses"
+  "same as update-request, but for job execution statuses. body of response is JSON-encoded statuses from server"
   ([exec-domain username]
      (status-update-request exec-domain username const/DEFAULT-HOST const/DEFAULT-PORT))
   ([exec-domain username host port]
@@ -158,7 +162,7 @@
   ([exec-domain username host port]
      (req-status :post exec-domain username "/status" host port)))
 
-(defn status-update-request-over-ssh-tunnel
+(defn- status-update-request-over-ssh-tunnel
   "same as status-update-request, but over an ssh-tunnel"
   ([exec-domain username]
      (apply status-update-request-over-ssh-tunnel (default-ssh-tunnel-params)))
@@ -171,3 +175,16 @@
      (apply status-force-server-update-request-over-ssh-tunnel (default-ssh-tunnel-params)))
   ([exec-domain username rem-host rem-port loc-port loc-host server-host]
      (req-status-over-ssh-tunnel :post exec-domain username "/status" rem-host rem-port loc-port loc-host server-host)))
+
+(defn- statuses-map-from-response-msg
+  "extract the job statuses map encoded in the HTTP response message sent back from the server"
+  [resp]
+  (let [json-str (response-msg resp)
+        statuses-map (task-status/json-to-statuses-map json-str)]
+    statuses-map))
+
+(defn update-sge-response-statuses
+  "take the latest JSON-encoded job statuses as returned by the server running SGE, and return the Clojure nested-map data structure containing an updated state"
+  [exec-domain username & conn-args]
+  (let [resp (apply status-update-request-over-ssh-tunnel exec-domain username conn-args)]
+    (statuses-map-from-response-msg resp)))

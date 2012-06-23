@@ -404,10 +404,16 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
     ;; (add-wfinst-to-global-statuses created-wfinst)
     (wflow/set-workflow (:workflow created-wfinst))))
 
-(defn update-server-statuses-sge
+(defn force-server-update-statuses-sge
   "get the server to update its own stats"
   [exec-domain username & conn-args]
   (apply wfeclient/status-force-server-update-request-over-ssh-tunnel exec-domain username conn-args))
+
+(defn update-statuses-sge
+  "get the latest statuses from the server and store locally"
+  [exec-domain username & conn-args]
+  (let [new-statuses (apply wfeclient/update-sge-response-statuses exec-domain username conn-args)]
+    (task-status/update-global-statuses-with-new-statuses new-statuses)))
 
 ;;
 ;; ref initializations

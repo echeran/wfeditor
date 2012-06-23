@@ -64,12 +64,20 @@
     (println "finished enqueuing jobs via SGE")
     (fformat/workflow-instance-to-string new-wfinst)))
 
+(defpage [:get "/status"] []
+  (let [username (user-from-req)
+        exec-domain "SGE"]
+    ;; TODO: figure out a way to include the exec-domain info
+    (println "request for global statuses")
+    (task-status/update-global-statuses exec-domain username)
+    (println "finished sending global statuses")
+    (task-status/statuses-map-to-json)))
+
 (defpage [:post "/status"] []
   (let [username (user-from-req)
         exec-domain "SGE"]
     ;; TODO: figure out a way to include the exec-domain info
     (println "updating global statuses")
-    ;; TODO: turn enqueuing into multi-method where SGE is just one poss.
     (task-status/update-global-statuses exec-domain username)
     (println "finished updating global statuses")
     "HTTP response body text to signify that the operation is successful"))
