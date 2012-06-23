@@ -4,7 +4,6 @@
             [wfeditor.model.workflow :as wflow]
             [clojure.string :as string]
             [clj-commons-exec :as commons-exec]
-            [wfeditor.io.util.thread :as thread-util]
             [cheshire.core :as cheshire]
             [fs.core :as fs]))
 
@@ -18,20 +17,6 @@
 (declare global-job-statuses)
 ;; TODO: save this to file periodically, and if the server restarts or
 ;; crashes, pick up the latest value from file
-
-;;
-;; futures - background threads (declarations here, initial bindings below)
-;;
-
-;; using futures to handle execution of repeating background threads
-;; in Clojure as suggested by these Stackoverflow posts
-;; http://stackoverflow.com/questions/5291436/idiomatic-clojure-way-to-spawn-and-manage-background-threads
-;; http://stackoverflow.com/questions/5397955/sleeping-a-thread-inside-an-executorservice-java-clojure
-;; http://stackoverflow.com/questions/1768567/how-does-one-start-a-thread-in-clojure
-
-(declare status-updater-thread)
-
-(declare status-output-thread)
 
 ;;
 ;; functions
@@ -71,6 +56,10 @@
         newer-info-map {exec-domain (into {} (for [job jobs]
                                            [(:id job) (:task-statuses job)]))}]
     (update-global-statuses-with-new-statuses newer-info-map)))
+
+;;
+;; global status functions - server process-specific
+;;
 
 (defn update-global-statuses
   "update the information of job execution statuses. works only for SGE, and needs work to be generalizable. providing a nil username means job statuses for all users are updated. nil exec-domain defaults to SGE"
@@ -127,7 +116,6 @@
                                                                 {user {jid {task-id status}}})))
            global-status-update-map {exec-domain new-status-map}]
        (update-global-statuses-with-new-statuses global-status-update-map))))
-
 
 ;;
 ;; task status file read/write operation functions
@@ -219,7 +207,7 @@
   "do initialization work so that dirs and files exist where statuses should be stored, and any existing status info is loaded"
   []
   (let [dir-structure-leaves [(config-dir) (data-dir)]]
-    (map fs/mkdirs dir-structure-leaves))
+    (dorun (map fs/mkdirs dir-structure-leaves)))
   (let [task-run-file (task-run-file)]
     (if (fs/exists? task-run-file)
       (let [restored-job-statuses-map (file-to-statuses task-run-file)]
@@ -233,44 +221,3 @@
 ;;
 
 (def global-job-statuses (ref {}))
-
-
-;;
-;; futures - background threads - initial bindings, related fn's
-;;
-
-
-;; status-updater-thread - init fn
-
-(defn- create-bg-thread-status-updater-thread
-  "return a future that encapsulates an auto-repeating background thread that updates the global job statuses"
-  []
-  (thread-util/do-and-sleep-repeatedly-bg-thread io-const/DEFAULT-REPEATED-BG-THREAD-SLEEP-TIME update-global-statuses "SGE"))
-
-(defn init-bg-thread-status-updater-thread
-  "initialize the var with a promise containing the background thread that updates the global job statuses"
-  []
-  (def status-updater-thread (create-bg-thread-status-updater-thread)))
-
-(defn stop-bg-thread-status-updater-thread
-  "stop the future that encapsulates the background thread for updating global job statuses"
-  []
-  (future-cancel status-updater-thread))
-
-
-;; status-output-thread - init fn
-
-(defn- create-bg-thread-status-output-thread
-  "return a future that encapsulates an auto-repeating background thread that saves the global job statuses to disk"
-  []
-  (thread-util/do-and-sleep-repeatedly-bg-thread (* 60 1000) statuses-to-file))
-
-(defn init-bg-thread-status-output-thread
-  "initialize the var with a promise containing the background thread that saves the global job statuses to disk"
-  []
-  (def status-output-thread (create-bg-thread-status-output-thread)))
-
-(defn stop-bg-thread-status-output-thread
-  "stop the future the encapsulates the background thread that saves the global job statuses to disk"
-  []
-  (future-cancel status-output-thread))

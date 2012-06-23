@@ -61,4 +61,4 @@
   "initialize everything that the server process needs in addition to the embedded [HTTP] server from new-running-server"
   []
   (task-status/initialize-task-status-file-ops)
-  (wfeditor.io.util.thread-control/start-all-bg-threads-server))
+  (thread-control/start-all-bg-threads-server))

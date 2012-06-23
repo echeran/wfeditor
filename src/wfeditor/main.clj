@@ -3,7 +3,7 @@
   ;; this allows a standalone uberjar to be run by Java
   (:gen-class)
   (:require clojure.tools.cli)
-  (:require wfeditor.ui.gui.core
+  (:require [wfeditor.ui.gui.core :as gui]
             [wfeditor.model.workflow :as wflow]
             [wfeditor.io.relay.server :as server]
             [wfeditor.ui.util.swt-dispose :as swt-dispose]
@@ -32,6 +32,7 @@
 TODO: handle options and args coming in from the CLI"
   [options args]
   (dosync (ref-set io-const/relay-type :client))
+  (gui/initialize-gui)
 
   ;; The JFace idiomatic way of displaying a window.  As it seems, using
   ;; the "plain SWT" idiom for displaying a window doesn't work for
@@ -52,7 +53,9 @@ TODO: handle options and args coming in from the CLI"
     (. app-win open)
     (swt-dispose/dispose-all)
     (when-let [display (. Display getCurrent)]
-        (.dispose display))))
+      (.dispose display)))
+
+  (gui/cleanup-gui))
 
 (defn cli-execute
   "The entry point for executing the CLI version of the program"

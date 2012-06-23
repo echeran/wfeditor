@@ -15,3 +15,16 @@
           (fn []
             (apply f args)
             (Thread/sleep sleep-time)))))))
+
+(defn do-and-sleep-repeatedly-bg-thread-try-catch
+  "similar to do-and-sleep-repeatedly-bg-thread, but handles exceptions/errors with a try/catch.  cfn is one-arg function run in the catch clause, where the one arg is the exception/error in the catch clause. ffn is the no-arg function in the finally clause"
+  ([cfn ffn sleep-time f & args]
+     (future
+       (dorun
+         (repeatedly
+          (fn []
+            (try
+              (apply f args)
+              (catch Throwable t (println "caught throwable: " (.getMessage t)) (cfn t))
+              (finally (ffn)))
+            (Thread/sleep sleep-time)))))))

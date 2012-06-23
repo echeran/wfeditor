@@ -3,7 +3,9 @@
   ;; of importing Java classes in Clojure (see
   ;; http://pragprog.com/magazines/2010-11/getting-clojure)
   (:require wfeditor.ui.gui.zest.canvas
-            [wfeditor.ui.gui.editor-left :as editor-left])
+            [wfeditor.ui.gui.editor-left :as editor-left]
+            [wfeditor.io.util.thread-control :as thread-control]
+            [wfeditor.io.status.task-run :as task-status])
   (:import
    org.eclipse.jface.window.ApplicationWindow
    org.eclipse.swt.SWT
@@ -14,6 +16,19 @@
 ;;
 ;; functions
 ;;
+
+(defn initialize-gui
+  "initialize everything that the GUI needs before creating the Shell, etc."
+  []
+  (task-status/initialize-task-status-file-ops)
+  (thread-control/start-all-bg-threads-client))
+
+(defn cleanup-gui
+  "perform cleanup operations after the Shell has been closed"
+  []
+  (println "in cleanup-gui")
+  (thread-control/stop-all-bg-threads-client)
+  (task-status/statuses-to-file))
 
 (defn ui-editor-right-create [parent] 
   (wfeditor.ui.gui.zest.canvas/graph-viewer-create parent) 

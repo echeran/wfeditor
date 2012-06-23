@@ -103,6 +103,14 @@
                                     (.setText widget (str (:loc-port @exec-props))))))))))
     exec-group))
 
+(defn update-job-statuses-from-server
+  "get the latest job statuses from the server and update the local client copy accordingly"
+  []
+  (let [{:keys [user exec-dom rem-host rem-port loc-port]} @exec-props
+        loc-host io-const/DEFAULT-LOCAL-HOST
+        server-host io-const/DEFAULT-SERVER-HOST-REL-TO-REMOTE]
+    (exec/update-statuses-sge exec-dom user rem-host rem-port loc-port loc-host server-host)))
+
 (defn- button-group-create
   "create the Group widget containing all of the buttons in the left navpane that do something"
   [parent]
@@ -163,10 +171,7 @@
                                           (exec/force-server-update-statuses-sge exec-dom user rem-host rem-port loc-port loc-host server-host)))})
     (update-button get-server-statuses-button
                    {:widget-select-fn (fn [event]
-                                        (let [{:keys [user exec-dom rem-host rem-port loc-port]} @exec-props
-                                              loc-host io-const/DEFAULT-LOCAL-HOST
-                                              server-host io-const/DEFAULT-SERVER-HOST-REL-TO-REMOTE]
-                                          (exec/update-statuses-sge exec-dom user rem-host rem-port loc-port loc-host server-host)))})
+                                        (update-job-statuses-from-server))})
     button-group))
 
 (defn button-testing-group-create

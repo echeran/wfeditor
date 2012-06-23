@@ -1,16 +1,28 @@
 (ns wfeditor.io.util.thread-control
   (:require
-   [wfeditor.io.execution :as exec]
-   [wfeditor.io.status.task-run :as task-status]))
+   [wfeditor.io.status.task-run-thread :as task-status-thread]))
 
 (defn start-all-bg-threads-server
   "start all background threads necessary in the server process"
   []
-  (task-status/init-bg-thread-status-updater-thread)
-  (task-status/init-bg-thread-status-output-thread))
+  (task-status-thread/init-bg-thread-status-updater-thread)
+  (task-status-thread/init-bg-thread-status-output-thread))
 
 (defn stop-all-bg-threads-server
-  "stop all background threads that are running in the program"
+  "stop all background threads that are running in the server process"
   []
-  (task-status/stop-bg-thread-status-updater-thread)
-  (task-status/stop-bg-thread-status-output-thread))
+  (task-status-thread/stop-bg-thread-status-updater-thread)
+  (task-status-thread/stop-bg-thread-status-output-thread))
+
+(defn start-all-bg-threads-client
+  "start all background threads necessary in the client process"
+  []
+  (task-status-thread/init-bg-thread-status-output-thread)
+  (task-status-thread/init-bg-thread-status-from-server-updater-thread))
+
+(defn stop-all-bg-threads-client
+  "stop all background threads that are running in the client progress"
+  []
+  (task-status-thread/stop-bg-thread-status-output-thread)
+  ;; TODO: figure out how to get the bg threads to terminate immediately
+  (task-status-thread/stop-bg-thread-status-from-server-updater-thread))
