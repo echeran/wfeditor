@@ -250,19 +250,10 @@ note: this is the reverse of the dep-graph"
            (for [[key vals] name-dep-map]
              [(get-job-by-field jobs :name key) (for [v vals] (get-job-by-field jobs :name v))]))))
 
-(defn- init-clj-graph
-  "create the initial value of the graph struct object (as used by clojure.contrib.graph) for the graph. Note: the second value of the struct is a function that returns dependent jobs given a job as input.  I'm following the example of the provided test code and using a map since in Clojure, maps are functions of their keys"
-  []
-  (let [jobs (into #{} (initial-jobs))
-        id-dep-map {"compute-sum" ["build-sum-commands"] "build-sum-commands" ["filter-size"] "filter-size" ["dir-contents"]}
-        dep-map (job-dep-map jobs id-dep-map)]
-    (Graph. jobs dep-map)))
-
 (defn- init-clj-wf
   "create the initial value of the workflow object"
-  []
-  (let [init-graph (init-clj-graph)]
-    (new-workflow-fn :graph init-graph)))
+  [] 
+  (new-workflow-fn))
 
 
 ;;

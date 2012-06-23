@@ -227,8 +227,7 @@
   [parent]
   (let [exec-group (execution-group-create parent)
         button-group (button-group-create parent)
-        button-debugging-group (button-debugging-group-create parent)
-        button-testing-group (button-testing-group-create parent)]
+        button-debugging-group (button-debugging-group-create parent)]
     (do
       (.setLayout parent (GridLayout.)))))
 
