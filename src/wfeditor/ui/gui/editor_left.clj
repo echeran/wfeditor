@@ -21,6 +21,14 @@
 ;; functions
 ;;
 
+(defn wfinstance
+  "create a WFInst object out of the current WF held in state along with the exec props held in the GUI (this method is a stopgap until WF's and WFInst's are held together in state)"
+  []
+  (let [workflow (wflow/workflow)
+        {:keys [user exec-dom]} @exec-props
+        wf-inst (wflow/new-wfinstance-fn user exec-dom workflow)]
+    wf-inst))
+
 (defn- execution-group-create
   "create the group in the navpane storing the fields required for executing jobs on the remote server"
   [parent]
@@ -134,17 +142,15 @@
                                             (fformat/save-workflow-to-file (wflow/workflow) out-file-name))))})
     (update-button run-wf-inst-button
                    {:widget-select-fn (fn [event]
-                                        (let [workflow (wflow/workflow)
-                                              {:keys [user exec-dom rem-host rem-port loc-port]} @exec-props
-                                              wf-inst (wflow/new-wfinstance-fn user exec-dom workflow)
+                                        (let [{:keys [rem-host rem-port loc-port]} @exec-props
+                                              wf-inst (wfinstance)
                                               loc-host io-const/DEFAULT-LOCAL-HOST
                                               server-host io-const/DEFAULT-SERVER-HOST-REL-TO-REMOTE]
                                           (exec/create-wfinst-and-set-everywhere wf-inst rem-host rem-port loc-port loc-host server-host)))})
     (update-button update-wf-inst-button
                    {:widget-select-fn (fn [event]
-                                        (let [workflow (wflow/workflow)
-                                              {:keys [user exec-dom rem-host rem-port loc-port]} @exec-props
-                                              wf-inst (wflow/new-wfinstance-fn user exec-dom workflow)
+                                        (let [{:keys [rem-host rem-port loc-port]} @exec-props
+                                              wf-inst (wfinstance)
                                               loc-host io-const/DEFAULT-LOCAL-HOST
                                               server-host io-const/DEFAULT-SERVER-HOST-REL-TO-REMOTE]
                                           (exec/update-wfinst-and-set-everywhere wf-inst rem-host rem-port loc-port loc-host server-host)))}) 
@@ -193,7 +199,7 @@
     (update-button print-wf-sge-test-button
                    {:widget-select-fn (fn [event]
                                         (let [new-wf (wflow/wf-with-internal-ids (wflow/workflow))]
-                                                                   (exec/print-deps-in-order new-wf)))})
+                                          (exec/print-deps-in-order new-wf)))})
     (update-button run-wf-button
                    {:widget-select-fn (fn [event]
                                         (exec/run-workflow (wflow/workflow)))})
@@ -202,9 +208,7 @@
                                         (println (fformat/workflow-to-string (wflow/workflow))))})
     (update-button print-wf-inst-button
                    {:widget-select-fn (fn [event]
-                                        (let [workflow (wflow/workflow)
-                                              {:keys [user exec-dom]} @exec-props
-                                              wf-inst (wflow/new-wfinstance-fn user exec-dom workflow)
+                                        (let [wf-inst (wfinstance)
                                               wf-inst-str (fformat/workflow-instance-to-string wf-inst)]
                                           (println wf-inst-str)))})
     button-group))
