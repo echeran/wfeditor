@@ -23,11 +23,12 @@
 
 (defn wfinstance
   "create a WFInst object out of the current WF held in state along with the exec props held in the GUI (this method is a stopgap until WF's and WFInst's are held together in state)"
-  []
-  (let [workflow (wflow/workflow)
-        {:keys [user exec-dom]} @exec-props
-        wf-inst (wflow/new-wfinstance-fn user exec-dom workflow)]
-    wf-inst))
+  ([]
+     (wfinstance (wflow/workflow)))
+  ([wf]
+     (let [{:keys [user exec-dom]} @exec-props
+           wf-inst (wflow/new-wfinstance-fn user exec-dom wf)]
+       wf-inst)))
 
 (defn- execution-group-create
   "create the group in the navpane storing the fields required for executing jobs on the remote server"
@@ -249,3 +250,19 @@
                       :rem-host io-const/DEFAULT-HOST
                       :rem-port io-const/DEFAULT-PORT
                       :loc-port io-const/DEFAULT-LOCAL-PORT}))
+
+;;
+;; add-watch statements
+;;
+
+
+;; updating the workflow currently held in state in model.workflow
+;; automatically whenever the global-job-statuses changes value, using
+;; the add-watch mechanism.  we have to trust that following this
+;; add-watch, the workflow/wf gets instantiated before the
+;; global-job-statuses changes
+(add-watch task-status/global-job-statuses :re-bind (fn [key r old new]
+                                                      (let [curr-wfinst (wfinstance)
+                                                            updated-wfinst (exec/update-wfinst-sge curr-wfinst)
+                                                            updated-wf (:workflow updated-wfinst)]
+                                                        (wflow/set-workflow updated-wf))))

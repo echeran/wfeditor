@@ -1,7 +1,10 @@
 (ns wfeditor.ui.gui.zest.canvas
   (:require
    [wfeditor.ui.gui.zest.providers :as zproviders]
-   [wfeditor.model.workflow :as wflow])
+   [wfeditor.model.workflow :as wflow]
+   [wfeditor.io.status.task-run :as task-status]
+   [wfeditor.ui.gui.editor-left :as editor-left]
+   [wfeditor.io.execution :as exec])
   (:import
    org.eclipse.zest.core.viewers.GraphViewer
    org.eclipse.swt.SWT
@@ -11,7 +14,8 @@
    org.eclipse.zest.layouts.algorithms.HorizontalShift
    org.eclipse.zest.layouts.algorithms.CompositeLayoutAlgorithm
    org.eclipse.zest.layouts.LayoutStyles
-   org.eclipse.swt.layout.GridData))
+   org.eclipse.swt.layout.GridData
+   org.eclipse.swt.widgets.Display))
 
 
 ;;
@@ -44,9 +48,14 @@
                                           ;; since using in alter
                                           ;; statement, have to return viewer
                                           viewer)]
-    (dosync
-     (zproviders/dispose-job-swt-colors)
-     (alter gv return-viewer-with-new-input-fn wf))))
+    ;; on startup, job statuses in client might get initialized from
+    ;; disk and kick off a workflow update which subsequently might
+    ;; kick off a graph paint operation here. thus, if graphviewer not
+    ;; initialized, then we're not ready to paint, so ignore
+    (when @gv
+      (dosync
+       (zproviders/dispose-job-swt-colors)
+       (alter gv return-viewer-with-new-input-fn wf)))))
 
 (defn graph-viewer-create
   "create (but don't return?) the Zest GraphViewer object creating the whole Zest canvas"
@@ -103,3 +112,17 @@
 ;; key 1: a Workflow object (record)
 ;; values returned by key 1 will be entries in wfeditor.ui.gui.zest.providers/job-swt-colors
 (def all-wf-swt-colors (ref {}))
+
+
+;; updating the workflow currently held in state in model.workflow
+;; automatically whenever the global-job-statuses changes value, using
+;; the add-watch mechanism.  we have to trust that following this
+;; add-watch, the workflow/wf gets instantiated before the
+;; global-job-statuses changes
+(add-watch task-status/global-job-statuses :re-bind (fn [key r old new]
+                                                      (.. Display getDefault (asyncExec
+                                                                              (fn []
+                                                                                (let [curr-wfinst (editor-left/wfinstance)
+                                                                                      updated-wfinst (exec/update-wfinst-sge curr-wfinst)
+                                                                                      updated-wf (:workflow updated-wfinst)]
+                                                                                  (wflow/set-workflow updated-wf)))))))

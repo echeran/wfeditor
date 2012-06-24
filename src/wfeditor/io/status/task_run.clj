@@ -11,6 +11,8 @@
 ;; refs (declarations here, initial bindings below)
 ;;
 
+;; note: an add-watch statement was attached to this ref in ___
+;;
 ;; nested structure containing the status of all jobs run
 ;; in server mode, stores locally-run jobs
 ;; in client mode, stores all jobs known across domains

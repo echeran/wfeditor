@@ -26,7 +26,7 @@
 (defn cleanup-gui
   "perform cleanup operations after the Shell has been closed"
   []
-  (println "in cleanup-gui")
+  (println "in cleanup-gui, may take take a few seconds. if not, manually terminate with ^C")
   (thread-control/stop-all-bg-threads-client)
   (task-status/statuses-to-file))
 
