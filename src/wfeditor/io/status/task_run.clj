@@ -11,7 +11,7 @@
 ;; refs (declarations here, initial bindings below)
 ;;
 
-;; note: an add-watch statement was attached to this ref in ___
+;; note: an add-watch statement was attached to this ref in wfeditor.ui.gui.editor-left
 ;;
 ;; nested structure containing the status of all jobs run
 ;; in server mode, stores locally-run jobs

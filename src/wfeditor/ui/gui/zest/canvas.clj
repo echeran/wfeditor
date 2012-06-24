@@ -1,10 +1,7 @@
 (ns wfeditor.ui.gui.zest.canvas
   (:require
    [wfeditor.ui.gui.zest.providers :as zproviders]
-   [wfeditor.model.workflow :as wflow]
-   [wfeditor.io.status.task-run :as task-status]
-   [wfeditor.ui.gui.editor-left :as editor-left]
-   [wfeditor.io.execution :as exec])
+   [wfeditor.model.workflow :as wflow])
   (:import
    org.eclipse.zest.core.viewers.GraphViewer
    org.eclipse.swt.SWT
@@ -106,23 +103,11 @@
 ;; have to trust that following this add-watch, the graphviewer gets
 ;; instantiated before the workflow changes
 (add-watch wflow/wf :re-bind (fn [key r old new]
-                               (set-graph-from-wf new)))
+                               (.. Display getDefault (asyncExec
+                                                       (fn []
+                                                         (set-graph-from-wf new))))))
 
 ;; the ref's value is a multi-level map:
 ;; key 1: a Workflow object (record)
 ;; values returned by key 1 will be entries in wfeditor.ui.gui.zest.providers/job-swt-colors
 (def all-wf-swt-colors (ref {}))
-
-
-;; updating the workflow currently held in state in model.workflow
-;; automatically whenever the global-job-statuses changes value, using
-;; the add-watch mechanism.  we have to trust that following this
-;; add-watch, the workflow/wf gets instantiated before the
-;; global-job-statuses changes
-(add-watch task-status/global-job-statuses :re-bind (fn [key r old new]
-                                                      (.. Display getDefault (asyncExec
-                                                                              (fn []
-                                                                                (let [curr-wfinst (editor-left/wfinstance)
-                                                                                      updated-wfinst (exec/update-wfinst-sge curr-wfinst)
-                                                                                      updated-wf (:workflow updated-wfinst)]
-                                                                                  (wflow/set-workflow updated-wf)))))))

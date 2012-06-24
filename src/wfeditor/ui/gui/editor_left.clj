@@ -126,8 +126,7 @@
   (let [button-group (new-widget Group parent {:styles [SWT/SHADOW_NONE] :text "Buttons"})
         load-wf-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Load workflow"})
         save-wf-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Save workflow"})
-        run-wf-inst-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Run WF instance"})
-        update-wf-inst-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Update WF instance"})]
+        run-wf-inst-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Run WF instance"})]
     (doto button-group
       (.setLayout (FillLayout. SWT/VERTICAL))
       (.setLayoutData (GridData. GridData/FILL_BOTH)))
@@ -147,21 +146,14 @@
                                               wf-inst (wfinstance)
                                               loc-host io-const/DEFAULT-LOCAL-HOST
                                               server-host io-const/DEFAULT-SERVER-HOST-REL-TO-REMOTE]
-                                          (exec/create-wfinst-and-set-everywhere wf-inst rem-host rem-port loc-port loc-host server-host)))})
-    (update-button update-wf-inst-button
-                   {:widget-select-fn (fn [event]
-                                        (let [{:keys [rem-host rem-port loc-port]} @exec-props
-                                              wf-inst (wfinstance)
-                                              loc-host io-const/DEFAULT-LOCAL-HOST
-                                              server-host io-const/DEFAULT-SERVER-HOST-REL-TO-REMOTE]
-                                          (exec/update-wfinst-and-set-everywhere wf-inst rem-host rem-port loc-port loc-host server-host)))}) 
+                                          (exec/create-wfinst-and-set-everywhere wf-inst rem-host rem-port loc-port loc-host server-host)))}) 
     button-group))
 
 (defn button-debugging-group-create
   "create the Group widget containing all of the debugging buttons in the left navpane"
   [parent]
   (let [button-group (new-widget Group parent {:styles [SWT/SHADOW_NONE] :text "Debugging Buttons"})
-        print-global-statuses-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Print global statuses"})
+        print-global-statuses-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Print locally-saved statuses"})
         update-server-statuses-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Update statuses on server"})
         get-server-statuses-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Get statuses from server"})]
     (doto button-group
@@ -252,17 +244,17 @@
                       :loc-port io-const/DEFAULT-LOCAL-PORT}))
 
 ;;
-;; add-watch statements
-;;
 
+;; add-watch definitions
+;;
 
 ;; updating the workflow currently held in state in model.workflow
 ;; automatically whenever the global-job-statuses changes value, using
 ;; the add-watch mechanism.  we have to trust that following this
 ;; add-watch, the workflow/wf gets instantiated before the
 ;; global-job-statuses changes
-(add-watch task-status/global-job-statuses :re-bind (fn [key r old new]
-                                                      (let [curr-wfinst (wfinstance)
-                                                            updated-wfinst (exec/update-wfinst-sge curr-wfinst)
-                                                            updated-wf (:workflow updated-wfinst)]
-                                                        (wflow/set-workflow updated-wf))))
+(add-watch task-status/global-job-statuses :re-bind (fn [key r old new] 
+                                          (let [curr-wfinst (wfinstance)
+                                                updated-wfinst (exec/update-wfinst-sge curr-wfinst)
+                                                updated-wf (:workflow updated-wfinst)]
+                                            (wflow/set-workflow updated-wf))))
