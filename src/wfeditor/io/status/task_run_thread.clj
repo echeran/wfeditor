@@ -69,7 +69,7 @@
 (defn- create-bg-thread-status-from-server-updater-thread
   "return a future that encapsulates an auto-repeating background thread that updates the global job statuses from status info on the server"
   []
-  (thread-util/do-and-sleep-repeatedly-bg-thread-try-catch (fn [e] ) (fn []) (* 60 1000) editor-left/update-job-statuses-from-server))
+  (thread-util/do-and-sleep-repeatedly-bg-thread-try-catch (fn [e] (println "error in updating statuses: " (.getMessage e) ".  Check your SSH connection (client config, server status,...).")) (fn []) (* 60 1000) editor-left/update-job-statuses-from-server))
 
 (defn init-bg-thread-status-from-server-updater-thread
   "initialize the var with a future containing the background thread that updates the global job statuses from status info on the server"

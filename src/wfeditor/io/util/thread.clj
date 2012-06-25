@@ -25,6 +25,6 @@
           (fn []
             (try
               (apply f args)
-              (catch Throwable t (println "caught throwable: " (.getMessage t)) (cfn t))
+              (catch Throwable t (cfn t))
               (finally (ffn)))
             (Thread/sleep sleep-time)))))))
