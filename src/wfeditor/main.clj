@@ -92,6 +92,7 @@ TODO: handle options and args coming in from the CLI"
                                         ["-g" "--[no-]gui" "Run the GUI frontend with the program" :default true :flag true]
                                         ["-h" "--help" "Display the command-line help statement" :default false :flag true]
                                         ["--graph" "An initial job dependency graph as a map of keywords -> nested vector of keywords (Ex:  {:1 [:0 :2] :3 [:1] :4 [:0]})" :default nil :parse-fn load-string]
+                                        ["-p" "--port" "For server mode, the port on which the server should run" :default io-const/DEFAULT-PORT :parse-fn #(Integer/parseInt %) ]
                                         ["-S"  "--server" "Run in server mode, i.e., run the agent polling the computation server (when on the server main node)" :default false :flag true])]
     (when (:help options)
       (println banner)

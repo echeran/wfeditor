@@ -43,7 +43,7 @@
 
 (defn new-running-server
   "Create a new Noir server, start it, and return it.  config map can contain any of the keys [:mode :port]"
-  [& config-map]
+  [& [config-map]]
   (let [mode (get config-map :mode :dev)
         port (let [user-port-val (get config-map :port)
                    env-port-str (get (System/getenv) "PORT")
@@ -51,8 +51,7 @@
                (cond
                 user-port-val user-port-val
                 env-port-val env-port-val
-                true const/DEFAULT-PORT))
-        ]
+                true const/DEFAULT-PORT))]
     (common-load-views)
     (server/start port {:mode mode
                         :ns 'wfeditor.io.relay.server})))
