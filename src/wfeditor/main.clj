@@ -51,11 +51,13 @@ TODO: handle options and args coming in from the CLI"
   ;; subclass constructor, that should go somewhere here, where the
   ;; instance is actually being returned and manipulated
   (let [app-win (wfeditor.ui.gui.core/app-win-proxy)]
+    ;; must create the menu bar before the Shell is constructed (i.e.,
+    ;; the addMenuBar call should go in the constructor, but
+    ;; constructor code goes here instead
+    (.addMenuBar app-win)
 
     ;; TODO: use CLI options and args to modify the UI here, which is
     ;; after its instantiation 
-
-    
     (. app-win setBlockOnOpen true)
     (. app-win open)
     (swt-dispose/dispose-all)

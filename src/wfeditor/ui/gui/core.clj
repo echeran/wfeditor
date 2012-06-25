@@ -9,9 +9,11 @@
   (:import
    org.eclipse.jface.window.ApplicationWindow
    org.eclipse.swt.SWT
-   (org.eclipse.swt.layout FormLayout FormData FormAttachment GridLayout)
+   (org.eclipse.swt.layout FormLayout FormData FormAttachment GridLayout FillLayout)
    (org.eclipse.swt.widgets Display Shell Sash Composite)
-   (org.eclipse.swt.events SelectionEvent SelectionAdapter)))
+   (org.eclipse.swt.events SelectionEvent SelectionAdapter)
+   org.eclipse.jface.action.MenuManager
+   org.eclipse.jface.action.Action))
 
 ;;
 ;; functions
@@ -84,6 +86,17 @@
                                       (dorun
                                        (.. sash getParent layout))))))))
 
+(defn ui-menu-bar
+  "create a menu bar for the ApplicationWindow using JFace"
+  []
+  (let [menu-mgr (MenuManager.)
+        file-menu (MenuManager. "File")
+        open-actn (proxy [Action] ["I have a name!"])]
+    (.add file-menu open-actn)
+    (doto menu-mgr
+      (.add file-menu))
+    menu-mgr))
+
 ;; JFace way of creating a window is to subclass ApplicationWindow and
 ;; override createContents
 ;; This is the Clojure way of "subclassing", i.e., extending a class
@@ -99,6 +112,9 @@
     ;; Instead, any code that would go in the subclass construtor
     ;; should be applied to the instance of the extended class
     ;; returned by proxy
+    ;;
+    ;; the addMenuBar call in the constructor is required by JFace for the
+    ;; ApplicationWindow subclass to call createMenuManger
     (createContents [parent]
       (ui-editor-create parent))
     (getInitialSize []
@@ -117,4 +133,8 @@
             display (.getDisplay shell)
             prim-mon (.getPrimaryMonitor display)
             client-area (.getClientArea prim-mon)]
-        (.computeSize shell (. client-area width) (. client-area height) true)))))
+        (.computeSize shell (. client-area width) (. client-area height) true)))
+    (createMenuManager []
+      ;; method required if creating a menu through JFace
+      ;; must return MenuManger object
+      (ui-menu-bar))))
