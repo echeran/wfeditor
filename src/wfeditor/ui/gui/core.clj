@@ -5,7 +5,11 @@
   (:require wfeditor.ui.gui.zest.canvas
             [wfeditor.ui.gui.editor-left :as editor-left]
             [wfeditor.io.util.thread-control :as thread-control]
-            [wfeditor.io.status.task-run :as task-status])
+            [wfeditor.io.status.task-run :as task-status]
+
+            [wfeditor.model.workflow :as wflow]
+            [wfeditor.io.file.wfeformat :as fformat])
+  (:use [wfeditor.ui.util.swt :as swt-util])
   (:import
    org.eclipse.jface.window.ApplicationWindow
    org.eclipse.swt.SWT
@@ -13,7 +17,10 @@
    (org.eclipse.swt.widgets Display Shell Sash Composite)
    (org.eclipse.swt.events SelectionEvent SelectionAdapter)
    org.eclipse.jface.action.MenuManager
-   org.eclipse.jface.action.Action))
+   org.eclipse.jface.action.Action
+
+
+   org.eclipse.swt.widgets.FileDialog))
 
 ;;
 ;; functions
@@ -91,8 +98,20 @@
   []
   (let [menu-mgr (MenuManager.)
         file-menu (MenuManager. "File")
-        open-actn (proxy [Action] ["I have a name!"])]
-    (.add file-menu open-actn)
+        active-shell-fn (fn [] (.. Display getCurrent getActiveShell))
+        open-actn (proxy [Action] ["Open"]
+                    (run []
+                      (let [fd (new FileDialog (get-ancestor-shell (active-shell-fn)) SWT/OPEN)]
+                        (when-let [in-file-name (.open fd)]
+                          (fformat/set-workflow-from-file in-file-name)))))
+        save-as-actn (proxy [Action] ["Save As"]
+                       (run []
+                         (let [fd (FileDialog. (get-ancestor-shell (active-shell-fn)) SWT/SAVE)]
+                           (when-let [out-file-name (.open fd)]
+                             (fformat/save-workflow-to-file (wflow/workflow) out-file-name)))))]
+    (doto file-menu
+      (.add open-actn)
+      (.add save-as-actn))
     (doto menu-mgr
       (.add file-menu))
     menu-mgr))
@@ -129,6 +148,13 @@
       ;; subclass of ApplicationWindow (instead of this proxy), but
       ;; that would be the next step.  For now, at least, this
       ;; workaround of setMaximized(true) is fine by me.
+      ;;
+      ;; after adding the JFace menu bar, this maximization code
+      ;; doesn't seem to work
+      ;; TODO: try either of
+      ;; http://www.eclipsezone.com/eclipse/forums/t31806.html
+      ;; http://stackoverflow.com/questions/9722911/java-swt-application-bring-to-front
+      ;; for yet another workaround
       (let [shell (.getShell this)
             display (.getDisplay shell)
             prim-mon (.getPrimaryMonitor display)
