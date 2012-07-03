@@ -297,8 +297,8 @@
       <prog-args>
         <arg>-jar</arg>
         <arg>~/ngs/picard/picard-tools-1.66/AddOrReplaceReadGroups.jar</arg>
-        <arg>INPUT=merged.bam</arg>
-        <arg>OUTPUT=merged-rg.bam</arg>
+        <arg>INPUT=~/sge/alignment/merged.bam</arg>
+        <arg>OUTPUT=~/sge/alignment/merged-rg.bam</arg>
         <arg>RGLB=whatever</arg>
         <arg>RGPL=illumina</arg>
         <arg>RGPU=whatever</arg>
