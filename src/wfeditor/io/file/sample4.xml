@@ -23,7 +23,7 @@
       <name>create-dirs</name>
       <prog-exec-loc>mkdir</prog-exec-loc>
       <prog-args>
-        <arg>~/sge</arg>
+        <arg>~/sge/alignment</arg>
       </prog-args>
       <prog-opts>
         <opt>
