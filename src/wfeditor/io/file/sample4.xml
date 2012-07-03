@@ -295,6 +295,7 @@
       <prog-exec-loc>/usr/bin/java</prog-exec-loc>
       <prog-exec-ver>1.7.0</prog-exec-ver>
       <prog-args>
+        <arg>-jar</arg>
         <arg>~/ngs/picard/picard-tools-1.66/AddOrReplaceReadGroups.jar</arg>
         <arg>INPUT=merged.bam</arg>
         <arg>OUTPUT=merged-rg.bam</arg>
