@@ -65,6 +65,9 @@
         comp-left-fdata (FormData.)
         comp-right-fdata (FormData.)]
     (do
+      (let [shell (get-ancestor-shell parent)]
+        (.setText shell "WFEditor")))
+    (do
       (.setLayout parent (FormLayout.))
       (editor-left/ui-editor-left-create comp-left)
       (ui-editor-right-create comp-right))
