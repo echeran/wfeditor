@@ -6,9 +6,9 @@
             [wfeditor.ui.gui.editor-left :as editor-left]
             [wfeditor.io.util.thread-control :as thread-control]
             [wfeditor.io.status.task-run :as task-status]
-
             [wfeditor.model.workflow :as wflow]
-            [wfeditor.io.file.wfeformat :as fformat])
+            [wfeditor.io.file.wfeformat :as fformat]
+            [wfeditor.ui.util.const :as ui-const])
   (:use [wfeditor.ui.util.swt :as swt-util])
   (:import
    org.eclipse.jface.window.ApplicationWindow
@@ -18,8 +18,6 @@
    (org.eclipse.swt.events SelectionEvent SelectionAdapter)
    org.eclipse.jface.action.MenuManager
    org.eclipse.jface.action.Action
-
-
    org.eclipse.swt.widgets.FileDialog))
 
 ;;
@@ -29,7 +27,7 @@
 (defn initialize-gui
   "initialize everything that the GUI needs before creating the Shell, etc."
   []
-  (. Display setAppName "WFEditor")
+  (. Display setAppName ui-const/WINDOW-APP-NAME)
   (task-status/initialize-task-status-file-ops)
   (thread-control/start-all-bg-threads-client))
 

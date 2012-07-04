@@ -1,4 +1,5 @@
-(ns wfeditor.io.util.const)
+(ns wfeditor.io.util.const
+  (:require [wfeditor.util.const :as global-const]))
 ;; a class whose purpose is to store constants
 ;; hopefully, this will help prevent cyclical namespace
 ;; requirements/dependencies
@@ -36,7 +37,7 @@
 ;; status constants
 ;;
 
-(def PROPS-DIR-NAME ".wfeditor")
+(def PROPS-DIR-NAME (str "." global-const/PROGRAM-NAME-COMPACT-LC))
 
 (def CONFIG-DIR-NAME "config")
 
