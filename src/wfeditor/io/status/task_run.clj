@@ -123,29 +123,6 @@
 ;; task status file read/write operation functions
 ;;
 
-(defn- props-dir
-  "return the full path of the directory in which all the properties info of the program (running as this user) is stored as a Java File object. this directory should also be specific to whether the program is being run as a client or a server (i.e., server mode should have a separate configuration from client mode). ('properties' includes job output files, configuration, etc., and by 'properties info directory' I basically mean the dot-directory in the home directory)"
-  []
-  (let [home-dir (fs/home)
-        relay-type-name (name @io-const/relay-type)
-        props-dir (fs/file home-dir io-const/PROPS-DIR-NAME relay-type-name)]
-    props-dir))
-
-(defn config-dir
-  "return the full path of the directory in which the configuration info of the program is stored. similar to props-dir, and should be within the props-dir"
-  []
-  (fs/file (props-dir) io-const/CONFIG-DIR-NAME))
-
-(defn data-dir
-  "return the full path of the directory in which the data of the program are stored. similar to props-dir, and should be within the props-dir"
-  []
-  (fs/file (props-dir) io-const/DATA-DIR-NAME))
-
-(defn task-run-file
-  "a File object representing the file where the jobs' tasks' statuses are stored"
-  []
-  (fs/file (config-dir) io-const/TASK-RUN-FILE-NAME))
-
 (defn- parsed-statuses-map-flattened-entries
   "this function takes the nested map of statuses given as input (or global-job-statuses if no argument supplied), assumes each 'leaf' value is at the same depth, and returns a seq of vectors, where each vector is like the concatenation of the 'coordinates' (as used by get-in and assoc-in) and the 'leaf' value.  the input nested map is assumed to be given by the Cheshire (JSON) parser.  the function also operates on values according to the structure of the global-job-statuses map. this function was initially created for further parsing (transforming) the output of Cheshire's parsing of JSON" 
   ([parsed-statuses-map]
@@ -188,7 +165,7 @@
 (defn file-to-statuses
   "read contents of file, which is JSON-encoded version of global job statuses, and return type structure-specific formatted version. if no file provided, then file returned by task-run-file used"
   ([]
-     (file-to-statuses (task-run-file)))
+     (file-to-statuses (io-const/task-run-file)))
   ([file]
      (let [json-str (slurp file)
            statuses-map (json-to-statuses-map json-str)]
@@ -197,7 +174,7 @@
 (defn statuses-to-file
   "save global-job-statuses map in JSON format to the provided file. if no file provided, then file returned by task-run-file used"
   ([]
-     (statuses-to-file (task-run-file)))
+     (statuses-to-file (io-const/task-run-file)))
   ([file]
      (spit file (statuses-map-to-json))))
 
@@ -208,9 +185,9 @@
 (defn initialize-task-status-file-ops
   "do initialization work so that dirs and files exist where statuses should be stored, and any existing status info is loaded"
   []
-  (let [dir-structure-leaves [(config-dir) (data-dir)]]
+  (let [dir-structure-leaves [(io-const/config-dir) (io-const/data-dir)]]
     (dorun (map fs/mkdirs dir-structure-leaves)))
-  (let [task-run-file (task-run-file)]
+  (let [task-run-file (io-const/task-run-file)]
     (if (fs/exists? task-run-file)
       (let [restored-job-statuses-map (file-to-statuses task-run-file)]
         (dosync
