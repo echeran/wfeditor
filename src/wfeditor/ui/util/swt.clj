@@ -77,3 +77,8 @@ Note: This has compiled but never run for me (aside from test cases in an intera
            rgb (new RGB r g b)
            color (new Color disp rgb)]
        color)))
+
+(defn active-shell
+  "return the active Shell of the current Display"
+  []
+  (.. Display getCurrent getActiveShell))

@@ -102,15 +102,14 @@
   []
   (let [menu-mgr (MenuManager.)
         file-menu (MenuManager. "File")
-        active-shell-fn (fn [] (.. Display getCurrent getActiveShell))
         open-actn (proxy [Action] ["Open"]
                     (run []
-                      (let [fd (new FileDialog (get-ancestor-shell (active-shell-fn)) SWT/OPEN)]
+                      (let [fd (new FileDialog (get-ancestor-shell (active-shell)) SWT/OPEN)]
                         (when-let [in-file-name (.open fd)]
                           (fformat/set-workflow-from-file in-file-name)))))
         save-as-actn (proxy [Action] ["Save As"]
                        (run []
-                         (let [fd (FileDialog. (get-ancestor-shell (active-shell-fn)) SWT/SAVE)]
+                         (let [fd (FileDialog. (get-ancestor-shell (active-shell)) SWT/SAVE)]
                            (when-let [out-file-name (.open fd)]
                              (fformat/save-workflow-to-file (wflow/workflow) out-file-name)))))]
     (doto file-menu
