@@ -29,6 +29,7 @@
 (defn initialize-gui
   "initialize everything that the GUI needs before creating the Shell, etc."
   []
+  (. Display setAppName "WFEditor")
   (task-status/initialize-task-status-file-ops)
   (thread-control/start-all-bg-threads-client))
 
