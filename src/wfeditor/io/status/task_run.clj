@@ -17,8 +17,6 @@
 ;; in server mode, stores locally-run jobs
 ;; in client mode, stores all jobs known across domains
 (declare global-job-statuses)
-;; TODO: save this to file periodically, and if the server restarts or
-;; crashes, pick up the latest value from file
 
 ;;
 ;; functions

@@ -3,11 +3,11 @@
             [clojure.string :as string]
             [popen :as popen]
             [clj-commons-exec :as commons-exec]
-            [clojure.java.io :as clj-io]
             [wfeditor.io.relay.client :as wfeclient]
             [wfeditor.model.workflow :as wflow]
             [wfeditor.io.util.const :as io-const]
-            [wfeditor.io.status.task-run :as task-status])
+            [wfeditor.io.status.task-run :as task-status]
+            [fs.core :as fs])
   (:import wfeditor.model.workflow.Job))
 
 ;;
@@ -267,10 +267,14 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
   []
   (let [env-map (commons-exec/env)
         sge-root (env-map "SGE_ROOT")
-        ;; TODO: should consider the fs library as mentioned in this
+        ;; using fs to handle files, dirs, and paths
         ;; SO post: http://stackoverflow.com/questions/8566531/listing-files-in-a-directory-in-clojure
-        sge-jobseqnum-file (clj-io/file sge-root "default/spool/qmaster/jobseqnum")
-        sge-jobseqnum-file-path (.getAbsolutePath sge-jobseqnum-file)
+        ;; had a compiler issue (NullPointerException) that I couldn't
+        ;; backwards-explain logically. The only possibility is that
+        ;; clojure.java.io/file shares same name as fs/file. removing
+        ;; clojure.java.io from :require form of ns form solved problem
+        sge-jobseqnum-file (apply fs/file sge-root ["default" "spool" "qmaster" "jobseqnum"])
+        sge-jobseqnum-file-path (str (fs/normalized-path sge-jobseqnum-file))
         cmd (commons-exec/sh ["cat" sge-jobseqnum-file-path])
         result @cmd
         jobseqnum (when (= 0 (:exit result))
