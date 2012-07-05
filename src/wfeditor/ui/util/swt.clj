@@ -1,9 +1,11 @@
 (ns wfeditor.ui.util.swt
+  (:require [wfeditor.io.file.wfeformat :as fformat]
+            [wfeditor.model.workflow :as wflow])
   (:import
    org.eclipse.swt.SWT
    (org.eclipse.swt.events SelectionEvent SelectionAdapter)
    (org.eclipse.swt.graphics Color RGB)
-   org.eclipse.swt.widgets.Display))
+   (org.eclipse.swt.widgets Display FileDialog)))
 
 ;; naming convention using asterisk at end explained in this SO post:
 ;; http://stackoverflow.com/questions/5082850/whats-the-convention-for-using-an-asterisk-at-the-end-of-a-function-name-in-clo
@@ -82,3 +84,17 @@ Note: This has compiled but never run for me (aside from test cases in an intera
   "return the active Shell of the current Display"
   []
   (.. Display getCurrent getActiveShell))
+
+(defn file-dialog-open-wf
+  "create an open file dialog and set the resulting file's workflow as state"
+  [parent]
+  (let [fd (new FileDialog parent SWT/OPEN)]
+    (when-let [in-file-name (.open fd)]
+      (fformat/set-workflow-from-file in-file-name))))
+
+(defn file-dialog-save-as-wf
+  "create a save file dialog and output state to the file selected/created by the dialog"
+  [parent]
+  (let [fd (FileDialog. parent SWT/SAVE)]
+    (when-let [out-file-name (.open fd)]
+      (fformat/save-workflow-to-file (wflow/workflow) out-file-name))))

@@ -132,14 +132,10 @@
       (.setLayoutData (GridData. GridData/FILL_BOTH)))
     (update-button load-wf-button
                    {:widget-select-fn (fn [event]
-                                        (let [fd (new FileDialog (get-ancestor-shell parent) SWT/OPEN)]
-                                                         (when-let [in-file-name (.open fd)]
-                                                           (fformat/set-workflow-from-file in-file-name))))})
+                                        (swt-util/file-dialog-open-wf (get-ancestor-shell parent)))})
     (update-button save-wf-button
                    {:widget-select-fn (fn [event]
-                                        (let [fd (FileDialog. (get-ancestor-shell parent) SWT/SAVE)]
-                                          (when-let [out-file-name (.open fd)]
-                                            (fformat/save-workflow-to-file (wflow/workflow) out-file-name))))})
+                                        (swt-util/file-dialog-save-as-wf (get-ancestor-shell parent)))})
     (update-button run-wf-inst-button
                    {:widget-select-fn (fn [event]
                                         (let [{:keys [rem-host rem-port loc-port]} @exec-props

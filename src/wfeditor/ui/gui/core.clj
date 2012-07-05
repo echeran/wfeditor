@@ -6,19 +6,16 @@
             [wfeditor.ui.gui.editor-left :as editor-left]
             [wfeditor.io.util.thread-control :as thread-control]
             [wfeditor.io.status.task-run :as task-status]
-            [wfeditor.model.workflow :as wflow]
-            [wfeditor.io.file.wfeformat :as fformat]
             [wfeditor.ui.util.const :as ui-const])
   (:use [wfeditor.ui.util.swt :as swt-util])
   (:import
    org.eclipse.jface.window.ApplicationWindow
    org.eclipse.swt.SWT
-   (org.eclipse.swt.layout FormLayout FormData FormAttachment GridLayout FillLayout)
-   (org.eclipse.swt.widgets Display Shell Sash Composite)
+   (org.eclipse.swt.layout FormLayout FormData FormAttachment GridLayout FillLayout RowLayout)
+   (org.eclipse.swt.widgets Display Shell Sash Composite ToolBar)
    (org.eclipse.swt.events SelectionEvent SelectionAdapter)
    org.eclipse.jface.action.MenuManager
-   org.eclipse.jface.action.Action
-   org.eclipse.swt.widgets.FileDialog))
+   org.eclipse.jface.action.Action))
 
 ;;
 ;; functions
@@ -95,6 +92,24 @@
                                       (dorun
                                        (.. sash getParent layout))))))))
 
+(defn ui-toolbar
+  "create a toolbar for the entire window"
+  [parent]
+  (let [toolbar (ToolBar. parent SWT/HORIZONTAL)
+        push-button-names ["Open" "Save As"]]
+    
+    toolbar))
+
+(defn ui-contents-create
+  "create the entire contents of the window"
+  [parent]
+  (let [toolbar (ui-toolbar parent)
+        comp-left-right (Composite. parent SWT/NONE)]
+    (do
+      (.setLayout parent (RowLayout. SWT/VERTICAL)))
+    (do
+      (ui-editor-create comp-left-right))))
+
 (defn ui-menu-bar
   "create a menu bar for the ApplicationWindow using JFace"
   []
@@ -102,14 +117,10 @@
         file-menu (MenuManager. "File")
         open-actn (proxy [Action] ["Open"]
                     (run []
-                      (let [fd (new FileDialog (get-ancestor-shell (active-shell)) SWT/OPEN)]
-                        (when-let [in-file-name (.open fd)]
-                          (fformat/set-workflow-from-file in-file-name)))))
+                      (swt-util/file-dialog-open-wf (get-ancestor-shell (active-shell)))))
         save-as-actn (proxy [Action] ["Save As"]
                        (run []
-                         (let [fd (FileDialog. (get-ancestor-shell (active-shell)) SWT/SAVE)]
-                           (when-let [out-file-name (.open fd)]
-                             (fformat/save-workflow-to-file (wflow/workflow) out-file-name)))))]
+                         (swt-util/file-dialog-save-as-wf (get-ancestor-shell (active-shell)))))]
     (doto file-menu
       (.add open-actn)
       (.add save-as-actn))
@@ -136,7 +147,7 @@
     ;; the addMenuBar call in the constructor is required by JFace for the
     ;; ApplicationWindow subclass to call createMenuManger
     (createContents [parent]
-      (ui-editor-create parent))
+      (ui-contents-create parent))
     (getInitialSize []
       ;; override default implementation (documented in Javadoc) with
       ;; one that ensures the window is "maximized"
