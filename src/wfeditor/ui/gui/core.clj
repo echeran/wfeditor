@@ -12,7 +12,7 @@
    org.eclipse.jface.window.ApplicationWindow
    org.eclipse.swt.SWT
    (org.eclipse.swt.layout FormLayout FormData FormAttachment GridLayout FillLayout RowLayout)
-   (org.eclipse.swt.widgets Display Shell Sash Composite ToolBar)
+   (org.eclipse.swt.widgets Display Shell Sash Composite)
    (org.eclipse.swt.events SelectionEvent SelectionAdapter)
    org.eclipse.jface.action.MenuManager
    org.eclipse.jface.action.Action))
@@ -92,23 +92,25 @@
                                       (dorun
                                        (.. sash getParent layout))))))))
 
-(defn ui-toolbar
-  "create a toolbar for the entire window"
-  [parent]
-  (let [toolbar (ToolBar. parent SWT/HORIZONTAL)
-        push-button-names ["Open" "Save As"]]
-    
-    toolbar))
+;; (defn ui-toolbar
+;;   "create a toolbar for the entire window"
+;;   [parent]
+;;   (let [toolbar (ToolBar. parent SWT/HORIZONTAL)
+;;         push-button-names ["Open" "Save As"]]
+;;     (doseq [name push-button-names]
+;;       (doto (ToolItem. toolbar SWT/PUSH)
+;;         (.setText name)))
+;;     toolbar))
 
-(defn ui-contents-create
-  "create the entire contents of the window"
-  [parent]
-  (let [toolbar (ui-toolbar parent)
-        comp-left-right (Composite. parent SWT/NONE)]
-    (do
-      (.setLayout parent (RowLayout. SWT/VERTICAL)))
-    (do
-      (ui-editor-create comp-left-right))))
+;; (defn ui-contents-create
+;;   "create the entire contents of the window"
+;;   [parent]
+;;   (let [toolbar (ui-toolbar parent)
+;;         comp-left-right (Composite. parent SWT/NONE)]
+;;     (do
+;;       (.setLayout parent (RowLayout. SWT/VERTICAL)))
+;;     (do
+;;       (ui-editor-create comp-left-right))))
 
 (defn ui-menu-bar
   "create a menu bar for the ApplicationWindow using JFace"
@@ -147,7 +149,7 @@
     ;; the addMenuBar call in the constructor is required by JFace for the
     ;; ApplicationWindow subclass to call createMenuManger
     (createContents [parent]
-      (ui-contents-create parent))
+      (ui-editor-create parent))
     (getInitialSize []
       ;; override default implementation (documented in Javadoc) with
       ;; one that ensures the window is "maximized"
