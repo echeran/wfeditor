@@ -70,9 +70,7 @@
 (defn user-home
   "return the string of the user's home directory, assuming we're on a traditional POSIX system where ~<user> expands to <user>'s home"
   [username]
-  ;; TODO: use fs.core instead of doing this the hard(er) way.  if
-  ;; done, also remove commons-exec from the ns :require list
-  (first-line (:out @(commons-exec/sh ["/bin/sh" "-c" (str "echo " "~" username)]))))
+  (fs/home username))
 
 ;;
 ;; functions for piped shell commands
