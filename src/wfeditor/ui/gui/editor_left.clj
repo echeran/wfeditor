@@ -7,7 +7,7 @@
   (:use [wfeditor.ui.util.swt :as swt-util])
   (:import
    org.eclipse.swt.SWT
-   (org.eclipse.swt.layout FillLayout RowLayout GridLayout GridData)
+   (org.eclipse.swt.layout FillLayout RowLayout GridLayout GridData FormLayout FormData FormAttachment)
    (org.eclipse.swt.widgets Label Button FileDialog Group Text Combo)
    (org.eclipse.swt.events SelectionEvent SelectionAdapter ModifyListener ModifyEvent)))
 
@@ -45,7 +45,8 @@
         loc-port-label (new-widget Label exec-group {:styles [SWT/LEFT] :text "Local port:"})
         loc-port-text (new-widget Text exec-group {:styles [SWT/SINGLE SWT/BORDER] :text (str (:loc-port @exec-props))})]
     (doto exec-group
-      (.setLayoutData (GridData. GridData/FILL_HORIZONTAL)))
+      ;; (.setLayoutData (GridData. GridData/FILL_HORIZONTAL))
+      )
     (let [layout (GridLayout.)]
       (do
         (set! (. layout numColumns) 2)
@@ -128,8 +129,9 @@
         save-wf-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Save workflow"})
         run-wf-inst-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Run WF instance"})]
     (doto button-group
-      (.setLayout (FillLayout. SWT/VERTICAL))
-      (.setLayoutData (GridData. GridData/FILL_BOTH)))
+      (.setLayout (RowLayout. SWT/VERTICAL))
+      ;; (.setLayoutData (GridData. GridData/FILL_BOTH))
+      )
     (update-button load-wf-button
                    {:widget-select-fn (fn [event]
                                         (swt-util/file-dialog-open-wf (get-ancestor-shell parent)))})
@@ -153,8 +155,9 @@
         update-server-statuses-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Update statuses on server"})
         get-server-statuses-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Get statuses from server"})]
     (doto button-group
-      (.setLayout (FillLayout. SWT/VERTICAL))
-      (.setLayoutData (GridData. GridData/FILL_BOTH)))
+      (.setLayout (RowLayout. SWT/VERTICAL))
+      ;; (.setLayoutData (GridData. GridData/FILL_BOTH))
+      )
     (update-button print-global-statuses-button
                    {:widget-select-fn (fn [event]
                                         (println (task-status/global-statuses)))})
@@ -179,8 +182,9 @@
         print-wf-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Print workflow"})
         print-wf-inst-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Print WF instance"})]
     (doto button-group
-      (.setLayout (FillLayout. SWT/VERTICAL))
-      (.setLayoutData (GridData. GridData/FILL_BOTH)))
+      (.setLayout (RowLayout. SWT/VERTICAL))
+      ;; (.setLayoutData (GridData. GridData/FILL_BOTH))
+      )
     (update-button print-wf-cmd-button
                    {:widget-select-fn (fn [event]
                                         (exec/print-wf-command (wflow/workflow)))})
@@ -210,7 +214,8 @@
     (doto testing-group
       (.setText "Testing")
       (.setLayout (RowLayout. SWT/VERTICAL))
-      (.setLayoutData (GridData. GridData/HORIZONTAL_ALIGN_BEGINNING)))
+      ;; (.setLayoutData (GridData. GridData/HORIZONTAL_ALIGN_BEGINNING))
+      )
     (doto label2
       (.setText "Testing/non-working button(s)"))
     (create-widgets-with-names testing-group Button SWT/PUSH ["one" "two" "three"])
@@ -225,9 +230,26 @@
   [parent]
   (let [exec-group (execution-group-create parent)
         button-group (button-group-create parent)
-        button-debugging-group (button-debugging-group-create parent)]
+        button-debugging-group (button-debugging-group-create parent)
+        exec-group-fdata (FormData.)
+        button-group-fdata (FormData.)
+        button-debugging-group-fdata (FormData.)]
     (do
-      (.setLayout parent (GridLayout.)))))
+      (.setLayout parent (FormLayout.)))
+    (do
+      (set! (. exec-group-fdata top) (FormAttachment. 0 10))
+      (set! (. exec-group-fdata left) (FormAttachment. 0 10))
+      (set! (. exec-group-fdata right) (FormAttachment. 100 -10))
+      (.setLayoutData exec-group exec-group-fdata)
+      (set! (. button-group-fdata top)  (FormAttachment. exec-group 10))
+      (set! (. button-group-fdata left) (FormAttachment. 0 10))
+      (set! (. button-group-fdata right) (FormAttachment. 100 -10))
+      (.setLayoutData button-group button-group-fdata)
+      (set! (. button-debugging-group-fdata top)  (FormAttachment. button-group 10))
+      (set! (. button-debugging-group-fdata left) (FormAttachment. 0 10))
+      (set! (. button-debugging-group-fdata right) (FormAttachment. 100 -10))
+      (set! (. button-debugging-group-fdata bottom) (FormAttachment. 100 -10))
+      (.setLayoutData button-debugging-group button-debugging-group-fdata))))
 
 ;;
 ;; refs - binding initial values
