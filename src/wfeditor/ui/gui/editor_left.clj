@@ -8,7 +8,7 @@
   (:import
    org.eclipse.swt.SWT
    (org.eclipse.swt.layout FillLayout RowLayout GridLayout GridData FormLayout FormData FormAttachment)
-   (org.eclipse.swt.widgets Label Button FileDialog Group Text Combo)
+   (org.eclipse.swt.widgets Label Button FileDialog Group Text Combo Composite)
    (org.eclipse.swt.events SelectionEvent SelectionAdapter ModifyListener ModifyEvent)))
 
 ;;
@@ -30,7 +30,7 @@
            wf-inst (wflow/new-wfinstance-fn user exec-dom wf)]
        wf-inst)))
 
-(defn- execution-group-create
+(defn- execution-group
   "create the group in the navpane storing the fields required for executing jobs on the remote server"
   [parent]
   (let [exec-group (new-widget Group parent {:styles [SWT/SHADOW_ETCHED_IN] :text "Execution Properties"})
@@ -121,7 +121,7 @@
         server-host io-const/DEFAULT-SERVER-HOST-REL-TO-REMOTE]
     (exec/update-statuses-sge exec-dom user rem-host rem-port loc-port loc-host server-host)))
 
-(defn- button-group-create
+(defn- button-group
   "create the Group widget containing all of the buttons in the left navpane that do something"
   [parent]
   (let [button-group (new-widget Group parent {:styles [SWT/SHADOW_NONE] :text "Buttons"})
@@ -147,7 +147,7 @@
                                           (exec/create-wfinst-and-set-everywhere wf-inst rem-host rem-port loc-port loc-host server-host)))}) 
     button-group))
 
-(defn button-debugging-group-create
+(defn button-debugging-group
   "create the Group widget containing all of the debugging buttons in the left navpane"
   [parent]
   (let [button-group (new-widget Group parent {:styles [SWT/SHADOW_NONE] :text "Debugging Buttons"})
@@ -172,7 +172,7 @@
                                         (update-job-statuses-from-server))})
     button-group))
 
-(defn button-testing-group-create
+(defn button-testing-group
   "create the Group widget containing all of the testing buttons in the left navpane that aren't (currently) directly useful for program execution"
   [parent]
   (let [button-group (new-widget Group parent {:styles [SWT/SHADOW_NONE] :text "Testing Buttons"})
@@ -206,7 +206,7 @@
                                           (println wf-inst-str)))})
     button-group))
 
-(defn testing-group-create
+(defn testing-group
   "create a Group widget to contain all of the test code for widgets, etc."
   [parent]
   (let [testing-group (new-widget* Group parent SWT/SHADOW_ETCHED_OUT)
@@ -225,17 +225,18 @@
       (create-widgets-with-names testing-group Button SWT/CHECK [ "Check one" "...two" "...three"]))
     testing-group))
 
-(defn ui-editor-left-create
+(defn ui-editor-left
   "create the entire left-hand side navigation pane"
   [parent]
-  (let [exec-group (execution-group-create parent)
-        button-group (button-group-create parent)
-        button-debugging-group (button-debugging-group-create parent)
+  (let [comp-left (Composite. parent SWT/BORDER)
+        exec-group (execution-group comp-left)
+        button-group (button-group comp-left)
+        button-debugging-group (button-debugging-group comp-left)
         exec-group-fdata (FormData.)
         button-group-fdata (FormData.)
         button-debugging-group-fdata (FormData.)]
     (do
-      (.setLayout parent (FormLayout.)))
+      (.setLayout comp-left (FormLayout.)))
     (do
       (set! (. exec-group-fdata top) (FormAttachment. 0 10))
       (set! (. exec-group-fdata left) (FormAttachment. 0 10))
@@ -249,7 +250,8 @@
       (set! (. button-debugging-group-fdata left) (FormAttachment. 0 10))
       (set! (. button-debugging-group-fdata right) (FormAttachment. 100 -10))
       (set! (. button-debugging-group-fdata bottom) (FormAttachment. 100 -10))
-      (.setLayoutData button-debugging-group button-debugging-group-fdata))))
+      (.setLayoutData button-debugging-group button-debugging-group-fdata))
+    comp-left))
 
 ;;
 ;; refs - binding initial values

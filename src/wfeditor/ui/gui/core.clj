@@ -34,9 +34,14 @@
   (thread-control/stop-all-bg-threads-client)
   (task-status/statuses-to-file))
 
-(defn ui-editor-right-create [parent] 
-  (wfeditor.ui.gui.zest.canvas/graph-viewer-create parent) 
-  (.setLayout parent (GridLayout.)))
+(defn ui-editor-right
+  [parent]
+  (let [comp-right (Composite. parent SWT/BORDER)]
+    (do
+      (wfeditor.ui.gui.zest.canvas/graph-viewer-create comp-right))
+    (do
+      (.setLayout comp-right (GridLayout.)))
+    comp-right))
 
 ;; assume FormLayout of the parent widget to which the returned sash
 ;; will be attached
@@ -54,8 +59,8 @@
   (let [sash (Sash. parent (bit-or SWT/VERTICAL SWT/BORDER SWT/SMOOTH))
         ;; have to make the style of the elements next to Sash have
         ;; BORDER so that Sash is drawn identifiably
-        comp-left (Composite. parent SWT/BORDER)
-        comp-right (Composite. parent SWT/BORDER)
+        comp-left (editor-left/ui-editor-left parent)
+        comp-right (ui-editor-right parent)
         sash-fdata (FormData.)
         comp-left-fdata (FormData.)
         comp-right-fdata (FormData.)]
@@ -63,9 +68,7 @@
       (let [shell (get-ancestor-shell parent)]
         (.setText shell "WFEditor")))
     (do
-      (.setLayout parent (FormLayout.))
-      (editor-left/ui-editor-left-create comp-left)
-      (ui-editor-right-create comp-right))
+      (.setLayout parent (FormLayout.)))
     (do
       (set! (. sash-fdata top) (FormAttachment. 0 0))
       (set! (. sash-fdata bottom) (FormAttachment. 100 0))
@@ -113,7 +116,7 @@
 ;;       (ui-editor-create comp-left-right))))
 
 (defn ui-menu-bar
-  "create a menu bar for the ApplicationWindow using JFace"
+  "create a menu bar for the ApplicationWindow using JFace, return the MenuManager that represents the menu bar"
   []
   (let [menu-mgr (MenuManager.)
         file-menu (MenuManager. "File")
