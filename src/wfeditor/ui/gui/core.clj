@@ -45,55 +45,58 @@
 
 ;; assume FormLayout of the parent widget to which the returned sash
 ;; will be attached
-(defn ui-editor-sash [parent]
-  (let [sash (Sash. parent SWT/VERTICAL)
-        data (FormData.)]
-    (do
-      (set! (. data top) (FormAttachment. 0 0))
-      (set! (. data bottom) (FormAttachment. 100 0))
-      (set! (. data left) (FormAttachment. 50 0))
-      (.setLayoutData sash data))
-    sash))
+(defn sash-ify
+  "create a functional sash, given a parent widget and 2 'sibling' (parent of both is same as sash), and create the layout for the parent and return the sash. an optional Ratio can be given to set the initial position of the sash"
+  ([parent w1 w2]
+     (sash-ify parent w1 w2 (/ 50 100)))
+  ([parent w1 w2 init-pos-ratio]
+     (let [sash (Sash. parent (bit-or SWT/VERTICAL SWT/BORDER SWT/SMOOTH))
+           ;; have to make the style of the elements next to Sash have
+           ;; BORDER so that Sash is drawn identifiably
+           sash-fdata (FormData.)
+           w1-fdata (FormData.)
+           w2-fdata (FormData.)]
+       (do
+         (.setLayout parent (FormLayout.)))
+       (do
+         (set! (. sash-fdata top) (FormAttachment. 0 0))
+         (set! (. sash-fdata bottom) (FormAttachment. 100 0))
+         (let [n (numerator init-pos-ratio)
+               d (denominator init-pos-ratio)]
+           (set! (. sash-fdata left) (FormAttachment. (int n) (int d) 0)))
+         (.setLayoutData sash sash-fdata)
+         (set! (. w1-fdata top) (FormAttachment. 0 0))
+         (set! (. w1-fdata bottom) (FormAttachment. 100 0))
+         (set! (. w1-fdata left) (FormAttachment. 0 0))
+         (set! (. w1-fdata right) (FormAttachment. sash 0))
+         (.setLayoutData w1 w1-fdata)
+         (set! (. w2-fdata top) (FormAttachment. 0 0))
+         (set! (. w2-fdata bottom) (FormAttachment. 100 0))
+         (set! (. w2-fdata left) (FormAttachment. sash 0))
+         (set! (. w2-fdata right) (FormAttachment. 100 0))
+         (.setLayoutData w2 w2-fdata))
+       (do
+         (.addSelectionListener sash (proxy [SelectionAdapter]
+                                         [] ;; do not call the
+                                       ;; super-class constructor w/o
+                                       ;; reason to, but provide it for
+                                       ;; proxy's syntax's sake
+                                       (widgetSelected [event]
+                                         (set! (. (^FormData . sash getLayoutData) left) (FormAttachment. 0 (. event x)))
+                                         (dorun
+                                          (.. sash getParent layout))))))
+       sash)))
 
 (defn ui-editor-create [parent]
   (let [sash (Sash. parent (bit-or SWT/VERTICAL SWT/BORDER SWT/SMOOTH))
         ;; have to make the style of the elements next to Sash have
         ;; BORDER so that Sash is drawn identifiably
         comp-left (editor-left/ui-editor-left parent)
-        comp-right (ui-editor-right parent)
-        sash-fdata (FormData.)
-        comp-left-fdata (FormData.)
-        comp-right-fdata (FormData.)]
+        comp-right (ui-editor-right parent)]
     (do
       (let [shell (get-ancestor-shell parent)]
         (.setText shell "WFEditor")))
-    (do
-      (.setLayout parent (FormLayout.)))
-    (do
-      (set! (. sash-fdata top) (FormAttachment. 0 0))
-      (set! (. sash-fdata bottom) (FormAttachment. 100 0))
-      (set! (. sash-fdata left) (FormAttachment. 25 0))
-      (.setLayoutData sash sash-fdata)
-      (set! (. comp-left-fdata top) (FormAttachment. 0 0))
-      (set! (. comp-left-fdata bottom) (FormAttachment. 100 0))
-      (set! (. comp-left-fdata left) (FormAttachment. 0 0))
-      (set! (. comp-left-fdata right) (FormAttachment. sash 0))
-      (.setLayoutData comp-left comp-left-fdata)
-      (set! (. comp-right-fdata top) (FormAttachment. 0 0))
-      (set! (. comp-right-fdata bottom) (FormAttachment. 100 0))
-      (set! (. comp-right-fdata left) (FormAttachment. sash 0))
-      (set! (. comp-right-fdata right) (FormAttachment. 100 0))
-      (.setLayoutData comp-right comp-right-fdata))
-    (do
-      (.addSelectionListener sash (proxy [SelectionAdapter]
-                                      [] ;; do not call the
-                                    ;; super-class constructor w/o
-                                    ;; reason to, but provide it for
-                                    ;; proxy's syntax's sake
-                                    (widgetSelected [event]
-                                      (set! (. (^FormData . sash getLayoutData) left) (FormAttachment. 0 (. event x)))
-                                      (dorun
-                                       (.. sash getParent layout))))))))
+    (sash-ify parent comp-left comp-right (/ 1 4))))
 
 ;; (defn ui-toolbar
 ;;   "create a toolbar for the entire window"
