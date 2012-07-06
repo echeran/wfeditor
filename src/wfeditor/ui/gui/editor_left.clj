@@ -231,26 +231,8 @@
   (let [comp-left (Composite. parent SWT/BORDER)
         exec-group (execution-group comp-left)
         button-group (button-group comp-left)
-        button-debugging-group (button-debugging-group comp-left)
-        exec-group-fdata (FormData.)
-        button-group-fdata (FormData.)
-        button-debugging-group-fdata (FormData.)]
-    (do
-      (.setLayout comp-left (FormLayout.)))
-    (do
-      (set! (. exec-group-fdata top) (FormAttachment. 0 10))
-      (set! (. exec-group-fdata left) (FormAttachment. 0 10))
-      (set! (. exec-group-fdata right) (FormAttachment. 100 -10))
-      (.setLayoutData exec-group exec-group-fdata)
-      (set! (. button-group-fdata top)  (FormAttachment. exec-group 10))
-      (set! (. button-group-fdata left) (FormAttachment. 0 10))
-      (set! (. button-group-fdata right) (FormAttachment. 100 -10))
-      (.setLayoutData button-group button-group-fdata)
-      (set! (. button-debugging-group-fdata top)  (FormAttachment. button-group 10))
-      (set! (. button-debugging-group-fdata left) (FormAttachment. 0 10))
-      (set! (. button-debugging-group-fdata right) (FormAttachment. 100 -10))
-      (set! (. button-debugging-group-fdata bottom) (FormAttachment. 100 -10))
-      (.setLayoutData button-debugging-group button-debugging-group-fdata))
+        button-debugging-group (button-debugging-group comp-left)]
+    (swt-util/stack-full-width comp-left {:margin 10} [exec-group button-group button-debugging-group])
     comp-left))
 
 ;;

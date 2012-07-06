@@ -11,8 +11,8 @@
   (:import
    org.eclipse.jface.window.ApplicationWindow
    org.eclipse.swt.SWT
-   (org.eclipse.swt.layout FormLayout FormData FormAttachment GridLayout FillLayout RowLayout)
-   (org.eclipse.swt.widgets Display Shell Sash Composite)
+   (org.eclipse.swt.layout GridLayout FillLayout RowLayout)
+   (org.eclipse.swt.widgets Display Shell Composite)
    (org.eclipse.swt.events SelectionEvent SelectionAdapter)
    org.eclipse.jface.action.MenuManager
    org.eclipse.jface.action.Action))
@@ -43,60 +43,13 @@
       (.setLayout comp-right (GridLayout.)))
     comp-right))
 
-;; assume FormLayout of the parent widget to which the returned sash
-;; will be attached
-(defn sash-ify
-  "create a functional sash, given a parent widget and 2 'sibling' (parent of both is same as sash), and create the layout for the parent and return the sash. an optional Ratio can be given to set the initial position of the sash"
-  ([parent w1 w2]
-     (sash-ify parent w1 w2 (/ 50 100)))
-  ([parent w1 w2 init-pos-ratio]
-     (let [sash (Sash. parent (bit-or SWT/VERTICAL SWT/BORDER SWT/SMOOTH))
-           ;; have to make the style of the elements next to Sash have
-           ;; BORDER so that Sash is drawn identifiably
-           sash-fdata (FormData.)
-           w1-fdata (FormData.)
-           w2-fdata (FormData.)]
-       (do
-         (.setLayout parent (FormLayout.)))
-       (do
-         (set! (. sash-fdata top) (FormAttachment. 0 0))
-         (set! (. sash-fdata bottom) (FormAttachment. 100 0))
-         (let [n (numerator init-pos-ratio)
-               d (denominator init-pos-ratio)]
-           (set! (. sash-fdata left) (FormAttachment. (int n) (int d) 0)))
-         (.setLayoutData sash sash-fdata)
-         (set! (. w1-fdata top) (FormAttachment. 0 0))
-         (set! (. w1-fdata bottom) (FormAttachment. 100 0))
-         (set! (. w1-fdata left) (FormAttachment. 0 0))
-         (set! (. w1-fdata right) (FormAttachment. sash 0))
-         (.setLayoutData w1 w1-fdata)
-         (set! (. w2-fdata top) (FormAttachment. 0 0))
-         (set! (. w2-fdata bottom) (FormAttachment. 100 0))
-         (set! (. w2-fdata left) (FormAttachment. sash 0))
-         (set! (. w2-fdata right) (FormAttachment. 100 0))
-         (.setLayoutData w2 w2-fdata))
-       (do
-         (.addSelectionListener sash (proxy [SelectionAdapter]
-                                         [] ;; do not call the
-                                       ;; super-class constructor w/o
-                                       ;; reason to, but provide it for
-                                       ;; proxy's syntax's sake
-                                       (widgetSelected [event]
-                                         (set! (. (^FormData . sash getLayoutData) left) (FormAttachment. 0 (. event x)))
-                                         (dorun
-                                          (.. sash getParent layout))))))
-       sash)))
-
 (defn ui-editor-create [parent]
-  (let [sash (Sash. parent (bit-or SWT/VERTICAL SWT/BORDER SWT/SMOOTH))
-        ;; have to make the style of the elements next to Sash have
-        ;; BORDER so that Sash is drawn identifiably
-        comp-left (editor-left/ui-editor-left parent)
+  (let [comp-left (editor-left/ui-editor-left parent)
         comp-right (ui-editor-right parent)]
     (do
       (let [shell (get-ancestor-shell parent)]
         (.setText shell "WFEditor")))
-    (sash-ify parent comp-left comp-right (/ 1 4))))
+    (swt-util/sash-ify parent comp-left comp-right (/ 1 4))))
 
 ;; (defn ui-toolbar
 ;;   "create a toolbar for the entire window"

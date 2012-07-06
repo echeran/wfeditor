@@ -5,7 +5,8 @@
    org.eclipse.swt.SWT
    (org.eclipse.swt.events SelectionEvent SelectionAdapter)
    (org.eclipse.swt.graphics Color RGB)
-   (org.eclipse.swt.widgets Display FileDialog)))
+   (org.eclipse.swt.widgets Display FileDialog Sash)
+   (org.eclipse.swt.layout FormLayout FormData FormAttachment)))
 
 ;; naming convention using asterisk at end explained in this SO post:
 ;; http://stackoverflow.com/questions/5082850/whats-the-convention-for-using-an-asterisk-at-the-end-of-a-function-name-in-clo
@@ -98,3 +99,75 @@ Note: This has compiled but never run for me (aside from test cases in an intera
   (let [fd (FileDialog. parent SWT/SAVE)]
     (when-let [out-file-name (.open fd)]
       (fformat/save-workflow-to-file (wflow/workflow) out-file-name))))
+
+;; assume FormLayout of the parent widget to which the returned sash
+;; will be attached
+(defn sash-ify
+  "create a functional sash, given a parent widget and 2 'sibling' (parent of both is same as sash), and create the layout for the parent and return the sash. an optional Ratio can be given to set the initial position of the sash"
+  ([parent w1 w2]
+     (sash-ify parent w1 w2 (/ 50 100)))
+  ([parent w1 w2 init-pos-ratio]
+     (let [sash (Sash. parent (bit-or SWT/VERTICAL SWT/BORDER SWT/SMOOTH))
+           ;; have to make the style of the elements next to Sash have
+           ;; BORDER so that Sash is drawn identifiably
+           sash-fdata (FormData.)
+           w1-fdata (FormData.)
+           w2-fdata (FormData.)]
+       (do
+         (.setLayout parent (FormLayout.)))
+       (do
+         (set! (. sash-fdata top) (FormAttachment. 0 0))
+         (set! (. sash-fdata bottom) (FormAttachment. 100 0))
+         (let [n (numerator init-pos-ratio)
+               d (denominator init-pos-ratio)]
+           (set! (. sash-fdata left) (FormAttachment. (int n) (int d) 0)))
+         (.setLayoutData sash sash-fdata)
+         (set! (. w1-fdata top) (FormAttachment. 0 0))
+         (set! (. w1-fdata bottom) (FormAttachment. 100 0))
+         (set! (. w1-fdata left) (FormAttachment. 0 0))
+         (set! (. w1-fdata right) (FormAttachment. sash 0))
+         (.setLayoutData w1 w1-fdata)
+         (set! (. w2-fdata top) (FormAttachment. 0 0))
+         (set! (. w2-fdata bottom) (FormAttachment. 100 0))
+         (set! (. w2-fdata left) (FormAttachment. sash 0))
+         (set! (. w2-fdata right) (FormAttachment. 100 0))
+         (.setLayoutData w2 w2-fdata))
+       (do
+         (.addSelectionListener sash (proxy [SelectionAdapter]
+                                         [] ;; do not call the
+                                       ;; super-class constructor w/o
+                                       ;; reason to, but provide it for
+                                       ;; proxy's syntax's sake
+                                       (widgetSelected [event]
+                                         (set! (. (^FormData . sash getLayoutData) left) (FormAttachment. 0 (. event x)))
+                                         (dorun
+                                          (.. sash getParent layout))))))
+       sash)))
+
+(defn stack-full-width
+  "given a parent Composite (and an options map) and a sequential (list/vector) of Widget's, put them in a FormLayout where each Widget gets added in order from top to bottom. options map takes the following
+:margin - uniform border in pixels inside the Composite surrounding the Widgets"
+  [parent opts widgets]
+  (let [{:keys [margin] :or {margin 0}} opts
+        first-fdata (let [fd (FormData.)]
+                      (set! (. fd top) (FormAttachment. 0 margin))
+                      (set! (. fd left) (FormAttachment. 0 margin))
+                      (set! (. fd right) (FormAttachment. 100 (- margin)))
+                      fd)
+        middle-fdatas (for [[w1 w2] (butlast (partition 2 1 widgets))]
+                        (let [fd2 (FormData.)]
+                          (set! (. fd2 top) (FormAttachment. w1 margin))
+                          (set! (. fd2 left) (FormAttachment. 0 margin))
+                          (set! (. fd2 right) (FormAttachment. 100 (- margin)))
+                          fd2))
+        last-fdata (let [fd (FormData.)]
+                     (set! (. fd top) (FormAttachment. (last (butlast widgets)) margin))
+                     (set! (. fd left) (FormAttachment. 0 margin))
+                     (set! (. fd right) (FormAttachment. 100 (- margin)))
+                     (set! (. fd bottom) (FormAttachment. 100 (- margin)))
+                     fd)
+        all-fdatas (concat [first-fdata] middle-fdatas [last-fdata])]
+    (do
+      (.setLayout parent (FormLayout.))
+      (dorun
+       (map #(.setLayoutData %1 %2) widgets all-fdatas)))))
