@@ -36,7 +36,7 @@
 
 (defn ui-editor-right
   [parent]
-  (let [comp-right (Composite. parent SWT/BORDER)]
+  (let [comp-right (new-widget {:widget-class Composite :parent parent :styles [SWT/BORDER]})]
     (do
       (wfeditor.ui.gui.zest.canvas/graph-viewer-create comp-right))
     (do

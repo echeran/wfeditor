@@ -5,8 +5,26 @@
    org.eclipse.swt.SWT
    (org.eclipse.swt.events SelectionEvent SelectionAdapter)
    (org.eclipse.swt.graphics Color RGB)
-   (org.eclipse.swt.widgets Display FileDialog Sash)
+   (org.eclipse.swt.widgets Display FileDialog Sash Button)
    (org.eclipse.swt.layout FormLayout FormData FormAttachment)))
+
+
+(defn active-shell
+  "return the active Shell of the current Display"
+  []
+  (.. Display getCurrent getActiveShell))
+
+
+;; TODO: also, create a one-stop, new widget convenience utility to end them all
+;; i that namespace
+(defn get-ancestor-shell
+  "return the ancestor shell of the provided widget / element, or else nil"
+  [widget]
+  (cond
+   (isa? (class widget) org.eclipse.swt.widgets.Shell) widget
+   (isa? (class widget) org.eclipse.jface.window.Window) (.getShell widget)
+   :else (when-let [parent (.getParent widget)] (get-ancestor-shell parent))))
+
 
 ;; naming convention using asterisk at end explained in this SO post:
 ;; http://stackoverflow.com/questions/5082850/whats-the-convention-for-using-an-asterisk-at-the-end-of-a-function-name-in-clo
@@ -18,28 +36,27 @@
 opts map keys and values:
 :styles - vector of SWT style constants for this widget
 :text - a string to be added to the widget via .setText"
-  [widget-class parent opts]
-  (let [{:keys [styles text]} opts]
-    `(let [style# (condp = (count ~styles)
-                0 SWT/NONE
-                1 (first ~styles)
-                (apply bit-or ~styles))
-           widget# (new ~widget-class ~parent style#)]
-       (when ~text (.setText widget# ~text))
-       widget#)))
+  ([widget-class parent opts]
+      (let [{:keys [styles text]} opts]
+        `(let [style# (condp = (count ~styles)
+                        0 SWT/NONE
+                        1 (first ~styles)
+                        (apply bit-or ~styles))
+               widget# (new ~widget-class ~parent style#)]
+           (when ~text (.setText widget# ~text))
+           widget#)))
+  ([opts]
+     (let [{:keys [styles text widget-class parent] :or {styles [SWT/NONE] widget-class Button parent (. Display getCurrent)}} opts]
+       `(let [style# (condp = (count ~styles)
+                        0 SWT/NONE
+                        1 (first ~styles)
+                        (apply bit-or ~styles))
+               widget# (new ~widget-class ~parent style#)]
+           (when ~text (.setText widget# ~text))
+           widget#))))
 
 (defmacro create-widgets-with-names [parent widget-class style names]
   `(dorun (map #(.setText (new ~widget-class ~parent ~style) %1) ~names)))
-
-;; TODO: also, create a one-stop, new widget convenience utility to end them all
-;; i that namespace
-(defn get-ancestor-shell
-  "return the ancestor shell of the provided widget / element, or else nil"
-  [widget]
-  (cond
-   (isa? (class widget) org.eclipse.swt.widgets.Shell) widget
-   (isa? (class widget) org.eclipse.jface.window.Window) (.getShell widget)
-   :else (when-let [parent (.getParent widget)] (get-ancestor-shell parent))))
 
 (defmacro fnify
   "take the name of a Java member method and return a Clojure function that represents that Java method taking an object and optional other values as arguments.  Use this when you do not want to be restricted by clojure.core/memfn to specifying the number of arguments that the function should accept upfront.
@@ -81,22 +98,17 @@ Note: This has compiled but never run for me (aside from test cases in an intera
            color (new Color disp rgb)]
        color)))
 
-(defn active-shell
-  "return the active Shell of the current Display"
-  []
-  (.. Display getCurrent getActiveShell))
-
 (defn file-dialog-open-wf
   "create an open file dialog and set the resulting file's workflow as state"
   [parent]
-  (let [fd (new FileDialog parent SWT/OPEN)]
+  (let [fd (new-widget {:widget-class FileDialog :parent parent :styles [SWT/OPEN]})]
     (when-let [in-file-name (.open fd)]
       (fformat/set-workflow-from-file in-file-name))))
 
 (defn file-dialog-save-as-wf
   "create a save file dialog and output state to the file selected/created by the dialog"
   [parent]
-  (let [fd (FileDialog. parent SWT/SAVE)]
+  (let [fd (new-widget {:widget-class FileDialog :parent parent :styles [SWT/SAVE]})]
     (when-let [out-file-name (.open fd)]
       (fformat/save-workflow-to-file (wflow/workflow) out-file-name))))
 
@@ -107,7 +119,7 @@ Note: This has compiled but never run for me (aside from test cases in an intera
   ([parent w1 w2]
      (sash-ify parent w1 w2 (/ 50 100)))
   ([parent w1 w2 init-pos-ratio]
-     (let [sash (Sash. parent (bit-or SWT/VERTICAL SWT/BORDER SWT/SMOOTH))
+     (let [sash (new-widget {:widget-class Sash :parent parent :styles [SWT/VERTICAL SWT/BORDER SWT/SMOOTH]})
            ;; have to make the style of the elements next to Sash have
            ;; BORDER so that Sash is drawn identifiably
            sash-fdata (FormData.)
