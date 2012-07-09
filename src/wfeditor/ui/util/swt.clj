@@ -171,3 +171,9 @@ Note: This has compiled but never run for me (aside from test cases in an intera
       (.setLayout parent (FormLayout.))
       (dorun
        (map #(.setLayoutData %1 %2) widgets all-fdatas)))))
+
+;; (defn stack-same-width
+;;   "same as stack-full-width, but make all the widgets the same width.  this is achieved by making all widgets the same width as the widest widget"
+;;   [parent opts widgets]
+;;   (let [bounding-comp (new-widget Composite button-group {:styles [SWT/NONE]})]
+;;     (stack-full-width boundin-comp opts widgets)))

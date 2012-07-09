@@ -125,13 +125,15 @@
   "create the Group widget containing all of the buttons in the left navpane that do something"
   [parent]
   (let [button-group (new-widget Group parent {:styles [SWT/SHADOW_NONE] :text "Buttons"})
-        load-wf-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Load workflow"})
-        save-wf-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Save workflow"})
-        run-wf-inst-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Run WF instance"})]
+        bounding-comp (new-widget Composite button-group {:styles [SWT/NONE]})
+        load-wf-button (new-widget Button bounding-comp {:styles [SWT/PUSH] :text "Load workflow"})
+        save-wf-button (new-widget Button bounding-comp {:styles [SWT/PUSH] :text "Save workflow"})
+        run-wf-inst-button (new-widget Button bounding-comp {:styles [SWT/PUSH] :text "Run WF instance"})]
     (doto button-group
-      (.setLayout (RowLayout. SWT/VERTICAL))
-      ;; (.setLayoutData (GridData. GridData/FILL_BOTH))
-      )
+      (.setLayout (RowLayout. SWT/VERTICAL)))
+    (do
+      (swt-util/stack-full-width bounding-comp {:margin 5} [load-wf-button save-wf-button run-wf-inst-button])
+      (.setLayout button-group (RowLayout.)))
     (update-button load-wf-button
                    {:widget-select-fn (fn [event]
                                         (swt-util/file-dialog-open-wf (get-ancestor-shell parent)))})
@@ -151,13 +153,14 @@
   "create the Group widget containing all of the debugging buttons in the left navpane"
   [parent]
   (let [button-group (new-widget Group parent {:styles [SWT/SHADOW_NONE] :text "Debugging Buttons"})
-        print-global-statuses-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Print locally-saved statuses"})
-        update-server-statuses-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Update statuses on server"})
-        get-server-statuses-button (new-widget Button button-group {:styles [SWT/PUSH] :text "Get statuses from server"})]
+        bounding-comp (new-widget Composite button-group {:styles [SWT/NONE]})
+        print-global-statuses-button (new-widget Button bounding-comp {:styles [SWT/PUSH] :text "Print locally-saved statuses"})
+        update-server-statuses-button (new-widget Button bounding-comp {:styles [SWT/PUSH] :text "Update statuses on server"})
+        get-server-statuses-button (new-widget Button bounding-comp {:styles [SWT/PUSH] :text "Get statuses from server"})]
     (doto button-group
-      (.setLayout (RowLayout. SWT/VERTICAL))
-      ;; (.setLayoutData (GridData. GridData/FILL_BOTH))
-      )
+      (.setLayout (RowLayout. SWT/VERTICAL)))
+    (do
+      (swt-util/stack-full-width bounding-comp {:margin 10} [print-global-statuses-button update-server-statuses-button get-server-statuses-button]))
     (update-button print-global-statuses-button
                    {:widget-select-fn (fn [event]
                                         (println (task-status/global-statuses)))})
