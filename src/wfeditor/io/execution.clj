@@ -285,6 +285,13 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
   []
   (swap! internal-job-id-counter inc))
 
+(defn- std-out-err-dir
+  "create (if not created, via fs/mkdirs) and return a dir that will contain a job's std. out and std. err files, given the job's id"
+  [job-id]
+  (let [dir (fs/file (io-const/data-dir) internal-job-id)]
+    (fs/mkdirs dir)
+    dir))
+
 (defn- enqueue-job-sge
   "enqueue a job using SGE and return the job with the new id"
   ([wf job]
@@ -299,8 +306,8 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
            qsub-cmd-parts (into qsub-cmd-parts (when (not= username (. System getProperty "user.name")) ["sudo" "-u" username "-i"]))
            qsub-cmd-parts (into qsub-cmd-parts ["qsub"])
            qsub-cmd-parts (into qsub-cmd-parts hold_jid_parts)
-           std-out-file (or (:std-out-file job) (str (user-home username)  io-const/DEFAULT-HOME-OUTPUT-DIR internal-job-id ".out"))
-           std-err-file (or (:std-err-file job) (str (user-home username) io-const/DEFAULT-HOME-OUTPUT-DIR internal-job-id ".err"))
+           std-out-file (or (:std-out-file job) (str (fs/file (std-out-err-dir internal-job-id) (str internal-job-id ".out"))))
+           std-err-file (or (:std-err-file job) (str (fs/file (std-out-err-dir internal-job-id) (str internal-job-id ".err"))))
            job-name (:name job)
            qsub-script-header-map {"-o" std-out-file "-e" std-err-file "-N" job-name}
            qsub-script-header-map (into {} (filter (comp not nil? val) qsub-script-header-map))

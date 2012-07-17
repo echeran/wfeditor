@@ -26,13 +26,6 @@
 (def DEFAULT-SERVER-HOST-REL-TO-REMOTE "localhost")
 
 ;;
-;; execution constants
-;;
-
-;; let this dir path be relative to the user's home dir
-(def DEFAULT-HOME-OUTPUT-DIR "/sge/qsub/")
-
-;;
 ;; thread constants
 ;;
 
@@ -77,6 +70,13 @@
   "a File object representing the file where the jobs' tasks' statuses are stored"
   []
   (fs/file (config-dir) TASK-RUN-FILE-NAME))
+
+;;
+;; execution constants
+;;
+
+;; let this dir path be relative to the user's home dir
+(def DEFAULT-HOME-OUTPUT-DIR "/sge/qsub/")
 
 ;;
 ;; dynamically-set set-once refs ('constant refs'?; initializations happen from elsewhere)
