@@ -288,7 +288,7 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
 (defn- std-out-err-dir
   "create (if not created, via fs/mkdirs) and return a dir that will contain a job's std. out and std. err files, given the job's id"
   [job-id]
-  (let [dir (fs/file (io-const/data-dir) internal-job-id)]
+  (let [dir (fs/file (io-const/data-dir) job-id)]
     (fs/mkdirs dir)
     dir))
 
