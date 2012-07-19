@@ -44,35 +44,6 @@
                                (gensym))))]
     (SWTWidget. keyname obj class children)))
 
-;; (defn get-children-swtwidget
-;;   "given an SWTWidget and the name (keyword) of a child widget, return all such children widgets"
-;;   [w keyname]
-;;   (let [children (:children w)        
-;;         ret (filter #(= (:keyname %) keyname) children)]
-;;     ret))
-
-;; (defn get-child-swtwidget
-;;   "given an SWTWidget and the name (keyword) of a child widget, return the child widget (or at least the first child with such a name)"
-;;   [w keyname]
-;;   (first (get-children-swtwidget w keyname)))
-
-;; (defn get-swtwidget
-;;   "given (an optional SWTWidget and) a vector of keynames that index into the gui-map of state, return the widget that is addressed by the keynames"
-;;   ([keynames]
-;;      (get-swtwidget @gui-map keynames))
-;;   ([w keynames]
-;;      (reduce get-child-swtwidget w keynames)))
-
-;; (defn add-swtwidget
-;;   "add an already-created SWTWidget to the gui-map that contains the state of the GUI according to the 'address' indicated by the vector of keynames"
-;;   [swtw kns]
-;;   (let [leaf-widget (get-swtwidget kns)
-;;         ;; TODO: update gui-map and/or these associated functions to
-;;         ;; use a zipper... can't update a nested data struture
-;;         ;; functionally easily without a zipper, i think
-;;         ]))
-
-
 ;;
 ;; functions based on clojure.zip
 ;;
@@ -139,9 +110,7 @@ Note: when using this address with gui-> and gui1->, the first element of the ad
 (defn lookup-map
   "create a lookup map where, given a widget object (reference), will return an 'address' for the object in the gui map as given by swtw-zip-path"
   ([]
-     ;; (lookup-map gui-map)
-     (lookup-map @gui-map)
-     )
+     (lookup-map @gui-map))
   ([gmap]
      (let [gz (gui-zip gmap)]
        (into {}
@@ -157,9 +126,7 @@ Note: when using this address with gui-> and gui1->, the first element of the ad
   ([parent widget]
      (add-widget parent widget nil))
   ([parent widget keyname]
-     (let [
-           ;; gm gui-map
-           gm @gui-map
+     (let [gm @gui-map
            p-addr (get (lookup-map gm) parent)
            gz (gui-zip gm)
            pz (apply gui1-> gz (rest p-addr))
@@ -168,9 +135,7 @@ Note: when using this address with gui-> and gui1->, the first element of the ad
            new-map-zip (zip/edit pz edit-add-fn new-swtw)
            new-map (zip/root new-map-zip)]
        (dosync
-        (ref-set gui-map new-map))
-       ;; (def gui-map new-map)
-       )))
+        (ref-set gui-map new-map)))))
 
 ;;
 ;; ref initializations
@@ -182,5 +147,4 @@ Note: when using this address with gui-> and gui1->, the first element of the ad
 ;; since that is the pure-functional way of handling trees...  perhaps
 ;; to do at some point later, if beneficial
 
-;; (def gui-map {})
 (def gui-map (ref {}))
