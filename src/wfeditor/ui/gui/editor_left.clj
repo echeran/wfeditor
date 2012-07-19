@@ -35,16 +35,16 @@
   "create the group in the navpane storing the fields required for executing jobs on the remote server"
   [parent]
   (let [exec-group (new-widget {:keyname :execution-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_IN] :text "Execution Properties"})
-        user-label (new-widget {:widget-class Label :parent exec-group :styles [SWT/LEFT] :text "Enter username:"})
-        user-text (new-widget {:widget-class Text :parent exec-group :styles [SWT/SINGLE SWT/BORDER] :text (:user @exec-props) })
-        exec-dom-label (new-widget {:widget-class Label :parent exec-group :styles [SWT/LEFT] :text "Select execution domain:"})
-        exec-dom-combo (new-widget {:widget-class Combo :parent exec-group :styles [SWT/DROP_DOWN SWT/READ_ONLY]})
-        rem-host-label (new-widget {:widget-class Label :parent exec-group :styles [SWT/LEFT] :text "Remote host:"})
-        rem-host-text (new-widget {:widget-class Text :parent exec-group :styles [SWT/SINGLE SWT/BORDER] :text (:rem-host @exec-props)})
-        rem-port-label (new-widget {:widget-class Label :parent exec-group :styles [SWT/LEFT] :text "Remote port:"})
-        rem-port-text (new-widget {:widget-class Text :parent exec-group :styles [SWT/SINGLE SWT/BORDER] :text (str (:rem-port @exec-props))})
-        loc-port-label (new-widget {:widget-class Label :parent exec-group :styles [SWT/LEFT] :text "Local port:"})
-        loc-port-text (new-widget {:widget-class Text :parent exec-group :styles [SWT/SINGLE SWT/BORDER] :text (str (:loc-port @exec-props))})]
+        user-label (new-widget {:keyname :user-label :widget-class Label :parent exec-group :styles [SWT/LEFT] :text "Enter username:"})
+        user-text (new-widget {:keyname :user-text :widget-class Text :parent exec-group :styles [SWT/SINGLE SWT/BORDER] :text (:user @exec-props) })
+        exec-dom-label (new-widget {:keyname :exec-dom-label :widget-class Label :parent exec-group :styles [SWT/LEFT] :text "Select execution domain:"})
+        exec-dom-combo (new-widget {:keyname :exec-dom-combo :widget-class Combo :parent exec-group :styles [SWT/DROP_DOWN SWT/READ_ONLY]})
+        rem-host-label (new-widget {:keyname :rem-host-label :widget-class Label :parent exec-group :styles [SWT/LEFT] :text "Remote host:"})
+        rem-host-text (new-widget {:keyname :rem-host-text :widget-class Text :parent exec-group :styles [SWT/SINGLE SWT/BORDER] :text (:rem-host @exec-props)})
+        rem-port-label (new-widget {:keyname :rem-port-label :widget-class Label :parent exec-group :styles [SWT/LEFT] :text "Remote port:"})
+        rem-port-text (new-widget {:keyname :rem-port-text :widget-class Text :parent exec-group :styles [SWT/SINGLE SWT/BORDER] :text (str (:rem-port @exec-props))})
+        loc-port-label (new-widget {:keyname :loc-port-label :widget-class Label :parent exec-group :styles [SWT/LEFT] :text "Local port:"})
+        loc-port-text (new-widget {:keyname :loc-port-text :widget-class Text :parent exec-group :styles [SWT/SINGLE SWT/BORDER] :text (str (:loc-port @exec-props))})]
     (doto exec-group
       ;; (.setLayoutData (GridData. GridData/FILL_HORIZONTAL))
       )
@@ -125,11 +125,11 @@
 (defn- button-group
   "create the Group widget containing all of the buttons in the left navpane that do something"
   [parent]
-  (let [button-group (new-widget {:widget-class Group :parent parent :styles [SWT/SHADOW_NONE] :text "Buttons"})
-        bounding-comp (new-widget {:widget-class Composite :parent button-group :styles [SWT/NONE]})
-        load-wf-button (new-widget {:widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Load workflow"})
-        save-wf-button (new-widget {:widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Save workflow"})
-        run-wf-inst-button (new-widget {:widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Run WF instance"})]
+  (let [button-group (new-widget {:keyname :button-group :widget-class Group :parent parent :styles [SWT/SHADOW_NONE] :text "Buttons"})
+        bounding-comp (new-widget {:keyname :bounding-comp :widget-class Composite :parent button-group :styles [SWT/NONE]})
+        load-wf-button (new-widget {:keyname :load-wf-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Load workflow"})
+        save-wf-button (new-widget {:keyname :save-wf-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Save workflow"})
+        run-wf-inst-button (new-widget {:keyname :run-wf-inst-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Run WF instance"})]
     (doto button-group
       (.setLayout (RowLayout. SWT/VERTICAL)))
     (do
@@ -153,16 +153,17 @@
 (defn button-debugging-group
   "create the Group widget containing all of the debugging buttons in the left navpane"
   [parent]
-  (let [button-group (new-widget {:widget-class Group :parent parent :styles [SWT/SHADOW_NONE] :text "Debugging Buttons"})
-        bounding-comp (new-widget {:widget-class Composite :parent button-group :styles [SWT/NONE]})
-        print-global-statuses-button (new-widget {:widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Print locally-saved statuses"})
-        update-server-statuses-button (new-widget {:widget-class Button :parent  bounding-comp :styles [SWT/PUSH] :text "Update statuses on server"})
-        get-server-statuses-button (new-widget {:widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Get statuses from server"})
-        print-gui-map-button (new-widget {:widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Print gui-map"})]
+  (let [button-group (new-widget {:keyname :button-debugging-group :widget-class Group :parent parent :styles [SWT/SHADOW_NONE] :text "Debugging Buttons"})
+        bounding-comp (new-widget {:keyname :bounding-comp :widget-class Composite :parent button-group :styles [SWT/NONE]})
+        print-global-statuses-button (new-widget {:keyname :print-global-statuses-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Print locally-saved statuses"})
+        update-server-statuses-button (new-widget {:keyname :update-server-statuses-button :widget-class Button :parent  bounding-comp :styles [SWT/PUSH] :text "Update statuses on server"})
+        get-server-statuses-button (new-widget {:keyname :get-server-statuses-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Get statuses from server"})
+        print-gui-map-button (new-widget {:keyname :print-gui-map-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Print gui-map"})
+        print-gui-lookup-map-button (new-widget {:keyname :print-gui-lookup-map-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Print gui lookup-map"})]
     (doto button-group
       (.setLayout (RowLayout. SWT/VERTICAL)))
     (do
-      (swt-util/stack-full-width bounding-comp {:margin 10} [print-global-statuses-button update-server-statuses-button get-server-statuses-button print-gui-map-button]))
+      (swt-util/stack-full-width bounding-comp {:margin 10} [print-global-statuses-button update-server-statuses-button get-server-statuses-button print-gui-map-button print-gui-lookup-map-button]))
     (update-button print-global-statuses-button
                    {:widget-select-fn (fn [event]
                                         (println (task-status/global-statuses)))})
@@ -178,17 +179,20 @@
     (update-button print-gui-map-button
                    {:widget-select-fn (fn [event]
                                         (println @gui-state/gui-map))})
+    (update-button print-gui-lookup-map-button
+                   {:widget-select-fn (fn [event]
+                                        (println (gui-state/lookup-map)))})
     button-group))
 
 (defn button-testing-group
   "create the Group widget containing all of the testing buttons in the left navpane that aren't (currently) directly useful for program execution"
   [parent]
-  (let [button-group (new-widget {:widget-class Group :parent parent :styles [SWT/SHADOW_NONE] :text "Testing Buttons"})
-        print-wf-cmd-button (new-widget {:widget-class Button :parent button-group :styles [SWT/PUSH] :text "Print workflow command"})
-        print-wf-sge-test-button (new-widget {:widget-class Button :parent button-group :styles [SWT/PUSH] :text "Print SGE commands test"})
-        run-wf-button (new-widget {:widget-class Button :parent button-group :styles [SWT/PUSH] :text "Run workflow"})
-        print-wf-button (new-widget {:widget-class Button :parent button-group :styles [SWT/PUSH] :text "Print workflow"})
-        print-wf-inst-button (new-widget {:widget-class Button :parent button-group :styles [SWT/PUSH] :text "Print WF instance"})]
+  (let [button-group (new-widget {:keyname :button-testing-group :widget-class Group :parent parent :styles [SWT/SHADOW_NONE] :text "Testing Buttons"})
+        print-wf-cmd-button (new-widget {:keyname :print-wf-cmd-button :widget-class Button :parent button-group :styles [SWT/PUSH] :text "Print workflow command"})
+        print-wf-sge-test-button (new-widget {:keyname :print-wf-sge-test-button :widget-class Button :parent button-group :styles [SWT/PUSH] :text "Print SGE commands test"})
+        run-wf-button (new-widget {:keyname :run-wf-button :widget-class Button :parent button-group :styles [SWT/PUSH] :text "Run workflow"})
+        print-wf-button (new-widget {:keyname :print-wf-button :widget-class Button :parent button-group :styles [SWT/PUSH] :text "Print workflow"})
+        print-wf-inst-button (new-widget {:keyname :print-wf-inst-button :widget-class Button :parent button-group :styles [SWT/PUSH] :text "Print WF instance"})]
     (doto button-group
       (.setLayout (RowLayout. SWT/VERTICAL))
       ;; (.setLayoutData (GridData. GridData/FILL_BOTH))
