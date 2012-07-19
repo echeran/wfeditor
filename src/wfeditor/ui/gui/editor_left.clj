@@ -3,7 +3,8 @@
             [wfeditor.model.workflow :as wflow]
             [wfeditor.io.execution :as exec]
             [wfeditor.io.status.task-run :as task-status]
-            [wfeditor.io.file.wfeformat :as fformat])
+            [wfeditor.io.file.wfeformat :as fformat]
+            [wfeditor.ui.state.gui :as gui-state])
   (:use [wfeditor.ui.util.swt :as swt-util])
   (:import
    org.eclipse.swt.SWT
@@ -33,7 +34,7 @@
 (defn- execution-group
   "create the group in the navpane storing the fields required for executing jobs on the remote server"
   [parent]
-  (let [exec-group (new-widget {:widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_IN] :text "Execution Properties"})
+  (let [exec-group (new-widget {:keyname :execution-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_IN] :text "Execution Properties"})
         user-label (new-widget {:widget-class Label :parent exec-group :styles [SWT/LEFT] :text "Enter username:"})
         user-text (new-widget {:widget-class Text :parent exec-group :styles [SWT/SINGLE SWT/BORDER] :text (:user @exec-props) })
         exec-dom-label (new-widget {:widget-class Label :parent exec-group :styles [SWT/LEFT] :text "Select execution domain:"})
@@ -156,11 +157,12 @@
         bounding-comp (new-widget {:widget-class Composite :parent button-group :styles [SWT/NONE]})
         print-global-statuses-button (new-widget {:widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Print locally-saved statuses"})
         update-server-statuses-button (new-widget {:widget-class Button :parent  bounding-comp :styles [SWT/PUSH] :text "Update statuses on server"})
-        get-server-statuses-button (new-widget {:widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Get statuses from server"})]
+        get-server-statuses-button (new-widget {:widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Get statuses from server"})
+        print-gui-map-button (new-widget {:widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Print gui-map"})]
     (doto button-group
       (.setLayout (RowLayout. SWT/VERTICAL)))
     (do
-      (swt-util/stack-full-width bounding-comp {:margin 10} [print-global-statuses-button update-server-statuses-button get-server-statuses-button]))
+      (swt-util/stack-full-width bounding-comp {:margin 10} [print-global-statuses-button update-server-statuses-button get-server-statuses-button print-gui-map-button]))
     (update-button print-global-statuses-button
                    {:widget-select-fn (fn [event]
                                         (println (task-status/global-statuses)))})
@@ -173,6 +175,9 @@
     (update-button get-server-statuses-button
                    {:widget-select-fn (fn [event]
                                         (update-job-statuses-from-server))})
+    (update-button print-gui-map-button
+                   {:widget-select-fn (fn [event]
+                                        (println @gui-state/gui-map))})
     button-group))
 
 (defn button-testing-group
@@ -231,7 +236,7 @@
 (defn ui-editor-left
   "create the entire left-hand side navigation pane"
   [parent]
-  (let [comp-left (new-widget {:widget-class Composite :parent parent :styles [SWT/BORDER]})
+  (let [comp-left (new-widget {:keyname :editor-left :widget-class Composite :parent parent :styles [SWT/BORDER]})
         exec-group (execution-group comp-left)
         button-group (button-group comp-left)
         button-debugging-group (button-debugging-group comp-left)]

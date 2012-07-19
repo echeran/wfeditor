@@ -1,6 +1,7 @@
 (ns wfeditor.ui.util.swt
   (:require [wfeditor.io.file.wfeformat :as fformat]
-            [wfeditor.model.workflow :as wflow])
+            [wfeditor.model.workflow :as wflow]
+            [wfeditor.ui.state.gui :as gui-state])
   (:import
    org.eclipse.swt.SWT
    (org.eclipse.swt.events SelectionEvent SelectionAdapter)
@@ -25,6 +26,11 @@
    (isa? (class widget) org.eclipse.jface.window.Window) (.getShell widget)
    :else (when-let [parent (.getParent widget)] (get-ancestor-shell parent))))
 
+;; creating this as a convenience for all of the ns's that require
+;; this ns in order to call the new-widget macro so that they will not
+;; have to additionally require the wfeditor.ui.state.gui ns
+(def add-widget gui-state/add-widget)
+
 
 ;; naming convention using asterisk at end explained in this SO post:
 ;; http://stackoverflow.com/questions/5082850/whats-the-convention-for-using-an-asterisk-at-the-end-of-a-function-name-in-clo
@@ -46,14 +52,15 @@ opts map keys and values:
            (when ~text (.setText widget# ~text))
            widget#)))
   ([opts]
-     (let [{:keys [styles text widget-class parent] :or {styles [SWT/NONE] widget-class Button parent (. Display getCurrent)}} opts]
+     (let [{:keys [styles text widget-class parent keyname] :or {styles [SWT/NONE] widget-class Button parent (. Display getCurrent)}} opts]
        `(let [style# (condp = (count ~styles)
-                        0 SWT/NONE
-                        1 (first ~styles)
-                        (apply bit-or ~styles))
-               widget# (new ~widget-class ~parent style#)]
-           (when ~text (.setText widget# ~text))
-           widget#))))
+                       0 SWT/NONE
+                       1 (first ~styles)
+                       (apply bit-or ~styles))
+              widget# (new ~widget-class ~parent style#)]
+          (when ~text (.setText widget# ~text))
+          (wfeditor.ui.util.swt/add-widget ~parent widget# ~keyname)
+          widget#))))
 
 (defmacro create-widgets-with-names [parent widget-class style names]
   `(dorun (map #(.setText (new ~widget-class ~parent ~style) %1) ~names)))

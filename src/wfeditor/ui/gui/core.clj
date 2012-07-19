@@ -6,7 +6,8 @@
             [wfeditor.ui.gui.editor-left :as editor-left]
             [wfeditor.io.util.thread-control :as thread-control]
             [wfeditor.io.status.task-run :as task-status]
-            [wfeditor.ui.util.const :as ui-const])
+            [wfeditor.ui.util.const :as ui-const]
+            [wfeditor.ui.state.gui :as gui-state])
   (:use [wfeditor.ui.util.swt :as swt-util])
   (:import
    org.eclipse.jface.window.ApplicationWindow
@@ -108,6 +109,8 @@
     ;; the addMenuBar call in the constructor is required by JFace for the
     ;; ApplicationWindow subclass to call createMenuManger
     (createContents [parent]
+      (dosync
+       (ref-set gui-state/gui-map (gui-state/new-swtwidget {:keyname :shell :obj (.getShell this) :class (class (.getShell this))})))
       (ui-editor-create parent))
     (getInitialSize []
       ;; override default implementation (documented in Javadoc) with
