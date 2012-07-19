@@ -62,6 +62,8 @@ opts map keys and values:
           (wfeditor.ui.util.swt/add-widget ~parent widget# ~keyname)
           widget#))))
 
+(def remove-widget gui-state/remove-widget)
+
 (defmacro create-widgets-with-names [parent widget-class style names]
   `(dorun (map #(.setText (new ~widget-class ~parent ~style) %1) ~names)))
 

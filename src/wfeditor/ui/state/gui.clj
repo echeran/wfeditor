@@ -137,6 +137,18 @@ Note: when using this address with gui-> and gui1->, the first element of the ad
        (dosync
         (ref-set gui-map new-map)))))
 
+(defn remove-widget
+  "given a widget in the gui map, remove it from the gui-map. the remove operation also removes all descendants in the gui-map"
+  [widget]
+  (let [gm gui-map]
+    (when-let [w-addr (get (lookup-map gm) widget)]
+      (let [gz (gui-zip gm)
+            wz (gui1-> gz (rest w-addr))
+            new-map-zip (zip/remove wz)
+            new-map (zip/root new-map-zip)]
+        (dosync
+         (ref-set gui-map new-map))))))
+
 ;;
 ;; ref initializations
 ;;
