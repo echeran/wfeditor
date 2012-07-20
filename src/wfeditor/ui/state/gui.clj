@@ -93,13 +93,20 @@ See the footer of zip-query.clj for examples."
 given. See gui->"
   [loc & preds] (first (apply gui-> loc preds)))
 
-(defn get-widget
-  "Returns the widget as specified by the predicates gives as arguments. see gui1->/gui->. Will try to gracefully handle if a swtw-zip-path sequential is supplied instead"
+(defn get-widget-zip
+  "Returns the zipper that is located in the gui-map as specified by the predicates gives as arguments. see gui1->/gui->. Will try to gracefully handle if a swtw-zip-path sequential is supplied instead of predicates"
   [& preds]
   (let [gz (gui-zip @gui-map)
-        widget (if (and (= 1 (count preds)) (sequential? (first preds)))
-                 (gui1-> gz (rest (first preds)))
+        wz (if (and (= 1 (count preds)) (sequential? (first preds)))
+                 (apply gui1-> gz (rest (first preds)))
                  (apply gui1-> gz preds))]
+    wz))
+
+(defn get-widget
+  "Returns the widget as specified from get-widget-zip (same function arguments apply)"
+  [& preds]
+  (let [wz (apply get-widget-zip preds)
+        widget (:obj (zip/node wz))]
     widget))
 
 (defn swtw-zip-path
