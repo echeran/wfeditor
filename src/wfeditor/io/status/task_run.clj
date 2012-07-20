@@ -121,6 +121,12 @@
 ;; task status file read/write operation functions
 ;;
 
+;; btw: here is a page describing persisting info in Clojure, and why
+;; he thinks Clojure's data structures + eval is better than XML /
+;; JSON:
+;; http://amalloy.hubpages.com/hub/Dont-use-XML-JSON-for-Clojure-only-persistence-messaging
+;; I still disagree at the moment
+
 (defn- parsed-statuses-map-flattened-entries
   "this function takes the nested map of statuses given as input (or global-job-statuses if no argument supplied), assumes each 'leaf' value is at the same depth, and returns a seq of vectors, where each vector is like the concatenation of the 'coordinates' (as used by get-in and assoc-in) and the 'leaf' value.  the input nested map is assumed to be given by the Cheshire (JSON) parser.  the function also operates on values according to the structure of the global-job-statuses map. this function was initially created for further parsing (transforming) the output of Cheshire's parsing of JSON" 
   ([parsed-statuses-map]

@@ -172,8 +172,12 @@ Note: when using this address with gui-> and gui1->, the first element of the ad
 
 ;; this map is designed to contain the entire state (and by extension,
 ;; a pointer to every active widget) of the GUI
-;; I also wonder if this should be a zipper instead of a nested map,
-;; since that is the pure-functional way of handling trees...  perhaps
-;; to do at some point later, if beneficial
-
+;; the functional way of handling nested/tree structures uses zippers
+;; for manipulation but still assumes (?) that changes are preserved
+;; in original data structure
+;; http://stackoverflow.com/questions/2872921/insertions-into-zipper-trees-on-xml-files-in-clojure
+;; if breadth-first search (BFS) is ever needed, this is the best way
+;; to do it for zippers afaict
+;; http://stackoverflow.com/questions/11409140/stumped-with-functional-breadth-first-tree-traversal-in-clojure
+;; this is the way to traverse a zipper entirely http://www.ibm.com/developerworks/java/library/j-treevisit/index.html
 (def gui-map (ref {}))
