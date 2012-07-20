@@ -267,8 +267,10 @@
 ;; the add-watch mechanism.  we have to trust that following this
 ;; add-watch, the workflow/wf gets instantiated before the
 ;; global-job-statuses changes
-(add-watch task-status/global-job-statuses :re-bind (fn [key r old new] 
-                                          (let [curr-wfinst (wfinstance)
-                                                updated-wfinst (exec/update-wfinst-sge curr-wfinst)
-                                                updated-wf (:workflow updated-wfinst)]
-                                            (wflow/set-workflow updated-wf))))
+(add-watch task-status/global-job-statuses
+           :re-bind (fn [key r old new]
+                      (if (= :client @io-const/relay-type)
+                        (let [curr-wfinst (wfinstance)
+                              updated-wfinst (exec/update-wfinst-sge curr-wfinst)
+                              updated-wf (:workflow updated-wfinst)]
+                          (wflow/set-workflow updated-wf)))))
