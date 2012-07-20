@@ -44,11 +44,9 @@
                                (gensym))))]
     (SWTWidget. keyname obj class children)))
 
-;;
-;; functions based on clojure.zip
-;;
 
 (defn gui-zip
+  "create a zip from a nested map/structure of SWTWidget types. based on xml-zip from clojure.zip"
   [root]
   (zip/zipper (complement string?)
               (comp seq :children)
@@ -56,13 +54,9 @@
                   (assoc node :children (and children (apply vector children))))
               root))
 
-;;
-;; functions based on clojure.contrib.zip-filter.xml
-;;
-
 (defn keyname=
   "Returns a query predicate that matches a node when its is a tag
-named tagname."
+named tagname. based on fns from clojure.contrib.zip-filter.xml"
   [keyname]
     (fn [loc]
       (filter #(and (zip/branch? %) (= keyname (get (zip/node %) :keyname)))
@@ -99,6 +93,15 @@ See the footer of zip-query.clj for examples."
 given. See gui->"
   [loc & preds] (first (apply gui-> loc preds)))
 
+(defn get-widget
+  "Returns the widget as specified by the predicates gives as arguments. see gui1->/gui->. Will try to gracefully handle if a swtw-zip-path sequential is supplied instead"
+  [& preds]
+  (let [gz (gui-zip @gui-map)
+        widget (if (and (= 1 (count preds)) (sequential? (first preds)))
+                 (gui1-> gz (rest (first preds)))
+                 (apply gui1-> gz preds))]
+    widget))
+
 (defn swtw-zip-path
   "given a zipper location of the gui-map, return an ordered list of keynames that address the node pointed to by the zipper location.
 Note: when using this address with gui-> and gui1->, the first element of the address should be dropped"
@@ -126,28 +129,35 @@ Note: when using this address with gui-> and gui1->, the first element of the ad
   ([parent widget]
      (add-widget parent widget nil))
   ([parent widget keyname]
-     (let [gm @gui-map
-           p-addr (get (lookup-map gm) parent)
-           gz (gui-zip gm)
-           pz (apply gui1-> gz (rest p-addr))
-           new-swtw (new-swtwidget {:keyname keyname :obj widget :class (class widget) :children []})
-           edit-add-fn (fn [n w] (update-in n [:children] conj w))
-           new-map-zip (zip/edit pz edit-add-fn new-swtw)
-           new-map (zip/root new-map-zip)]
-       (dosync
+     (dosync
+      (let [gm @gui-map
+            p-addr (get (lookup-map gm) parent)
+            gz (gui-zip gm)
+            pz (apply gui1-> gz (rest p-addr))
+            new-swtw (new-swtwidget {:keyname keyname :obj widget :class (class widget) :children []})
+            edit-add-fn (fn [n w] (update-in n [:children] conj w))
+            new-map-zip (zip/edit pz edit-add-fn new-swtw)
+            new-map (zip/root new-map-zip)]
         (ref-set gui-map new-map)))))
 
 (defn remove-widget
   "given a widget in the gui map, remove it from the gui-map. the remove operation also removes all descendants in the gui-map"
   [widget]
-  (let [gm gui-map]
-    (when-let [w-addr (get (lookup-map gm) widget)]
-      (let [gz (gui-zip gm)
-            wz (gui1-> gz (rest w-addr))
-            new-map-zip (zip/remove wz)
-            new-map (zip/root new-map-zip)]
-        (dosync
+  (dosync
+   (let [gm gui-map]
+     (when-let [w-addr (get (lookup-map gm) widget)]
+       (let [gz (gui-zip gm)
+             wz (gui1-> gz (rest w-addr))
+             new-map-zip (zip/remove wz)
+             new-map (zip/root new-map-zip)]
          (ref-set gui-map new-map))))))
+
+(defn initialize-gui-map
+  "given a 'root' widget for the gui-map, initialize gui-map with that widget. widget is supplied in the opts map, which takes the same keys as new-swtwidget"
+  [opts]
+  (let [swtw (new-swtwidget opts)]
+    (dosync
+     (ref-set gui-map swtw))))
 
 ;;
 ;; ref initializations

@@ -109,8 +109,7 @@
     ;; the addMenuBar call in the constructor is required by JFace for the
     ;; ApplicationWindow subclass to call createMenuManger
     (createContents [parent]
-      (dosync
-       (ref-set gui-state/gui-map (gui-state/new-swtwidget {:keyname :shell :obj (.getShell this) :class (class (.getShell this))})))
+      (gui-state/initialize-gui-map {:keyname :shell :obj (.getShell this) :class (class (.getShell this))})
       (ui-editor-create parent))
     (getInitialSize []
       ;; override default implementation (documented in Javadoc) with
