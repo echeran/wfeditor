@@ -5,7 +5,7 @@
             [clj-commons-exec :as commons-exec]
             [wfeditor.io.relay.client :as wfeclient]
             [wfeditor.model.workflow :as wflow]
-            [wfeditor.io.util.const :as io-const]
+            [wfeditor.io.util.dir :as dir-util]
             [wfeditor.io.status.task-run :as task-status]
             [fs.core :as fs])
   (:import wfeditor.model.workflow.Job))
@@ -61,11 +61,11 @@
 ;; util functions
 ;;
 
-(defn first-line
-  "return the first line of a string, where the string may have some \newline characters"
-  [s]
-  (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. s))]
-    (first (line-seq rdr))))
+;; (defn first-line
+;;   "return the first line of a string, where the string may have some \newline characters"
+;;   [s]
+;;   (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. s))]
+;;     (first (line-seq rdr))))
 
 (defn user-home
   "return the string of the user's home directory, assuming we're on a traditional POSIX system where ~<user> expands to <user>'s home"
@@ -276,7 +276,7 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
         cmd (commons-exec/sh ["cat" sge-jobseqnum-file-path])
         result @cmd
         jobseqnum (when (= 0 (:exit result))
-                    (try (Integer/parseInt (first-line (:out result)))
+                    (try (Integer/parseInt (first (string/split-lines (:out result))))
                          (catch NumberFormatException e nil)))]
     (or jobseqnum 0)))
 
@@ -287,10 +287,13 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
 
 (defn- std-out-err-dir
   "create (if not created, via fs/mkdirs) and return a dir that will contain a job's std. out and std. err files, given the job's id"
-  [job-id]
-  (let [dir (fs/file (io-const/data-dir) (str job-id))]
-    (fs/mkdirs dir)
-    dir))
+  ([job-id]
+     (std-out-err-dir nil job-id))
+  ([username job-id]
+     (let [dir (fs/file (dir-util/data-dir username) (str job-id))]
+       ;; (fs/mkdirs dir)
+       (dir-util/bash-mkdir username dir)
+       dir)))
 
 (defn- enqueue-job-sge
   "enqueue a job using SGE and return the job with the new id"
@@ -306,13 +309,17 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
            qsub-cmd-parts (into qsub-cmd-parts (when (not= username (. System getProperty "user.name")) ["sudo" "-u" username "-i"]))
            qsub-cmd-parts (into qsub-cmd-parts ["qsub"])
            qsub-cmd-parts (into qsub-cmd-parts hold_jid_parts)
-           std-out-file (or (:std-out-file job) (str (fs/file (std-out-err-dir internal-job-id) (str internal-job-id ".out"))))
-           std-err-file (or (:std-err-file job) (str (fs/file (std-out-err-dir internal-job-id) (str internal-job-id ".err"))))
+           std-out-file (or (:std-out-file job) (str (fs/file (std-out-err-dir username internal-job-id) (str internal-job-id ".out"))))
+           std-err-file (or (:std-err-file job) (str (fs/file (std-out-err-dir username internal-job-id) (str internal-job-id ".err"))))
            job-name (:name job)
            qsub-script-header-map {"-o" std-out-file "-e" std-err-file "-N" job-name}
            qsub-script-header-map (into {} (filter (comp not nil? val) qsub-script-header-map))
            qsub-script-header-strings (for [[k v] qsub-script-header-map] (str "#$ " k " " v))
            qsub-script (string/join "\n" (conj (into [] qsub-script-header-strings) job-cmd-str))
+           _ (println "____________")
+           _ (println "qsub-script = ")
+           _ (println qsub-script)
+           _ (println "^^^^^^^^^^^^")
            commons-exec-sh-opts-map {:in qsub-script :flush-input? true}
            ;; TODO: add a timeout to the exec/sh call opts map
            result-map-prom (commons-exec/sh qsub-cmd-parts commons-exec-sh-opts-map)

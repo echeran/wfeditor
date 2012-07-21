@@ -1,5 +1,5 @@
 (ns wfeditor.io.status.task-run
-  (:require [wfeditor.io.util.const :as io-const]
+  (:require [wfeditor.io.util.dir :as dir-util]
             [clojure.contrib.map-utils :as map-utils]
             [wfeditor.model.workflow :as wflow]
             [clojure.string :as string]
@@ -30,7 +30,7 @@
   "a utility function that updates the contents of the base map by adding/replacing them with the values of the newer map, and doing this recursively through the map structure according to clojure.contrib.map-utils/deep-merge-with"
   [base-map newer-map]
   (letfn [(merge-fn [& vals] (last (concat vals)))]
-    (map-utils/deep-merge-with merge-fn base-map newer-map)))
+    (map-utils/deep-merge-with merge-fn base-map newer-map))) 
 
 ;;
 ;; global status functions
@@ -61,6 +61,16 @@
 ;; global status functions - server process-specific
 ;;
 
+(defn done-job-state
+  "for jobs that have run and stopped running -- either because of success, error, or being killed -- return the state as a keyword accordingly"
+  [jid]
+  (let [qacct-done-state-cmd-parts ["qacct" "-j" (str jid)]
+        done-state-prom (commons-exec/sh qacct-done-state-cmd-parts {:handle-quoting? true})
+        done-state-result @done-state-prom]
+    (cond
+     (or (not= 0 (:exit done-state-result)) (not (:out done-state-result))) :killed
+     :else :error)))
+
 (defn update-global-statuses
   "update the information of job execution statuses. works only for SGE, and needs work to be generalizable. providing a nil username means job statuses for all users are updated. nil exec-domain defaults to SGE"
   ([]
@@ -85,6 +95,8 @@
                                                        (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
                                    {}))
            qstat-recently-done-cmd-parts []
+           ;; using sudo regardless hopefully prevents user A from
+           ;; connecting as user B (see TODO above)
            qstat-recently-done-cmd-parts (into qstat-recently-done-cmd-parts (if (and username (not= username (. System getProperty "user.name"))) ["sudo" "-u" username "-i"] ["sudo" "-u" (. System getProperty "user.name") "-i"]))
            qstat-recently-done-cmd-parts (into qstat-recently-done-cmd-parts ["qstat" "-s" "z" "-u" (or username "\"*\"")])
            recently-done-prom (commons-exec/sh qstat-recently-done-cmd-parts {:handle-quoting? true})
@@ -169,7 +181,7 @@
 (defn file-to-statuses
   "read contents of file, which is JSON-encoded version of global job statuses, and return type structure-specific formatted version. if no file provided, then file returned by task-run-file used"
   ([]
-     (file-to-statuses (io-const/task-run-file)))
+     (file-to-statuses (dir-util/task-run-file)))
   ([file]
      (let [json-str (slurp file)
            statuses-map (json-to-statuses-map json-str)]
@@ -178,7 +190,7 @@
 (defn statuses-to-file
   "save global-job-statuses map in JSON format to the provided file. if no file provided, then file returned by task-run-file used"
   ([]
-     (statuses-to-file (io-const/task-run-file)))
+     (statuses-to-file (dir-util/task-run-file)))
   ([file]
      (spit file (statuses-map-to-json))))
 
@@ -187,11 +199,11 @@
 ;;
 
 (defn initialize-task-status-file-ops
-  "do initialization work so that dirs and files exist where statuses should be stored, and any existing status info is loaded"
+  "do initialization work so that dirs and files exist where statuses should be stored, and any existing status info is loaded. dirs and files will exist in user that is running the process"
   []
-  (let [dir-structure-leaves [(io-const/config-dir) (io-const/data-dir)]]
+  (let [dir-structure-leaves [(dir-util/config-dir) (dir-util/data-dir)]]
     (dorun (map fs/mkdirs dir-structure-leaves)))
-  (let [task-run-file (io-const/task-run-file)]
+  (let [task-run-file (dir-util/task-run-file)]
     (if (fs/exists? task-run-file)
       (let [restored-job-statuses-map (file-to-statuses task-run-file)]
         (dosync
