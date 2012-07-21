@@ -316,10 +316,6 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
            qsub-script-header-map (into {} (filter (comp not nil? val) qsub-script-header-map))
            qsub-script-header-strings (for [[k v] qsub-script-header-map] (str "#$ " k " " v))
            qsub-script (string/join "\n" (conj (into [] qsub-script-header-strings) job-cmd-str))
-           _ (println "____________")
-           _ (println "qsub-script = ")
-           _ (println qsub-script)
-           _ (println "^^^^^^^^^^^^")
            commons-exec-sh-opts-map {:in qsub-script :flush-input? true}
            ;; TODO: add a timeout to the exec/sh call opts map
            result-map-prom (commons-exec/sh qsub-cmd-parts commons-exec-sh-opts-map)
