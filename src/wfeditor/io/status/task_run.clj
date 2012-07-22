@@ -61,15 +61,46 @@
 ;; global status functions - server process-specific
 ;;
 
+(defn qacct-task-parse
+  "given the lines (as a seq) representing the qacct reporting of a task (of some job), return a vector whose first element is the task id and whose second element is the status keyword. since this is qacct reporting, the status keyword can only be in the set #{:success :error :failed}"
+  [lines]
+  (let [task-id-line (some #(when (re-seq #"^taskid" %) %) lines)
+        task-id-str (nth (remove (some-fn #(= "" %) nil?) (string/split task-id-line #"\s")) 1)
+        task-id (try (Integer/parseInt task-id-str) (catch NumberFormatException e 0))
+        failed-line (some #(when (re-seq #"^failed" %) %) lines)
+        fail-exit-code-str (nth (remove (some-fn #(= "" %) nil?) (string/split failed-line #"\s")) 1)
+        fail-exit-code (try (Integer/parseInt fail-exit-code-str) (catch NumberFormatException e 0))
+        exit-code-line (some #(when (re-seq #"^exit_status" %) %) lines)
+        exit-code-str (nth (remove (some-fn #(= "" %) nil?) (string/split exit-code-line #"\s")) 1)
+        exit-code (try (Integer/parseInt exit-code-str) (catch NumberFormatException e 0))
+        status (cond
+                (and (= 0 fail-exit-code) (= 0 exit-code)) :success
+                (and (not= 0 fail-exit-code) (not= 0 exit-code)) :killed
+                (not= 0 exit-code) :error
+                (not= 0 fail-exit-code) :failed
+                :else :error)]
+    [task-id status]))
+
+(defn qacct-parse
+  "given a string of the qacct -j output for a done job, return a map indicating the status for each task-id"
+  [qacct-str]
+  (let [qacct-lines (string/split-lines qacct-str)
+        task-lines-seq (remove #(re-seq #"^===" (first %)) (partition-by #(re-seq #"^===" %) qacct-lines))
+        qacct-job-status-map (into {} (for [task-lines task-lines-seq]
+                                        (qacct-task-parse task-lines)))]
+    qacct-job-status-map))
+
 (defn done-job-state
-  "for jobs that have run and stopped running -- either because of success, error, or being killed -- return the state as a keyword accordingly"
+  "for jobs that have run and stopped running -- either because of success, error, or being killed -- return the state as a keyword accordingly
+TODO: this fn needs to reworked and/or renamed and/or abandoned altogether when everything is generalized for array jobs"
   [jid]
   (let [qacct-done-state-cmd-parts ["qacct" "-j" (str jid)]
         done-state-prom (commons-exec/sh qacct-done-state-cmd-parts {:handle-quoting? true})
         done-state-result @done-state-prom]
     (cond
      (or (not= 0 (:exit done-state-result)) (not (:out done-state-result))) :killed
-     :else :error)))
+     :else (let [qacct-job-status-map (qacct-parse (:out done-state-result))]
+             (get qacct-job-status-map 0 :error)))))
 
 (defn update-global-statuses
   "update the information of job execution statuses. works only for SGE, and needs work to be generalizable. providing a nil username means job statuses for all users are updated. nil exec-domain defaults to SGE"
@@ -124,7 +155,7 @@
            new-status-map (reduce update-map new-status-map (for [[user user-map] recently-done-map
                                                                   [jid sge-status-str] user-map]
                                                               (let [task-id 0
-                                                                    status :done]
+                                                                    status (done-job-state jid)]
                                                                 {user {jid {task-id status}}})))
            global-status-update-map {exec-domain new-status-map}]
        (update-global-statuses-with-new-statuses global-status-update-map))))
