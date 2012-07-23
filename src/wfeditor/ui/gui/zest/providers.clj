@@ -2,7 +2,8 @@
   (:require [wfeditor.model.workflow :as wflow]
             [wfeditor.io.execution :as exec]
             [clojure.string :as string]
-            [wfeditor.ui.util.swt :as swt-util])
+            [wfeditor.ui.util.swt :as swt-util]
+            [wfeditor.io.util.const :as io-const])
   ;; need to import the Clojure defrecord, etc. (Java-interop types)
   ;; as according to
   ;; http://dbostwick.posterous.com/using-clojures-deftype-and-defrecord-and-name
@@ -50,7 +51,7 @@
       ;; remember, returning nil means method is ignored (i.e.,
       ;; default value is returned)
       (when-let [status (and (= (class entity) wfeditor.model.workflow.Job)
-                             (get (:task-statuses entity) 0))]
+                             (get (:task-statuses entity) io-const/NON-ARRAY-JOB-TASK-ID))]
         (let [rgb (condp = status
                     :success [0 255 0]
                     :running [255 255 0]

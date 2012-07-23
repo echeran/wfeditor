@@ -47,6 +47,10 @@
 ;;
 ;; execution constants
 ;;
+
+(def NON-ARRAY-JOB-TASK-ID -1)
+
+
 ;;
 ;; dynamically-set set-once refs ('constant refs'?; initializations happen from elsewhere)
 ;;

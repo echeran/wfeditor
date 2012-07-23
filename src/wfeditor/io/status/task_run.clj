@@ -5,7 +5,8 @@
             [clojure.string :as string]
             [clj-commons-exec :as commons-exec]
             [cheshire.core :as cheshire]
-            [fs.core :as fs]))
+            [fs.core :as fs]
+            [wfeditor.io.util.const :as io-const]))
 
 ;;
 ;; refs (declarations here, initial bindings below)
@@ -66,7 +67,7 @@
   [lines]
   (let [task-id-line (some #(when (re-seq #"^taskid" %) %) lines)
         task-id-str (nth (remove (some-fn #(= "" %) nil?) (string/split task-id-line #"\s")) 1)
-        task-id (try (Integer/parseInt task-id-str) (catch NumberFormatException e 0))
+        task-id (try (Integer/parseInt task-id-str) (catch NumberFormatException e io-const/NON-ARRAY-JOB-TASK-ID))
         failed-line (some #(when (re-seq #"^failed" %) %) lines)
         fail-exit-code-str (nth (remove (some-fn #(= "" %) nil?) (string/split failed-line #"\s")) 1)
         fail-exit-code (try (Integer/parseInt fail-exit-code-str) (catch NumberFormatException e 0))
@@ -100,7 +101,7 @@ TODO: this fn needs to reworked and/or renamed and/or abandoned altogether when 
     (cond
      (or (not= 0 (:exit done-state-result)) (not (:out done-state-result))) :killed
      :else (let [qacct-job-status-map (qacct-parse (:out done-state-result))]
-             (get qacct-job-status-map 0 :error)))))
+             (get qacct-job-status-map io-const/NON-ARRAY-JOB-TASK-ID :error)))))
 
 (defn update-global-statuses
   "update the information of job execution statuses. works only for SGE, and needs work to be generalizable. providing a nil username means job statuses for all users are updated. nil exec-domain defaults to SGE"
@@ -144,7 +145,7 @@ TODO: this fn needs to reworked and/or renamed and/or abandoned altogether when 
            new-status-map {}
            new-status-map (reduce update-map new-status-map (for [[user user-map] not-done-map
                                                                   [jid sge-status-str] user-map]
-                                                              (let [task-id 0
+                                                              (let [task-id io-const/NON-ARRAY-JOB-TASK-ID
                                                                     status (condp = sge-status-str
                                                                              "r" :running
                                                                              "qw" :waiting
@@ -154,7 +155,7 @@ TODO: this fn needs to reworked and/or renamed and/or abandoned altogether when 
                                                                 {user {jid {task-id status}}})))
            new-status-map (reduce update-map new-status-map (for [[user user-map] recently-done-map
                                                                   [jid sge-status-str] user-map]
-                                                              (let [task-id 0
+                                                              (let [task-id io-const/NON-ARRAY-JOB-TASK-ID
                                                                     status (done-job-state jid)]
                                                                 {user {jid {task-id status}}})))
            global-status-update-map {exec-domain new-status-map}]
