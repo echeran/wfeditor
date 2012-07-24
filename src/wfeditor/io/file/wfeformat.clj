@@ -2,7 +2,8 @@
   (:require [wfeditor.io.util.xml :as xml-util]
             [wfeditor.model.workflow :as wf]
             [clojure.string :as string]
-            [clojure.contrib.zip-filter.xml :as zfx])
+            [clojure.contrib.zip-filter.xml :as zfx]
+            [clojure.zip :as zip])
   (:import [wfeditor.model.workflow Job Workflow WFInstance]
            [java.io ByteArrayInputStream]))
 
@@ -11,10 +12,10 @@
 (def file-filter-names ["Extensible Markup Language (XML) Files"])
 
 (def format-reqd-states {:workflow :reqd, :wfinstance :reqd
-                         :username :req-when-parent, :exec-domain :req-when-parent, :wf-name :req-when-parent, :wf-ver :req-when-parent, :wf-format-ver :req-when-parent, :name :req-when-parent, :prog-exec-loc :req-when-parent, :prog-args :req-when-parent, :prog-opts :req-when-parent, :flag :req-when-parent, :val :req-when-parent, :dep :req-when-parent, :task-id :req-when-parent, :status :req-when-parent
-                         :meta nil, :parent nil, :parent-ver nil, :parent-file nil, :parent-hash nil, :jobs nil, :job nil, :id nil :desc nil, :prog-name nil, :prog-ver nil, :prog-exec-ver nil, :arg nil, :opt nil, :std-out-file nil, :std-err-file nil, :deps nil, :task-statuses nil, :task nil})
+                         :username :req-when-parent, :exec-domain :req-when-parent, :wf-name :req-when-parent, :wf-ver :req-when-parent, :wf-format-ver :req-when-parent, :name :req-when-parent, :prog-exec-loc :req-when-parent, :prog-args :req-when-parent, :prog-opts :req-when-parent, :flag :req-when-parent, :val :req-when-parent, :dep :req-when-parent, :task-id :req-when-parent, :status :req-when-parent, :start :req-when-parent, :end :req-when-parent
+                         :meta nil, :parent nil, :parent-ver nil, :parent-file nil, :parent-hash nil, :jobs nil, :job nil, :id nil :desc nil, :prog-name nil, :prog-ver nil, :prog-exec-ver nil, :arg nil, :opt nil, :std-out-file nil, :std-err-file nil, :deps nil, :task-statuses nil, :task nil, :array nil, :step nil, :index-var nil})
 
-(def format-hierarchy {:wfinstance [:username :exec-domain :workflow], :workflow [:meta :jobs], :meta [:wf-name :wf-ver :wf-format-ver :parent], :parent [:parent-ver :parent-file :parent-hash], :jobs :job, :job [:id :name :desc :prog-name :prog-ver :prog-exec-loc :prog-exec-ver :prog-args :prog-opts :std-out-file :std-err-file :job-deps :task-statuses], :prog-args :arg, :prog-opts :opt, :opt [:flag :val], :deps :dep, :task-statuses :task, :task [:task-id :status]})
+(def format-hierarchy {:wfinstance [:username :exec-domain :workflow], :workflow [:meta :jobs], :meta [:wf-name :wf-ver :wf-format-ver :parent], :parent [:parent-ver :parent-file :parent-hash], :jobs :job, :job [:id :name :desc :prog-name :prog-ver :prog-exec-loc :prog-exec-ver :prog-args :prog-opts :std-out-file :std-err-file :job-deps :task-statuses :array], :prog-args :arg, :prog-opts :opt, :opt [:flag :val], :deps :dep, :task-statuses :task, :task [:task-id :status] :array [:start :end :step :index-var]})
 
 ;;
 ;; functions to create XML from datatypes
@@ -71,6 +72,16 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
                                           [(xml-subtree key-tag k)
                                            (xml-subtree val-tag v)]}))))))}))
 
+(defn- job-array-xml-tree
+  "return the xml subtree for the array map (that is, a map under the field named 'array' in the Job object that represents a job array)"
+  [array-map]
+  (when (seq (remove remove-fn (vals array-map)))
+    (let [array-keys (:array format-hierarchy)]
+      {:tag :array :attrs nil :content
+       (into [] (remove nil? (for [k array-keys]
+                               (let [val (get array-map k)]
+                                 (xml-subtree k val)))))})))
+
 (defn- job-xml-tree
   "implementation of defmethod for xml-tree multimethod for the Job record class"
   [wf job]
@@ -81,6 +92,7 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
                                       (let [val (get job key)] 
                                         (condp = key
                                           :prog-opts (map-coll-vals-xml-subtree key val)
+                                          :array (job-array-xml-tree val)
                                           (xml-subtree key val))))
                                    (list (xml-subtree :deps job-deps)))))}))
 
@@ -188,6 +200,18 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
   ([map fn]
       (flatten (into [] (into {} (for [[k v] map] (fn [k v])))))))
 
+(defn- job-array-from-zip
+  "return the map in the field named 'array' in the Job object, given a zipper at the job node"
+  [z]
+  (when-let [array-prop-nodes (zfx/xml-> z :array zip/children)]
+    (into {}
+          (for [prop-node array-prop-nodes]
+            (let [key (:tag prop-node)
+                  prop-zip (xml-util/xml-tree-to-zip prop-node)
+                  val (zfx/text prop-zip)
+                  parsed-val (if (#{:start :end :step} key) (Integer/parseInt val) val)]
+              [key parsed-val])))))
+
 (defn- job-from-zip
   "return a new Job instance when given a XML zipper that is currently at a job node"
   [z]
@@ -204,6 +228,7 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
                                      ;; fn's call) by storing type of
                                      ;; each element of format hierarchy
                                      :task-statuses (when-let [task-statuses-map (map-from-zip z field)] (into {} (map (fn [[k v]] (let [k (if (string? k) (Integer/parseInt k) k) v (if (string? v) (keyword v) v)] [k v])) task-statuses-map)))
+                                     :array (job-array-from-zip z)
                                      (scalar-from-zip z field)))]
                            (for [f fields :when (not (#{:deps} f))]
                              {f (field-val f)})))

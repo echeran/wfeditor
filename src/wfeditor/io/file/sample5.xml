@@ -6,19 +6,6 @@
     <wf-format-ver>1.0</wf-format-ver>
   </meta>
   <jobs>
-    <!-- <job> -->
-    <!--   <name>delete-existing-dirs</name> -->
-    <!--   <prog-exec-loc>rm</prog-exec-loc> -->
-    <!--   <prog-args> -->
-    <!--     <arg>~/sge</arg> -->
-    <!--   </prog-args> -->
-    <!--   <prog-opts> -->
-    <!--     <opt> -->
-    <!--       <flag>-rf</flag> -->
-    <!--       <val/> -->
-    <!--     </opt> -->
-    <!--   </prog-opts> -->
-    <!-- </job> -->
     <job>
       <name>create-dirs</name>
       <prog-exec-loc>mkdir</prog-exec-loc>
@@ -65,6 +52,12 @@
       <deps>
         <dep>create-dirs</dep>
       </deps>
+      <array>
+        <start>1</start>
+        <end>5</end>
+        <step>1</step>
+        <index-var>$SGE_TASK_ID</index-var>
+      </array>
     </job>
     <job>
       <name>align2</name>

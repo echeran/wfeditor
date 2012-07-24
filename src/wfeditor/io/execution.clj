@@ -303,11 +303,16 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
      (let [deps (wflow/depends-upon wf job)
            hold_jid_parts (when (seq deps)
                             ["-hold_jid" (string/join "," (map :id deps))])
+           array-job-parts (when (seq (:array job))
+                             (let [array-job-props (:array job)]
+                               (let [{:keys [start end step]} array-job-props]
+                                 ["-t" (str start "-" end (when step (str ":" step)))])))
            job-cmd-str (job-command job)
            internal-job-id (next-internal-id)
            qsub-cmd-parts []
            qsub-cmd-parts (into qsub-cmd-parts (when (not= username (. System getProperty "user.name")) ["sudo" "-u" username "-i"]))
            qsub-cmd-parts (into qsub-cmd-parts ["qsub"])
+           qsub-cmd-parts (into qsub-cmd-parts array-job-parts)
            qsub-cmd-parts (into qsub-cmd-parts hold_jid_parts)
            std-out-file (or (:std-out-file job) (str (fs/file (std-out-err-dir username internal-job-id) (str internal-job-id ".out"))))
            std-err-file (or (:std-err-file job) (str (fs/file (std-out-err-dir username internal-job-id) (str internal-job-id ".err"))))
@@ -320,7 +325,9 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
            ;; TODO: add a timeout to the exec/sh call opts map
            result-map-prom (commons-exec/sh qsub-cmd-parts commons-exec-sh-opts-map)
            qsub-output (:out @result-map-prom)
-           qsub-job-id (Integer/parseInt (nth (string/split qsub-output #"\s+") 2))]
+           qsub-job-id-str (nth (string/split qsub-output #"\s+") 2)
+           qsub-job-id-int-str (first (string/split qsub-job-id-str #"\."))
+           qsub-job-id (Integer/parseInt qsub-job-id-int-str)]
        (do
          (assoc-internal-job-id qsub-job-id internal-job-id))
        (assoc job
