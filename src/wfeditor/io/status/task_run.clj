@@ -91,6 +91,19 @@
                                         (qacct-task-parse task-lines)))]
     qacct-job-status-map))
 
+(defn done-job-array-state-map
+  "for job array jobs, return the map associating the taks ids to the execution states, given the job array's job id"
+  [jid]
+  (let [qacct-done-state-cmd-parts ["qacct" "-j" (str jid)]
+        done-state-prom (commons-exec/sh qacct-done-state-cmd-parts {:handle-quoting? true})
+        done-state-result @done-state-prom]
+    (cond
+     ;; TODO: figure out what to return for the (or ...) nil line
+     ;; instead of nil
+     (or (not= 0 (:exit done-state-result)) (not (:out done-state-result))) nil
+     :else (let [qacct-job-status-map (qacct-parse (:out done-state-result))]
+             qacct-job-status-map))))
+
 (defn done-job-state
   "for jobs that have run and stopped running -- either because of success, error, or being killed -- return the state as a keyword accordingly
 TODO: this fn needs to reworked and/or renamed and/or abandoned altogether when everything is generalized for array jobs"
@@ -102,6 +115,19 @@ TODO: this fn needs to reworked and/or renamed and/or abandoned altogether when 
      (or (not= 0 (:exit done-state-result)) (not (:out done-state-result))) :killed
      :else (let [qacct-job-status-map (qacct-parse (:out done-state-result))]
              (get qacct-job-status-map io-const/NON-ARRAY-JOB-TASK-ID :error)))))
+
+(defn parse-interval-list
+  "given a comma-separated list of values and/or intervals (where an interval is a dash-separated pair of values, with an optional step value following the second value with a colon in between), return an ordered sequence of the values indicated"
+  [interval-list-str]
+  (let [interval-strs (string/split interval-list-str #",")
+        interval-fn (fn [interval-str]
+                      (let [interval-str-split (string/split interval-str #"-|:")
+                            interval-parts (map #(Integer/parseInt %) interval-str-split)]
+                        (condp = (count interval-parts)
+                          1 [(first interval-parts)]
+                          2 (take-while (partial >= (second interval-parts)) (iterate (partial + 1) (first interval-parts)))
+                          3 (take-while (partial >= (second interval-parts)) (iterate (partial + (last interval-parts)) (first interval-parts))))))]
+    (into (sorted-set) (reduce concat [] (map interval-fn interval-strs)))))
 
 (defn update-global-statuses
   "update the information of job execution statuses. works only for SGE, and needs work to be generalizable. providing a nil username means job statuses for all users are updated. nil exec-domain defaults to SGE"
@@ -120,11 +146,16 @@ TODO: this fn needs to reworked and/or renamed and/or abandoned altogether when 
      (let [exec-domain (or exec-domain "SGE")
            qstat-status-map-fn (fn [qstat-out-str]
                                  (if qstat-out-str
-                                   (with-open [rdr (java.io.BufferedReader. (java.io.StringReader. qstat-out-str))]
-                                     (reduce (fn [m [jid user status]] (assoc-in m [user jid] status)) {}
-                                             (map (juxt #(Integer/parseInt (nth % 0)) #(nth % 3) #(nth % 4))
-                                                  (map #(remove (fn [s] (or (nil? s) (= "" s)) ) %)
-                                                       (map #(string/split % #"\s") (drop 2 (line-seq rdr)))))))
+                                   (reduce (fn [m split-line-cols]
+                                             (let [filtered-cols (remove (fn [s] (or (nil? s) (= "" s)))  split-line-cols)
+                                                   [jid user status task-info] ((juxt #(Integer/parseInt (nth % 0)) #(nth % 3) #(nth % 4) #(last %)) filtered-cols)]
+                                               (if (and (= task-info "1") (not= "1" (last (butlast split-line-cols))))
+                                                 (let [task-id io-const/NON-ARRAY-JOB-TASK-ID]
+                                                   (assoc-in m [user jid task-id] status))
+                                                 (let [task-ids (parse-interval-list task-info)]
+                                                   (reduce #(assoc-in %1 [user jid %2] status) m task-ids)))))
+                                           {}
+                                           (map #(string/split % #"\s") (drop 2 (string/split-lines qstat-out-str))))
                                    {}))
            qstat-recently-done-cmd-parts []
            ;; using sudo regardless hopefully prevents user A from
@@ -144,9 +175,9 @@ TODO: this fn needs to reworked and/or renamed and/or abandoned altogether when 
            not-done-map (qstat-status-map-fn (:out not-done-result))
            new-status-map {}
            new-status-map (reduce update-map new-status-map (for [[user user-map] not-done-map
-                                                                  [jid sge-status-str] user-map]
-                                                              (let [task-id io-const/NON-ARRAY-JOB-TASK-ID
-                                                                    status (condp = sge-status-str
+                                                                  [jid task-status-map] user-map
+                                                                  [task-id sge-status-str] task-status-map]
+                                                              (let [status (condp = sge-status-str
                                                                              "r" :running
                                                                              "qw" :waiting
                                                                              "hqw" :waiting
@@ -154,10 +185,9 @@ TODO: this fn needs to reworked and/or renamed and/or abandoned altogether when 
                                                                              :uncertain)]
                                                                 {user {jid {task-id status}}})))
            new-status-map (reduce update-map new-status-map (for [[user user-map] recently-done-map
-                                                                  [jid sge-status-str] user-map]
-                                                              (let [task-id io-const/NON-ARRAY-JOB-TASK-ID
-                                                                    status (done-job-state jid)]
-                                                                {user {jid {task-id status}}})))
+                                                                  jid (keys user-map)
+                                                                  [task-id status] (done-job-array-state-map jid)]
+                                                              {user {jid {task-id status}}}))
            global-status-update-map {exec-domain new-status-map}]
        (update-global-statuses-with-new-statuses global-status-update-map))))
 
