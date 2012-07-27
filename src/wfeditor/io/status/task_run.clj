@@ -93,28 +93,28 @@
 
 (defn done-job-array-state-map
   "for job array jobs, return the map associating the taks ids to the execution states, given the job array's job id"
-  [jid]
+  [jid task-status-map]
   (let [qacct-done-state-cmd-parts ["qacct" "-j" (str jid)]
         done-state-prom (commons-exec/sh qacct-done-state-cmd-parts {:handle-quoting? true})
-        done-state-result @done-state-prom]
-    (cond
-     ;; TODO: figure out what to return for the (or ...) nil line
-     ;; instead of nil
-     (or (not= 0 (:exit done-state-result)) (not (:out done-state-result))) nil
-     :else (let [qacct-job-status-map (qacct-parse (:out done-state-result))]
-             qacct-job-status-map))))
+        done-state-result @done-state-prom
+        update-task-status-map (cond
+                             (or (not= 0 (:exit done-state-result)) (not (:out done-state-result))) (zipmap (keys task-status-map) (repeat :killed))
+                             :else (let [qacct-job-status-map (qacct-parse (:out done-state-result))]
+                                     qacct-job-status-map))
+        new-task-status-map (merge task-status-map update-task-status-map)]
+    new-task-status-map))
 
-(defn done-job-state
-  "for jobs that have run and stopped running -- either because of success, error, or being killed -- return the state as a keyword accordingly
-TODO: this fn needs to reworked and/or renamed and/or abandoned altogether when everything is generalized for array jobs"
-  [jid]
-  (let [qacct-done-state-cmd-parts ["qacct" "-j" (str jid)]
-        done-state-prom (commons-exec/sh qacct-done-state-cmd-parts {:handle-quoting? true})
-        done-state-result @done-state-prom]
-    (cond
-     (or (not= 0 (:exit done-state-result)) (not (:out done-state-result))) :killed
-     :else (let [qacct-job-status-map (qacct-parse (:out done-state-result))]
-             (get qacct-job-status-map io-const/NON-ARRAY-JOB-TASK-ID :error)))))
+;; (defn done-job-state
+;;   "for jobs that have run and stopped running -- either because of success, error, or being killed -- return the state as a keyword accordingly
+;; TODO: this fn needs to reworked and/or renamed and/or abandoned altogether when everything is generalized for array jobs"
+;;   [jid]
+;;   (let [qacct-done-state-cmd-parts ["qacct" "-j" (str jid)]
+;;         done-state-prom (commons-exec/sh qacct-done-state-cmd-parts {:handle-quoting? true})
+;;         done-state-result @done-state-prom]
+;;     (cond
+;;      (or (not= 0 (:exit done-state-result)) (not (:out done-state-result))) :killed
+;;      :else (let [qacct-job-status-map (qacct-parse (:out done-state-result))]
+;;              (get qacct-job-status-map io-const/NON-ARRAY-JOB-TASK-ID :error)))))
 
 (defn parse-interval-list
   "given a comma-separated list of values and/or intervals (where an interval is a dash-separated pair of values, with an optional step value following the second value with a colon in between), return an ordered sequence of the values indicated"
@@ -185,8 +185,8 @@ TODO: this fn needs to reworked and/or renamed and/or abandoned altogether when 
                                                                              :uncertain)]
                                                                 {user {jid {task-id status}}})))
            new-status-map (reduce update-map new-status-map (for [[user user-map] recently-done-map
-                                                                  jid (keys user-map)
-                                                                  [task-id status] (done-job-array-state-map jid)]
+                                                                  [jid task-status-map] user-map
+                                                                  [task-id status] (done-job-array-state-map jid task-status-map)]
                                                               {user {jid {task-id status}}}))
            global-status-update-map {exec-domain new-status-map}]
        (update-global-statuses-with-new-statuses global-status-update-map))))
