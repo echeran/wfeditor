@@ -127,13 +127,18 @@
   [parent]
   (let [button-group (new-widget {:keyname :button-group :widget-class Group :parent parent :styles [SWT/SHADOW_NONE] :text "Buttons"})
         bounding-comp (new-widget {:keyname :bounding-comp :widget-class Composite :parent button-group :styles [SWT/NONE]})
+        bounding-comp2 (new-widget {:keyname :bounding-comp :widget-class Composite :parent button-group :styles [SWT/NONE]})
         load-wf-button (new-widget {:keyname :load-wf-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Load workflow"})
         save-wf-button (new-widget {:keyname :save-wf-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Save workflow"})
-        run-wf-inst-button (new-widget {:keyname :run-wf-inst-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Run WF instance"})]
+        run-wf-inst-button (new-widget {:keyname :run-wf-inst-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Run WF instance"})
+        update-server-statuses-button (new-widget {:keyname :update-server-statuses-button :widget-class Button :parent  bounding-comp2 :styles [SWT/PUSH] :text "Update statuses on server"})
+        get-server-statuses-button (new-widget {:keyname :get-server-statuses-button :widget-class Button :parent bounding-comp2 :styles [SWT/PUSH] :text "Get statuses from server"})
+        refresh-wf-statuses-button (new-widget {:keyname :refresh-wf-statuses-button :widget-class Button :parent bounding-comp2 :styles [SWT/PUSH] :text "Refresh WF statuses"})]
     (doto button-group
       (.setLayout (RowLayout. SWT/VERTICAL)))
     (do
       (swt-util/stack-full-width bounding-comp {:margin 5} [load-wf-button save-wf-button run-wf-inst-button])
+      (swt-util/stack-full-width bounding-comp2 {:margin 5} [update-server-statuses-button get-server-statuses-button refresh-wf-statuses-button])
       (.setLayout button-group (RowLayout.)))
     (update-button load-wf-button
                    {:widget-select-fn (fn [event]
@@ -147,27 +152,7 @@
                                               wf-inst (wfinstance)
                                               loc-host io-const/DEFAULT-LOCAL-HOST
                                               server-host io-const/DEFAULT-SERVER-HOST-REL-TO-REMOTE]
-                                          (exec/create-wfinst-and-set-everywhere wf-inst rem-host rem-port loc-port loc-host server-host)))}) 
-    button-group))
-
-(defn button-debugging-group
-  "create the Group widget containing all of the debugging buttons in the left navpane"
-  [parent]
-  (let [button-group (new-widget {:keyname :button-debugging-group :widget-class Group :parent parent :styles [SWT/SHADOW_NONE] :text "Debugging Buttons"})
-        bounding-comp (new-widget {:keyname :bounding-comp :widget-class Composite :parent button-group :styles [SWT/NONE]})
-        print-global-statuses-button (new-widget {:keyname :print-global-statuses-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Print locally-saved statuses"})
-        update-server-statuses-button (new-widget {:keyname :update-server-statuses-button :widget-class Button :parent  bounding-comp :styles [SWT/PUSH] :text "Update statuses on server"})
-        get-server-statuses-button (new-widget {:keyname :get-server-statuses-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Get statuses from server"})
-        print-gui-map-button (new-widget {:keyname :print-gui-map-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Print gui-map"})
-        print-gui-lookup-map-button (new-widget {:keyname :print-gui-lookup-map-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Print gui lookup-map"})
-        refresh-wf-statuses-button (new-widget {:keyname :refresh-wf-statuses-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Refresh WF statuses"})]
-    (doto button-group
-      (.setLayout (RowLayout. SWT/VERTICAL)))
-    (do
-      (swt-util/stack-full-width bounding-comp {:margin 10} [print-global-statuses-button update-server-statuses-button get-server-statuses-button print-gui-map-button print-gui-lookup-map-button refresh-wf-statuses-button]))
-    (update-button print-global-statuses-button
-                   {:widget-select-fn (fn [event]
-                                        (println (task-status/global-statuses)))})
+                                          (exec/create-wfinst-and-set-everywhere wf-inst rem-host rem-port loc-port loc-host server-host)))})
     (update-button update-server-statuses-button
                    {:widget-select-fn (fn [event]
                                         (let [{:keys [user exec-dom rem-host rem-port loc-port]} @exec-props
@@ -177,18 +162,37 @@
     (update-button get-server-statuses-button
                    {:widget-select-fn (fn [event]
                                         (update-job-statuses-from-server))})
+    (update-button refresh-wf-statuses-button
+                   {:widget-select-fn (fn [event]
+                                        (let [curr-wfinst (wfinstance)
+                                              updated-wfinst (exec/update-wfinst-sge curr-wfinst)
+                                              updated-wf (:workflow updated-wfinst)]
+                                          (wflow/set-workflow updated-wf)))})    
+    button-group))
+
+(defn button-debugging-group
+  "create the Group widget containing all of the debugging buttons in the left navpane"
+  [parent]
+  (let [button-group (new-widget {:keyname :button-debugging-group :widget-class Group :parent parent :styles [SWT/SHADOW_NONE] :text "Debugging Buttons"})
+        bounding-comp (new-widget {:keyname :bounding-comp :widget-class Composite :parent button-group :styles [SWT/NONE]})
+        print-global-statuses-button (new-widget {:keyname :print-global-statuses-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Print locally-saved statuses"})
+
+        print-gui-map-button (new-widget {:keyname :print-gui-map-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Print gui-map"})
+        print-gui-lookup-map-button (new-widget {:keyname :print-gui-lookup-map-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Print gui lookup-map"})]
+    (doto button-group
+      (.setLayout (RowLayout. SWT/VERTICAL)))
+    (do
+      (swt-util/stack-full-width bounding-comp {:margin 5} [print-global-statuses-button print-gui-map-button print-gui-lookup-map-button]))
+    (update-button print-global-statuses-button
+                   {:widget-select-fn (fn [event]
+                                        (println (task-status/global-statuses)))})
+
     (update-button print-gui-map-button
                    {:widget-select-fn (fn [event]
                                         (println @gui-state/gui-map))})
     (update-button print-gui-lookup-map-button
                    {:widget-select-fn (fn [event]
                                         (println (gui-state/lookup-map)))})
-    (update-button refresh-wf-statuses-button
-                   {:widget-select-fn (fn [event]
-                                        (let [curr-wfinst (wfinstance)
-                                              updated-wfinst (exec/update-wfinst-sge curr-wfinst)
-                                              updated-wf (:workflow updated-wfinst)]
-                                          (wflow/set-workflow updated-wf)))})
     button-group))
 
 (defn button-testing-group
