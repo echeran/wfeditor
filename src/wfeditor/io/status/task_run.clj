@@ -62,7 +62,7 @@
 ;; global status functions - server process-specific
 ;;
 
-(defn qacct-task-parse
+(defn- qacct-task-parse
   "given the lines (as a seq) representing the qacct reporting of a task (of some job), return a vector whose first element is the task id and whose second element is the status keyword. since this is qacct reporting, the status keyword can only be in the set #{:success :error :failed}"
   [lines]
   (let [task-id-line (some #(when (re-seq #"^taskid" %) %) lines)
@@ -82,7 +82,7 @@
                 :else :error)]
     [task-id status]))
 
-(defn qacct-parse
+(defn- qacct-parse
   "given a string of the qacct -j output for a done job, return a map indicating the status for each task-id"
   [qacct-str]
   (let [qacct-lines (string/split-lines qacct-str)
@@ -91,7 +91,7 @@
                                         (qacct-task-parse task-lines)))]
     qacct-job-status-map))
 
-(defn done-job-status-map
+(defn- done-job-status-map
   "for any job, return the map associating the taks ids to the execution states, given the job id and a map whose keys are the task ids of the job (for non-array jobs, which do not have task id's, have one key which is io-const/NON-ARRAY-JOB-TASK-ID)"
   [jid task-status-map]
   (let [qacct-done-state-cmd-parts ["qacct" "-j" (str jid)]
@@ -117,6 +117,22 @@
                           3 (take-while (partial >= (second interval-parts)) (iterate (partial + (last interval-parts)) (first interval-parts))))))]
     (into (sorted-set) (reduce concat [] (map interval-fn interval-strs)))))
 
+(defn- qstat-status-map-fn
+  "given the string of the output stream of a qstat command (whether running jobs, or recently done jobs), return a map that has the structure of global-job-statuses (user, job id, task id, status), where status is only given back as a string as reported by qstat (ex: \"qw\", \"r\",...)"
+  [qstat-out-str]
+  (if qstat-out-str
+    (reduce (fn [m split-line-cols]
+              (let [filtered-cols (remove (fn [s] (or (nil? s) (= "" s)))  split-line-cols)
+                    [jid user status task-info] ((juxt #(Integer/parseInt (nth % 0)) #(nth % 3) #(nth % 4) #(last %)) filtered-cols)]
+                (if (and (= task-info "1") (not= "1" (last (butlast split-line-cols))))
+                  (let [task-id io-const/NON-ARRAY-JOB-TASK-ID]
+                    (assoc-in m [user jid task-id] status))
+                  (let [task-ids (parse-interval-list task-info)]
+                    (reduce #(assoc-in %1 [user jid %2] status) m task-ids)))))
+            {}
+            (map #(string/split % #"\s") (drop 2 (string/split-lines qstat-out-str))))
+    {}))
+
 (defn update-global-statuses
   "update the information of job execution statuses. works only for SGE, and needs work to be generalizable. providing a nil username means job statuses for all users are updated. nil exec-domain defaults to SGE"
   ([]
@@ -132,19 +148,6 @@
      ;; consensus among userbase exists, then i personally think it
      ;; should be implemented so.
      (let [exec-domain (or exec-domain "SGE")
-           qstat-status-map-fn (fn [qstat-out-str]
-                                 (if qstat-out-str
-                                   (reduce (fn [m split-line-cols]
-                                             (let [filtered-cols (remove (fn [s] (or (nil? s) (= "" s)))  split-line-cols)
-                                                   [jid user status task-info] ((juxt #(Integer/parseInt (nth % 0)) #(nth % 3) #(nth % 4) #(last %)) filtered-cols)]
-                                               (if (and (= task-info "1") (not= "1" (last (butlast split-line-cols))))
-                                                 (let [task-id io-const/NON-ARRAY-JOB-TASK-ID]
-                                                   (assoc-in m [user jid task-id] status))
-                                                 (let [task-ids (parse-interval-list task-info)]
-                                                   (reduce #(assoc-in %1 [user jid %2] status) m task-ids)))))
-                                           {}
-                                           (map #(string/split % #"\s") (drop 2 (string/split-lines qstat-out-str))))
-                                   {}))
            qstat-recently-done-cmd-parts []
            ;; using sudo regardless hopefully prevents user A from
            ;; connecting as user B (see TODO above)
