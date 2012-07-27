@@ -367,9 +367,8 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
                    current-wf
                    (let [job (first jobs)
                          job-id (:id job)
-                         task-id io-const/NON-ARRAY-JOB-TASK-ID
-                         status (task-status/global-statuses exec-domain username job-id task-id)
-                         job-updated-status (assoc-in job [:task-statuses task-id] status)
+                         task-statuses (task-status/global-statuses exec-domain username job-id)
+                         job-updated-status (assoc-in job [:task-statuses] task-statuses)
                          new-wf (wflow/replace-job current-wf job job-updated-status)]
                      (recur new-wf (rest jobs)))))
         new-wfinst (assoc wfinst :workflow new-wf)]
