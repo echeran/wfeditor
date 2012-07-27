@@ -159,11 +159,12 @@
         update-server-statuses-button (new-widget {:keyname :update-server-statuses-button :widget-class Button :parent  bounding-comp :styles [SWT/PUSH] :text "Update statuses on server"})
         get-server-statuses-button (new-widget {:keyname :get-server-statuses-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Get statuses from server"})
         print-gui-map-button (new-widget {:keyname :print-gui-map-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Print gui-map"})
-        print-gui-lookup-map-button (new-widget {:keyname :print-gui-lookup-map-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Print gui lookup-map"})]
+        print-gui-lookup-map-button (new-widget {:keyname :print-gui-lookup-map-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Print gui lookup-map"})
+        refresh-wf-statuses-button (new-widget {:keyname :refresh-wf-statuses-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Refresh WF statuses"})]
     (doto button-group
       (.setLayout (RowLayout. SWT/VERTICAL)))
     (do
-      (swt-util/stack-full-width bounding-comp {:margin 10} [print-global-statuses-button update-server-statuses-button get-server-statuses-button print-gui-map-button print-gui-lookup-map-button]))
+      (swt-util/stack-full-width bounding-comp {:margin 10} [print-global-statuses-button update-server-statuses-button get-server-statuses-button print-gui-map-button print-gui-lookup-map-button refresh-wf-statuses-button]))
     (update-button print-global-statuses-button
                    {:widget-select-fn (fn [event]
                                         (println (task-status/global-statuses)))})
@@ -182,6 +183,12 @@
     (update-button print-gui-lookup-map-button
                    {:widget-select-fn (fn [event]
                                         (println (gui-state/lookup-map)))})
+    (update-button refresh-wf-statuses-button
+                   {:widget-select-fn (fn [event]
+                                        (let [curr-wfinst (wfinstance)
+                                              updated-wfinst (exec/update-wfinst-sge curr-wfinst)
+                                              updated-wf (:workflow updated-wfinst)]
+                                          (wflow/set-workflow updated-wf)))})
     button-group))
 
 (defn button-testing-group

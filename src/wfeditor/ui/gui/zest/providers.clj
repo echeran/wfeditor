@@ -26,6 +26,40 @@
 ;; functions
 ;;
 
+(defn- str-abbr
+  "contract a string to a certain length, only showing the beginning and end parts separated by an ellipsis. can provide either just the string, or the string along with the lengths of the beginning, ellipsis, and end parts"
+  ([s]
+     (str-abbr s 62 3 15))
+  ([s begin ellipsis end]
+     (if (<= (count s) (+ begin ellipsis end))
+         s
+         (clojure.string/join (concat (subs s 0 begin) (take ellipsis (repeat ".")) (subs s (- (count s) end) (count s)))))))
+
+(defn- status-tooltip-field
+  "given a map of the tasks ids and statuses, return the one-line string for the tooltip giving the full status frequencies info"
+  [task-status-map]
+  (let [status-order [:error :failed :uncertain :killed :running :waiting :success]
+        statuses (vals task-status-map)
+        total (count statuses)
+        freqs (frequencies statuses)
+        status-freq-line-fn (fn [s] (when (freqs s) (str (name s) "(" (freqs s) "/" total ")")))
+        lines (remove nil? (map status-freq-line-fn status-order))
+        tooltip-line (string/join " " lines)]
+    tooltip-line))
+
+(defn- display-status
+  "given a job's task statuses map, return a single status for coloring a Job in the canvas containing the workflow graph"
+  [task-status-map]
+  (or (get task-status-map io-const/NON-ARRAY-JOB-TASK-ID)
+      (let [statuses (vals task-status-map)
+            status-order [:error :failed :uncertain :killed :running :waiting :success]]
+        (loop [order status-order]
+          (if (empty? order)
+            nil
+            (if-let [result (some #{(first order)} statuses)]
+              result
+              (recur (rest order))))))))
+
 (defn label-provider-proxy
   "Return a proxy (anon. impl.) of a label provider for a GraphViewer of the Zest+JFace MVC setup"
   []
@@ -50,27 +84,28 @@
     (getBackgroundColour [entity]
       ;; remember, returning nil means method is ignored (i.e.,
       ;; default value is returned)
-      (when-let [status (and (= (class entity) wfeditor.model.workflow.Job)
-                             (get (:task-statuses entity) io-const/NON-ARRAY-JOB-TASK-ID))]
-        (let [rgb (condp = status
-                    :success [0 255 0]
-                    :running [255 255 0]
-                    ;; using UNC blue for waiting state color, from http://en.wikipedia.org/wiki/Carolina_blue
-                    :waiting [86 160 211]
-                    :error [255 0 0]
-                    :failed [255 0 0]
-                    :uncertain [255 127 0]
-                    :killed [255 0 0])
-              color (apply swt-util/create-color rgb)]
-          (dosync
-           (alter job-swt-colors assoc-in [entity :background] color))
-          color)))
+      (when (= (class entity) wfeditor.model.workflow.Job)
+        (let [status (display-status (:task-statuses entity))]
+          (when status
+            (let [rgb (condp = status
+                        :success [0 255 0]
+                        :running [255 255 0]
+                        ;; using UNC blue for waiting state color, from http://en.wikipedia.org/wiki/Carolina_blue
+                        :waiting [86 160 211]
+                        :error [255 0 0]
+                        :failed [255 0 0]
+                        :uncertain [255 127 0]
+                        :killed [255 0 0])
+                  color (apply swt-util/create-color rgb)]
+              (dosync
+               (alter job-swt-colors assoc-in [entity :background] color))
+              color)))))
     (getForegroundColour [entity]
       nil)
     (getTooltip [entity]
       (when (= (class entity) wfeditor.model.workflow.Job)
         (let [tooltip-field-names ["Name" "ID" "Status" "Prog. Name" "Command" "Out file" "Err file"]
-              tooltip-field-vals [(:name entity) (:id entity) (:task-statuses entity) (:prog-name entity) (exec/job-command entity) (:std-out-file entity) (:std-err-file entity)]
+              tooltip-field-vals [(:name entity) (:id entity) (status-tooltip-field (:task-statuses entity)) (:prog-name entity) (str-abbr (exec/job-command entity)) (:std-out-file entity) (:std-err-file entity)]
               tooltip-field-fn (fn [name val] (let [pr-val (or val "")] (str name ": " pr-val)))
               tooltip-string-parts (map tooltip-field-fn tooltip-field-names tooltip-field-vals)
               tooltip-string (string/join "\n" tooltip-string-parts)]
