@@ -42,9 +42,9 @@
         statuses (vals task-status-map)
         total (count statuses)
         freqs (frequencies statuses)
-        status-freq-line-fn (fn [s] (when (freqs s) (str (name s) "(" (freqs s) "/" total ")")))
-        lines (remove nil? (map status-freq-line-fn status-order))
-        tooltip-line (string/join " " lines)]
+        status-freq-line-fn (fn [s] (when (freqs s) (str (name s) " (" (freqs s) "/" total ")")))
+        parts (remove nil? (map status-freq-line-fn status-order))
+        tooltip-line (string/join ", " parts)]
     tooltip-line))
 
 (defn- display-status
