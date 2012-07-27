@@ -165,6 +165,10 @@
            not-done-result @not-done-prom
            not-done-map (qstat-status-map-fn (:out not-done-result))
            new-status-map {}
+           new-status-map (reduce update-map new-status-map (for [[user user-map] recently-done-map
+                                                                  [jid task-status-map] user-map
+                                                                  [task-id status] (done-job-status-map jid task-status-map)]
+                                                              {user {jid {task-id status}}}))
            new-status-map (reduce update-map new-status-map (for [[user user-map] not-done-map
                                                                   [jid task-status-map] user-map
                                                                   [task-id sge-status-str] task-status-map]
@@ -175,10 +179,6 @@
                                                                              "Eqw" :error
                                                                              :uncertain)]
                                                                 {user {jid {task-id status}}})))
-           new-status-map (reduce update-map new-status-map (for [[user user-map] recently-done-map
-                                                                  [jid task-status-map] user-map
-                                                                  [task-id status] (done-job-status-map jid task-status-map)]
-                                                              {user {jid {task-id status}}}))
            global-status-update-map {exec-domain new-status-map}]
        (update-global-statuses-with-new-statuses global-status-update-map))))
 
