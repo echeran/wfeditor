@@ -7,7 +7,8 @@
             [wfeditor.model.workflow :as wflow]
             [wfeditor.io.util.dir :as dir-util]
             [wfeditor.io.status.task-run :as task-status]
-            [fs.core :as fs])
+            [fs.core :as fs]
+            [wfeditor.io.util.const :as io-const])
   (:import wfeditor.model.workflow.Job))
 
 ;;
@@ -366,7 +367,7 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
                    current-wf
                    (let [job (first jobs)
                          job-id (:id job)
-                         task-id 0
+                         task-id io-const/NON-ARRAY-JOB-TASK-ID
                          status (task-status/global-statuses exec-domain username job-id task-id)
                          job-updated-status (assoc-in job [:task-statuses task-id] status)
                          new-wf (wflow/replace-job current-wf job job-updated-status)]
