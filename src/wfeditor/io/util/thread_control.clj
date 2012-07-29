@@ -12,7 +12,8 @@
   "stop all background threads that are running in the server process"
   []
   (task-status-thread/stop-bg-thread-status-updater-thread)
-  (task-status-thread/stop-bg-thread-status-output-thread))
+  (task-status-thread/stop-bg-thread-status-output-thread)
+  (shutdown-agents))
 
 (defn start-all-bg-threads-client
   "start all background threads necessary in the client process"
@@ -24,5 +25,5 @@
   "stop all background threads that are running in the client progress"
   []
   (task-status-thread/stop-bg-thread-status-output-thread)
-  ;; TODO: figure out how to get the bg threads to terminate immediately
-  (task-status-thread/stop-bg-thread-status-from-server-updater-thread))
+  (task-status-thread/stop-bg-thread-status-from-server-updater-thread)
+  (shutdown-agents))
