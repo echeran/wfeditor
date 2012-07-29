@@ -7,6 +7,15 @@
             [wfeditor.io.status.task-run :as task-status]))
 
 ;;
+;; agents (declarations here, definitions below)
+;;
+
+;; this agent is meant to represent a queue for all SSH connections so
+;; that they wait one-after-another and do not compete or conflict
+;; with each others claims for local resources (local port bindings, etc.)
+(declare ssh-agent)
+
+;;
 ;; util functions
 ;;
 
@@ -19,6 +28,15 @@
   "retrieve the body of the HTTP response message from the server"
   [resp]
   (:body resp))
+
+(defn clj-agent-ssh-fn
+  "take a fn that runs an SSH command and return a fn that will work in a clojure agent"
+  [f]
+  (fn [clj-agent-val]
+    (try
+      (f)
+      (catch Throwable e
+        (println "error in updating statuses: " (.getMessage e) ".  Check your SSH connection (client config, server status,...).")))))
 
 ;;
 ;; functions
@@ -52,11 +70,13 @@
 (defn- req-wfinst-over-ssh-tunnel
   "send the HTTP request as in the fn req-wfinst, but do it over an ssh tunnel, a.k.a. local port forwarding. server-host is the host that WFEditor's server mode process is running on, relative to the remote host.  If the server process is running on the remote hos, then this is 'localhost' "
   ([req-type wfinst path rem-host rem-port loc-port loc-host server-host]
-     (with-ssh-agent  []
-       (let [session (session rem-host :strict-host-key-checking :no)]
-         (with-connection session
-           (with-local-port-forward [session loc-port rem-port]
-             (req-wfinst req-type wfinst path loc-host loc-port)))))))
+     (let [ssh-fn (clj-agent-ssh-fn (fn []
+                                      (with-ssh-agent  []
+                                        (let [session (session rem-host :strict-host-key-checking :no)]
+                                          (with-connection session
+                                            (with-local-port-forward [session loc-port rem-port]
+                                              (req-wfinst req-type wfinst path loc-host loc-port)))))))]
+       (send-off ssh-agent ssh-fn))))
 
 (defn- update-request
   "send an HTTP GET request to the server to get the status for a wf-instance, and the response message is returned"
@@ -141,11 +161,13 @@
 (defn- req-status-over-ssh-tunnel
   "same as req-status, but over an ssh-tunnel"
   [req-type exec-domain username path rem-host rem-port loc-port loc-host server-host]
-  (with-ssh-agent  []
-    (let [session (session rem-host :strict-host-key-checking :no)]
-      (with-connection session
-        (with-local-port-forward [session loc-port rem-port]
-          (req-status req-type exec-domain username path loc-host loc-port)))))
+  (let [ssh-fn (clj-agent-ssh-fn (fn []
+                                   (with-ssh-agent  []
+                                     (let [session (session rem-host :strict-host-key-checking :no)]
+                                       (with-connection session
+                                         (with-local-port-forward [session loc-port rem-port]
+                                           (req-status req-type exec-domain username path loc-host loc-port)))))))]
+    (send-off ssh-agent ssh-fn))
   )
 
 (defn- status-update-request
@@ -188,3 +210,9 @@
   [exec-domain username & conn-args]
   (let [resp (apply status-update-request-over-ssh-tunnel exec-domain username conn-args)]
     (statuses-map-from-response-msg resp)))
+
+;;
+;; agents (definitions)
+;;
+
+(def ssh-agent (agent nil))
