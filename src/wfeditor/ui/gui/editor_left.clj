@@ -254,8 +254,9 @@
   (let [comp-left (new-widget {:keyname :editor-left :widget-class Composite :parent parent :styles [SWT/BORDER]})
         exec-group (execution-group comp-left)
         button-group (button-group comp-left)
-        button-debugging-group (button-debugging-group comp-left)]
-    (swt-util/stack-full-width comp-left {:margin 10} [exec-group button-group button-debugging-group])
+        ;; button-debugging-group (button-debugging-group comp-left)
+        ]
+    (swt-util/stack-full-width comp-left {:margin 10} [exec-group button-group])
     comp-left))
 
 ;;
