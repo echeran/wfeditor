@@ -30,8 +30,10 @@
 (defn update-map
   "a utility function that updates the contents of the base map by adding/replacing them with the values of the newer map, and doing this recursively through the map structure according to clojure.contrib.map-utils/deep-merge-with"
   [base-map newer-map]
-  (letfn [(merge-fn [& vals] (last (concat vals)))]
-    (map-utils/deep-merge-with merge-fn base-map newer-map))) 
+  (if newer-map
+    (letfn [(merge-fn [& vals] (last (concat vals)))]
+      (map-utils/deep-merge-with merge-fn base-map newer-map))
+    base-map))
 
 ;;
 ;; global status functions
