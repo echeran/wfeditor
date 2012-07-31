@@ -408,7 +408,7 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
 (defn update-wfinst-and-set-everywhere
   "a convenience function that updates the WFInstance object and records the new info (workflow, its jobs' task statuses) where necessary.  use this instead of update-wfinst if possible"
   [wfinst & conn-args]
-  (let [updated-wfinst (apply update-wfinst wfinst conn-args)]
+  (when-let [updated-wfinst (apply update-wfinst wfinst conn-args)]
     ;; (add-wfinst-to-global-statuses updated-wfinst)
     (wflow/set-workflow (:workflow updated-wfinst))))
 
@@ -419,7 +419,7 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
 (defn create-wfinst-and-set-everywhere
   "a convenience function that updates the WFInstance object and records the new info (workflow, its jobs' task statuses) where necessary.  use this instead of update-wfinst if possible"
   [wfinst & conn-args]
-  (let [created-wfinst (apply create-wfinst wfinst conn-args)]
+  (when-let [created-wfinst (apply create-wfinst wfinst conn-args)]
     ;; (add-wfinst-to-global-statuses created-wfinst)
     (wflow/set-workflow (:workflow created-wfinst))))
 

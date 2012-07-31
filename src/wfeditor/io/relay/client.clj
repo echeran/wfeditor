@@ -37,8 +37,9 @@
                    (try
                      (let [output (f)]
                        (deliver result output))
-                     (catch Throwable e
-                       (println "error in SSH connection: " (.getMessage e) ".  Check your SSH connection properties (client config, server status,...)."))))]
+                     (catch Throwable e 
+                       (println "error in SSH connection: " (.getMessage e) ".  Check your SSH connection properties (client config, server status,...).")
+                       (deliver result nil))))]
     (send-off ssh-agent agent-fn)
     @result))
 
@@ -113,9 +114,9 @@
 (defn- wfinst-from-response-msg
   "extract the WFInstance object encoded in the HTTP response message sent back from the server"
   [resp]
-  (let [wfinst-str (response-msg resp)
-        wfinst (fformat/wfinstance-from-string wfinst-str)]
-    wfinst))
+  (when-let [wfinst-str (response-msg resp)]
+    (let [wfinst (fformat/wfinstance-from-string wfinst-str)]
+      wfinst)))
 
 (defn- update-sge-response-wfinst
   "take the WFInstance input, send it to the server running SGE, and return the WFInstance returned containing an updated state"
@@ -203,14 +204,14 @@
 (defn- statuses-map-from-response-msg
   "extract the job statuses map encoded in the HTTP response message sent back from the server"
   [resp]
-  (let [json-str (response-msg resp)
-        statuses-map (task-status/json-to-statuses-map json-str)]
-    statuses-map))
+  (when-let [json-str (response-msg resp)]
+    (let [statuses-map (task-status/json-to-statuses-map json-str)]
+      statuses-map)))
 
 (defn update-sge-response-statuses
   "take the latest JSON-encoded job statuses as returned by the server running SGE, and return the Clojure nested-map data structure containing an updated state"
   [exec-domain username & conn-args]
-  (let [resp (apply status-update-request-over-ssh-tunnel exec-domain username conn-args)]
+  (when-let [resp (apply status-update-request-over-ssh-tunnel exec-domain username conn-args)]
     (statuses-map-from-response-msg resp)))
 
 ;;
