@@ -30,7 +30,7 @@
   (:body resp))
 
 (defn clj-agent-ssh
-  "take a fn that runs an SSH command and return a fn that will work in a clojure agent"
+  "take a fn that runs an SSH command, gets it to run in a clojure agent (so as to prevent simultaneous SSH commands), and returns the result to the calling fn"
   [f]
   (let [result (promise)
         agent-fn (fn [clj-agent-val]
@@ -38,7 +38,7 @@
                      (let [output (f)]
                        (deliver result output))
                      (catch Throwable e
-                       (println "error in updating statuses: " (.getMessage e) ".  Check your SSH connection (client config, server status,...)."))))]
+                       (println "error in SSH connection: " (.getMessage e) ".  Check your SSH connection properties (client config, server status,...)."))))]
     (send-off ssh-agent agent-fn)
     @result))
 
@@ -159,8 +159,7 @@
     ;; TODO: include info of the exec-domain at least, esp. if calls
     ;; are being made from a remote client
     ;; (req-fn url {:body "body not looked at, at least, not yet"})
-    (req-fn url {:body username})
-    ))
+    (req-fn url {:body username})))
 
 (defn- req-status-over-ssh-tunnel
   "same as req-status, but over an ssh-tunnel"
@@ -171,8 +170,7 @@
                      (with-connection session
                        (with-local-port-forward [session loc-port rem-port]
                          (req-status req-type exec-domain username path loc-host loc-port))))))]
-    (clj-agent-ssh ssh-fn))
-  )
+    (clj-agent-ssh ssh-fn)))
 
 (defn- status-update-request
   "same as update-request, but for job execution statuses. body of response is JSON-encoded statuses from server"
