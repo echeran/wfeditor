@@ -148,20 +148,20 @@
                                         (swt-util/file-dialog-save-as-wf (get-ancestor-shell parent)))})
     (update-button run-wf-inst-button
                    {:widget-select-fn (fn [event]
-                                        (let [{:keys [rem-host rem-port loc-port]} @exec-props
-                                              wf-inst (wfinstance)
-                                              loc-host io-const/DEFAULT-LOCAL-HOST
-                                              server-host io-const/DEFAULT-SERVER-HOST-REL-TO-REMOTE]
-                                          (exec/create-wfinst-and-set-everywhere wf-inst rem-host rem-port loc-port loc-host server-host)))})
+                                        (future (let [{:keys [rem-host rem-port loc-port]} @exec-props
+                                                      wf-inst (wfinstance)
+                                                      loc-host io-const/DEFAULT-LOCAL-HOST
+                                                      server-host io-const/DEFAULT-SERVER-HOST-REL-TO-REMOTE]
+                                                  (exec/create-wfinst-and-set-everywhere wf-inst rem-host rem-port loc-port loc-host server-host))))})
     (update-button update-server-statuses-button
                    {:widget-select-fn (fn [event]
-                                        (let [{:keys [user exec-dom rem-host rem-port loc-port]} @exec-props
-                                              loc-host io-const/DEFAULT-LOCAL-HOST
-                                              server-host io-const/DEFAULT-SERVER-HOST-REL-TO-REMOTE]
-                                          (exec/force-server-update-statuses-sge exec-dom user rem-host rem-port loc-port loc-host server-host)))})
+                                        (future (let [{:keys [user exec-dom rem-host rem-port loc-port]} @exec-props
+                                                      loc-host io-const/DEFAULT-LOCAL-HOST
+                                                      server-host io-const/DEFAULT-SERVER-HOST-REL-TO-REMOTE]
+                                                  (exec/force-server-update-statuses-sge exec-dom user rem-host rem-port loc-port loc-host server-host))))})
     (update-button get-server-statuses-button
                    {:widget-select-fn (fn [event]
-                                        (update-job-statuses-from-server))})
+                                        (future (update-job-statuses-from-server)))})
     (update-button refresh-wf-statuses-button
                    {:widget-select-fn (fn [event]
                                         (let [curr-wfinst (wfinstance)
