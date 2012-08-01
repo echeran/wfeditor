@@ -13,6 +13,8 @@
   []
   (task-status-thread/stop-bg-thread-status-updater-thread)
   (task-status-thread/stop-bg-thread-status-output-thread)
+  ;; reason for shutdown-agents
+  ;; http://tech.puredanger.com/2010/06/08/clojure-agent-thread-pools/
   (shutdown-agents))
 
 (defn start-all-bg-threads-client
@@ -26,4 +28,6 @@
   []
   (task-status-thread/stop-bg-thread-status-output-thread)
   (task-status-thread/stop-bg-thread-status-from-server-updater-thread)
+  ;; reason for shutdown-agents
+  ;; http://tech.puredanger.com/2010/06/08/clojure-agent-thread-pools/
   (shutdown-agents))
