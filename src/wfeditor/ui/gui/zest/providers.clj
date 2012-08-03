@@ -124,6 +124,8 @@
       -1)
     (selfStyleConnection [entity connection]
       nil)
+    (getRouter [src dest]
+      nil)
     ))
 
 (defn node-content-provider-proxy
