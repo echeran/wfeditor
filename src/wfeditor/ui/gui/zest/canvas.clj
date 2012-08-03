@@ -10,6 +10,7 @@
    org.eclipse.zest.layouts.algorithms.TreeLayoutAlgorithm
    org.eclipse.zest.layouts.algorithms.HorizontalShift
    org.eclipse.zest.layouts.algorithms.CompositeLayoutAlgorithm
+   org.eclipse.zest.layouts.algorithms.SpaceTreeLayoutAlgorithm
    org.eclipse.zest.layouts.LayoutStyles
    org.eclipse.swt.layout.GridData
    org.eclipse.swt.widgets.Display))
@@ -33,7 +34,8 @@
   (let [style LayoutStyles/NO_LAYOUT_NODE_RESIZING
         dag-layout ^LayoutAlgorithm (DirectedGraphLayoutAlgorithm. style)
         hshift-layout ^LayoutAlgorithm (HorizontalShift. style)
-        tree-layout ^LayoutAlgorithm (TreeLayoutAlgorithm. style)]
+        tree-layout ^LayoutAlgorithm (TreeLayoutAlgorithm. style)
+        space-tree-layout ^LayoutAlgorithm (SpaceTreeLayoutAlgorithm. style)]
     (CompositeLayoutAlgorithm. style (into-array LayoutAlgorithm [tree-layout ]))
     ))
 
