@@ -4,13 +4,18 @@
             [wfeditor.io.execution :as exec]
             [wfeditor.io.status.task-run :as task-status]
             [wfeditor.io.file.wfeformat :as fformat]
-            [wfeditor.ui.state.gui :as gui-state])
+            [wfeditor.ui.state.gui :as gui-state]
+            [clojure.string :as string])
   (:use [wfeditor.ui.util.swt :as swt-util])
   (:import
    org.eclipse.swt.SWT
    (org.eclipse.swt.layout FillLayout RowLayout GridLayout GridData FormLayout FormData FormAttachment)
-   (org.eclipse.swt.widgets Label Button FileDialog Group Text Combo Composite)
-   (org.eclipse.swt.events SelectionEvent SelectionAdapter ModifyListener ModifyEvent)))
+   (org.eclipse.swt.widgets Label Button FileDialog Group Text Combo Composite Display)
+   (org.eclipse.swt.events SelectionEvent SelectionAdapter ModifyListener ModifyEvent)
+   org.eclipse.gmf.runtime.draw2d.ui.render.awt.internal.svg.export.GraphicsSVG
+   (javax.xml.transform OutputKeys Transformer TransformerFactory)
+   javax.xml.transform.dom.DOMSource
+   javax.xml.transform.stream.StreamResult))
 
 ;;
 ;; refs (declarations here, initial bindings below)
@@ -131,13 +136,14 @@
         load-wf-button (new-widget {:keyname :load-wf-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Load workflow"})
         save-wf-button (new-widget {:keyname :save-wf-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Save workflow"})
         run-wf-inst-button (new-widget {:keyname :run-wf-inst-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Run WF instance"})
+        export-to-svg-button (new-widget {:keyname :export-to-svg-button :widget-class Button :parent bounding-comp :styles [SWT/PUSH] :text "Export to SVG"})
         update-server-statuses-button (new-widget {:keyname :update-server-statuses-button :widget-class Button :parent  bounding-comp2 :styles [SWT/PUSH] :text "Update statuses on server"})
         get-server-statuses-button (new-widget {:keyname :get-server-statuses-button :widget-class Button :parent bounding-comp2 :styles [SWT/PUSH] :text "Get statuses from server"})
         refresh-wf-statuses-button (new-widget {:keyname :refresh-wf-statuses-button :widget-class Button :parent bounding-comp2 :styles [SWT/PUSH] :text "Refresh WF statuses"})]
     (doto button-group
       (.setLayout (RowLayout. SWT/VERTICAL)))
     (do
-      (swt-util/stack-full-width bounding-comp {:margin 5} [load-wf-button save-wf-button run-wf-inst-button])
+      (swt-util/stack-full-width bounding-comp {:margin 5} [load-wf-button save-wf-button run-wf-inst-button export-to-svg-button])
       (swt-util/stack-full-width bounding-comp2 {:margin 5} [update-server-statuses-button get-server-statuses-button refresh-wf-statuses-button])
       (.setLayout button-group (RowLayout.)))
     (update-button load-wf-button
@@ -153,6 +159,38 @@
                                                       loc-host io-const/DEFAULT-LOCAL-HOST
                                                       server-host io-const/DEFAULT-SERVER-HOST-REL-TO-REMOTE]
                                                   (exec/create-wfinst-and-set-everywhere wf-inst rem-host rem-port loc-port loc-host server-host))))})
+    (update-button export-to-svg-button
+                   {:widget-select-fn (fn [event]
+                                        ;; page(s) describing Zest to SVG
+                                        ;; export using GMF (+
+                                        ;; dependencies)
+                                        ;; http://standardout.org/2011/12/eclipse-draw2d-to-svg/
+                                        ;; http://standardout.org/2011/12/off-screen-rendering-of-eclipse-zest-graphs/
+                                        (let [gv @wfeditor.ui.gui.zest.canvas/gv
+                                              graph (.getGraphControl gv)
+                                              graph-root (.getRootLayer graph)
+                                              viewbox (.. graph-root getBounds getCopy)
+                                              graphics (GraphicsSVG/getInstance viewbox)]
+                                          (try
+                                            (.paint graph-root graphics)
+                                            (let [svg-root (.getRoot graphics)
+                                                  transformer (.newTransformer (TransformerFactory/newInstance))
+                                                  dom-source (DOMSource. svg-root)]
+                                              (.setAttributeNS svg-root nil "view-box" (string/join " " [(. viewbox x) (. viewbox y) (. viewbox width) (. viewbox height)]))
+                                              (doto transformer
+                                                (.setOutputProperty OutputKeys/METHOD "xml")
+                                                (.setOutputProperty OutputKeys/ENCODING "UTF-8")
+                                                (.setOutputProperty OutputKeys/INDENT "yes"))
+                                              (. (. Display getCurrent) asyncExec
+                                                 (fn []
+                                                   (let [fd (new-widget {:widget-class FileDialog :parent (get-ancestor-shell parent) :styles [SWT/SAVE]})]
+                                                     (when-let [out-file-name (.open fd)]
+                                                       (with-open [out-stream (clojure.java.io/output-stream out-file-name)]
+                                                         (let [result (StreamResult. out-stream)
+                                                               source (DOMSource. svg-root)]
+                                                           (.transform transformer source result))))))))
+                                            (finally
+                                             (.dispose graphics)))))})
     (update-button update-server-statuses-button
                    {:widget-select-fn (fn [event]
                                         (future (let [{:keys [user exec-dom rem-host rem-port loc-port]} @exec-props
