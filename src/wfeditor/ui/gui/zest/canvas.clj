@@ -99,35 +99,21 @@
                 row-comparator (comparator row-comparator-fn)
                 rows (sort row-comparator rows)
                 bounds (.getBounds @context)
-                ;; _ (println "bounds = " bounds)
-                ;; _ (println "num entities = " (count entities))
-                ;; _ (println "num rows = " (count rows))
                 global-widths (map entity-width-fn entities)
-                global-widest-e-wdith (when (seq global-widths) (apply max global-widths))
-                ;; _ (println "widths of all entities = " global-widths)
-                ;; _ (println "class of widths = " (class global-widths))
-                ;; _ (when (seq global-widths) (println "max of widths = " (apply max global-widths)))
-                ]
+                global-widest-e-wdith (when (seq global-widths) (apply max global-widths))]
             (loop [height-so-far 0
                    rs rows]
               (when (seq rs)
                 (let [row (first rs)
-                      ;; _ (println "this row's entities = [" (string/join " " (map layout-entity-name-fn row)) "]")
                       sorted-row (sort entity-comparator row)
-                      ;; _ (println "sorted row's entities = [" (string/join " " (map layout-entity-name-fn sorted-row)) "]")
                       new-height-so-far (+ height-so-far @vspacing (.. (first sorted-row ) getSize height))]
                   (loop [i 1
-                         ;; width (- (/ (. bounds width) 2) (* 75 (.size sorted-row)))
                          entities sorted-row]
                     (when (seq entities)
                       (let [entity (first entities)
-                            ;; _ (println "entity is Job = " (:name (.getData (first (.getItems entity)))))
-                            ;; _ (println "old location is = " (str (.getLocation (first (.getItems entity)))))
                             size (.getSize entity)
                             e-width (. size width)
-                            ;; new-width (+ width (. size width))
                             midpoint (/ (. bounds width) 2)
-                            ;; new-x (+ width (* 10 i) (/ (. size width) 2))
                             old-x (entity-x-fn entity)
                             old-y (entity-y-fn entity)
                             new-x (let [left-e (first sorted-row)
@@ -135,9 +121,6 @@
                                         left-x (entity-x-fn left-e)
                                         right-x (entity-x-fn right-e)
                                         es-midpoint (/ (+ left-x right-x) 2)
-                                        ;; _ (println "left-x = " left-x)
-                                        ;; _ (println "right-x = " right-x)
-                                        ;; _ (println "es-midpoint = " es-midpoint)
                                         num-e (count sorted-row)
                                         widths (map entity-width-fn sorted-row)
                                         row-widest-e-width (apply max widths)
@@ -145,11 +128,6 @@
                                         fixed-e-width row-widest-e-width
                                         fixed-e-width global-widest-e-wdith
                                         
-                                        ;; _ (println "num-e = " num-e)
-                                        ;; _ (println "widths = " widths)
-                                        ;; _ (println "class widths = " (class widths))
-                                        ;; _ (println "fixed-e-width = " fixed-e-width)
-                                        ;; _ (println "class fixed-e-width = " (class fixed-e-width))
                                         idx (- (count sorted-row) (count entities))
                                         mid-idx (/ (dec (count sorted-row)) 2)
                                         idx-diff (int (math-contrib/abs (- mid-idx idx)))
@@ -164,14 +142,6 @@
                                                      true es-midpoint))]
                                     (+ dilated-x midpoint-diff))]
                         (.setLocation entity new-x (+ new-height-so-far (/ (. size height) 2)))
-
-                        ;; (if (> 2 @done-count)
-                        ;;   (.setLocation entity new-x (+ new-height-so-far (/ (. size height) 2)))
-                        ;;   (.setLocation entity old-x old-y))
-                        
-                        ;; (println "new location is = " (str (.getLocation (first (.getItems entity)))))
-                        ;; (println "new location should be (" (+ width (* 10 i) (/ (. size width) 2)) ", " (+ new-height-so-far (/ (. size height) 2)) ")")
-                        ;; (recur (inc i) new-width (rest entities))
                         (recur (inc i) (rest entities)))))
                   (recur new-height-so-far (rest rs))))))
           (swap! done-count inc)))
