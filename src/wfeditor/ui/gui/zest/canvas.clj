@@ -28,6 +28,81 @@
 ;; functions
 ;;
 
+(defn rows-list
+  "create a rows list of the entities in the proxy horizontalshift algorithm"
+  [entities]
+  (let [
+        delta (atom 10)
+        ]
+    (loop [es entities
+           ;; going to implement rows as a map of vectors instead of a
+           ;; vector of vectors (as the original java code would
+           ;; suggest) b/c it makes using Clojure FP fn's easier, that
+           ;; is, it's easier to use assoc-in on a map within loop than
+           ;; it would to use nested vectors which would require a
+           ;; zipper to handle easily
+           rows {}]
+      (if (empty? es)
+        (vals rows)
+        (let [entity (first es)
+              layout-y (.. entity getLocation y)
+              add-row-fn (fn [[idx row]]
+                           (let [row-entity (first row)
+                                 row-y (.. row-entity getLocation y)]
+                             (when (and (>= layout-y (- row-y @delta))
+                                        (<= layout-y (+ row-y @delta)))
+                               idx)))
+              add-row-idx (some add-row-fn rows)
+              new-rows (if add-row-idx
+                         (update-in rows [add-row-idx] conj entity)
+                         (assoc rows (count rows) [entity]))]
+          (recur (rest es) new-rows))))))
+
+(defn hshift-layout-proxy
+  "return a Clojure implementation of HorizontalShiftAlgorithm."
+  []
+  ;; recreated from source code at
+  ;; http://git.eclipse.org/c/gef/org.eclipse.zest.git/tree/org.eclipse.zest.layouts/src/org/eclipse/zest/layouts/algorithms/HorizontalShiftAlgorithm.java
+  (let [
+        vspacing (atom 16) 
+        context (atom nil)
+        ]
+    (proxy [LayoutAlgorithm]
+        []
+      (applyLayout [clean]
+        (when clean
+          (let [entities (.getEntities @context)
+                rows (rows-list entities)
+                entity-comparator-fn (fn [e1 e2]
+                                       (let [e1y (.. e1 getLocation y)
+                                             e2y (.. e2 getLocation y)]
+                                         (< e1y e2y)))
+                row-comparator-fn (fn [x y]
+                                    (let [e1 (first x)
+                                          e2 (first y)]
+                                      (entity-comparator-fn e1 e2)))
+                entity-comparator (comparator entity-comparator-fn)
+                row-comparator (comparator row-comparator-fn)
+                rows (sort row-comparator rows)
+                bounds (.getBounds @context)]
+            (loop [height-so-far 0
+                   rs rows]
+              (when (seq rs)
+                (let [sorted-row (sort entity-comparator (first rs))
+                      new-height-so-far (+ height-so-far @vspacing (.. (first sorted-row ) getSize height))]
+                  (loop [i 1
+                         width (- (/ (. bounds width) 2) (* 75 (.size sorted-row)))
+                         entities sorted-row]
+                    (when (seq entities)
+                      (let [entity (first entities)
+                            size (.getSize entity)
+                            new-width (+ width (. size width))]
+                        (.setLocation entity (+ width (* 10 i) (/ (. size width) 2)) (+ height-so-far (/ (. size height) 2)))
+                        (recur (inc i) new-width (rest entities)))))
+                  (recur new-height-so-far (rest rs))))))))
+      (setLayoutContext [c]
+        (reset! context c)))))
+
 (defn graph-viewer-layout
   "create and return the layout algorithm used for the graph viewer"
   []
@@ -35,8 +110,10 @@
         dag-layout ^LayoutAlgorithm (DirectedGraphLayoutAlgorithm. style)
         hshift-layout ^LayoutAlgorithm (HorizontalShift. style)
         tree-layout ^LayoutAlgorithm (TreeLayoutAlgorithm. style)
-        space-tree-layout ^LayoutAlgorithm (SpaceTreeLayoutAlgorithm. style)]
-    (CompositeLayoutAlgorithm. style (into-array LayoutAlgorithm [tree-layout ]))
+        space-tree-layout ^LayoutAlgorithm (SpaceTreeLayoutAlgorithm. style)
+        hshift-layout-proxy ^LayoutAlgorithm (hshift-layout-proxy)
+        ]
+    (CompositeLayoutAlgorithm. style (into-array LayoutAlgorithm [tree-layout hshift-layout]))
     ))
 
 (defn set-graph-from-wf
