@@ -146,8 +146,8 @@
                                             dilated-x (if (= 1 (count sorted-row)) 
                                                         old-x
                                                         (cond
-                                                         (and (even? num-e) (< idx mid-idx)) (- (+ e-midpoint (/ @hspacing 2)) (* idx-diff (+ @hspacing widest-e-width)))
-                                                         (and (even? num-e) (> idx mid-idx)) (+ (+ e-midpoint (/ @hspacing 2)) (* idx-diff (+ @hspacing widest-e-width)))
+                                                         (and (even? num-e) (< idx mid-idx)) (- e-midpoint (- (* (inc idx-diff) (+ @hspacing widest-e-width)) (/ (+ @hspacing widest-e-width) 2)))
+                                                         (and (even? num-e) (> idx mid-idx)) (+ e-midpoint (- (* (inc idx-diff) (+ @hspacing widest-e-width)) (/ (+ @hspacing widest-e-width) 2)))
                                                          (and (odd? num-e) (< idx mid-idx)) (- e-midpoint (* idx-diff (+ @hspacing widest-e-width)))
                                                          (and (odd? num-e) (> idx mid-idx)) (+ e-midpoint (* idx-diff (+ @hspacing widest-e-width)))
                                                          true e-midpoint))]
