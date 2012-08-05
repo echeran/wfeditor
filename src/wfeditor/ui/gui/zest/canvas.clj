@@ -1,7 +1,9 @@
 (ns wfeditor.ui.gui.zest.canvas
   (:require
    [wfeditor.ui.gui.zest.providers :as zproviders]
-   [wfeditor.model.workflow :as wflow])
+   [wfeditor.model.workflow :as wflow]
+   [clojure.string :as string]
+   [clojure.contrib.math :as math-contrib])
   (:import
    org.eclipse.zest.core.viewers.GraphViewer
    org.eclipse.swt.SWT
@@ -46,6 +48,7 @@
         (vals rows)
         (let [entity (first es)
               layout-y (.. entity getLocation y)
+              layout-y (.. entity getLocation y)
               add-row-fn (fn [[idx row]]
                            (let [row-entity (first row)
                                  row-y (.. row-entity getLocation y)]
@@ -64,42 +67,103 @@
   ;; recreated from source code at
   ;; http://git.eclipse.org/c/gef/org.eclipse.zest.git/tree/org.eclipse.zest.layouts/src/org/eclipse/zest/layouts/algorithms/HorizontalShiftAlgorithm.java
   (let [
-        vspacing (atom 16) 
+        vspacing (atom 32) 
         context (atom nil)
+        hspacing (atom 16)
+        done-count (atom 0)
         ]
     (proxy [LayoutAlgorithm]
         []
       (applyLayout [clean]
-        (when clean
+        (when clean 
           (let [entities (.getEntities @context)
                 rows (rows-list entities)
-                entity-comparator-fn (fn [e1 e2]
-                                       (let [e1y (.. e1 getLocation y)
-                                             e2y (.. e2 getLocation y)]
-                                         (< e1y e2y)))
+                entity-y-comparator-fn (fn [e1 e2]
+                                         (let [e1y (.. e1 getLocation y)
+                                               e2y (.. e2 getLocation y)]
+                                           (< e1y e2y)))
+                entity-x-comparator-fn (fn [e1 e2]
+                                         (let [e1y (.. e1 getLocation x)
+                                               e2y (.. e2 getLocation x)]
+                                           (< e1y e2y)))
                 row-comparator-fn (fn [x y]
                                     (let [e1 (first x)
                                           e2 (first y)]
-                                      (entity-comparator-fn e1 e2)))
-                entity-comparator (comparator entity-comparator-fn)
+                                      (entity-y-comparator-fn e1 e2)))
+                layout-entity-name-fn (fn [entity]
+                                        (:name (.getData (first (.getItems entity)))))
+                entity-x-fn (fn [entity] (. (.getLocation (first (.getItems entity))) x))
+                entity-y-fn (fn [entity] (. (.getLocation (first (.getItems entity))) y))
+                entity-width-fn (fn [entity] (. (.getSize entity) width))
+                entity-comparator (comparator entity-x-comparator-fn)
                 row-comparator (comparator row-comparator-fn)
                 rows (sort row-comparator rows)
-                bounds (.getBounds @context)]
+                bounds (.getBounds @context)
+                ;; _ (println "bounds = " bounds)
+                ]
             (loop [height-so-far 0
                    rs rows]
               (when (seq rs)
-                (let [sorted-row (sort entity-comparator (first rs))
+                (let [row (first rs)
+                      ;; _ (println "this row's entities = [" (string/join " " (map layout-entity-name-fn row)) "]")
+                      sorted-row (sort entity-comparator row)
+                      ;; _ (println "sorted row's entities = [" (string/join " " (map layout-entity-name-fn sorted-row)) "]")
                       new-height-so-far (+ height-so-far @vspacing (.. (first sorted-row ) getSize height))]
                   (loop [i 1
-                         width (- (/ (. bounds width) 2) (* 75 (.size sorted-row)))
+                         ;; width (- (/ (. bounds width) 2) (* 75 (.size sorted-row)))
                          entities sorted-row]
                     (when (seq entities)
                       (let [entity (first entities)
+                            ;; _ (println "entity is Job = " (:name (.getData (first (.getItems entity)))))
+                            ;; _ (println "old location is = " (str (.getLocation (first (.getItems entity)))))
                             size (.getSize entity)
-                            new-width (+ width (. size width))]
-                        (.setLocation entity (+ width (* 10 i) (/ (. size width) 2)) (+ height-so-far (/ (. size height) 2)))
-                        (recur (inc i) new-width (rest entities)))))
-                  (recur new-height-so-far (rest rs))))))))
+                            e-width (. size width)
+                            ;; new-width (+ width (. size width))
+                            midpoint (/ (. bounds width) 2)
+                            ;; new-x (+ width (* 10 i) (/ (. size width) 2))
+                            old-x (entity-x-fn entity)
+                            old-y (entity-y-fn entity)
+                            new-x (let [left-e (first sorted-row)
+                                            right-e (last sorted-row)
+                                            left-x (entity-x-fn left-e)
+                                            right-x (entity-x-fn right-e)
+                                            e-midpoint (/ (+ left-x right-x) 2)
+                                            ;; _ (println "left-x = " left-x)
+                                            ;; _ (println "right-x = " right-x)
+                                            ;; _ (println "e-midpoint = " e-midpoint)
+                                            num-e (count sorted-row)
+                                            widths (map entity-width-fn sorted-row)
+                                            widest-e-width (apply max widths)
+                                            ;; _ (println "num-e = " num-e)
+                                            ;; _ (println "widths = " widths)
+                                            ;; _ (println "class widths = " (class widths))
+                                            ;; _ (println "widest-e-width = " widest-e-width)
+                                            ;; _ (println "class widest-e-width = " (class widest-e-width))
+                                            idx (- (count sorted-row) (count entities))
+                                            mid-idx (/ (dec (count sorted-row)) 2)
+                                            idx-diff (int (math-contrib/abs (- mid-idx idx)))
+                                            midpoint-diff (- midpoint e-midpoint)
+                                            dilated-x (if (= 1 (count sorted-row)) 
+                                                        old-x
+                                                        (cond
+                                                         (and (even? num-e) (< idx mid-idx)) (- (+ e-midpoint (/ @hspacing 2)) (* idx-diff (+ @hspacing widest-e-width)))
+                                                         (and (even? num-e) (> idx mid-idx)) (+ (+ e-midpoint (/ @hspacing 2)) (* idx-diff (+ @hspacing widest-e-width)))
+                                                         (and (odd? num-e) (< idx mid-idx)) (- e-midpoint (* idx-diff (+ @hspacing widest-e-width)))
+                                                         (and (odd? num-e) (> idx mid-idx)) (+ e-midpoint (* idx-diff (+ @hspacing widest-e-width)))
+                                                         true e-midpoint))]
+                                    (+ dilated-x midpoint-diff))]
+                        (.setLocation entity new-x (+ new-height-so-far (/ (. size height) 2)))
+
+                        ;; (if (> 2 @done-count)
+                        ;;   (.setLocation entity new-x (+ new-height-so-far (/ (. size height) 2)))
+                        ;;   (.setLocation entity old-x old-y))
+                        
+                        ;; (println "new location is = " (str (.getLocation (first (.getItems entity)))))
+                        ;; (println "new location should be (" (+ width (* 10 i) (/ (. size width) 2)) ", " (+ new-height-so-far (/ (. size height) 2)) ")")
+                        ;; (recur (inc i) new-width (rest entities))
+                        (recur (inc i) (rest entities)))))
+                  (recur new-height-so-far (rest rs))))))
+          (swap! done-count inc)))
       (setLayoutContext [c]
         (reset! context c)))))
 
@@ -113,7 +177,7 @@
         space-tree-layout ^LayoutAlgorithm (SpaceTreeLayoutAlgorithm. style)
         hshift-layout-proxy ^LayoutAlgorithm (hshift-layout-proxy)
         ]
-    (CompositeLayoutAlgorithm. style (into-array LayoutAlgorithm [tree-layout hshift-layout]))
+    (CompositeLayoutAlgorithm. style (into-array LayoutAlgorithm [dag-layout hshift-layout-proxy]))
     ))
 
 (defn set-graph-from-wf
