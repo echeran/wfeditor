@@ -100,6 +100,13 @@
                 rows (sort row-comparator rows)
                 bounds (.getBounds @context)
                 ;; _ (println "bounds = " bounds)
+                ;; _ (println "num entities = " (count entities))
+                ;; _ (println "num rows = " (count rows))
+                global-widths (map entity-width-fn entities)
+                global-widest-e-wdith (when (seq global-widths) (apply max global-widths))
+                ;; _ (println "widths of all entities = " global-widths)
+                ;; _ (println "class of widths = " (class global-widths))
+                ;; _ (when (seq global-widths) (println "max of widths = " (apply max global-widths)))
                 ]
             (loop [height-so-far 0
                    rs rows]
@@ -124,33 +131,37 @@
                             old-x (entity-x-fn entity)
                             old-y (entity-y-fn entity)
                             new-x (let [left-e (first sorted-row)
-                                            right-e (last sorted-row)
-                                            left-x (entity-x-fn left-e)
-                                            right-x (entity-x-fn right-e)
-                                            e-midpoint (/ (+ left-x right-x) 2)
-                                            ;; _ (println "left-x = " left-x)
-                                            ;; _ (println "right-x = " right-x)
-                                            ;; _ (println "e-midpoint = " e-midpoint)
-                                            num-e (count sorted-row)
-                                            widths (map entity-width-fn sorted-row)
-                                            widest-e-width (apply max widths)
-                                            ;; _ (println "num-e = " num-e)
-                                            ;; _ (println "widths = " widths)
-                                            ;; _ (println "class widths = " (class widths))
-                                            ;; _ (println "widest-e-width = " widest-e-width)
-                                            ;; _ (println "class widest-e-width = " (class widest-e-width))
-                                            idx (- (count sorted-row) (count entities))
-                                            mid-idx (/ (dec (count sorted-row)) 2)
-                                            idx-diff (int (math-contrib/abs (- mid-idx idx)))
-                                            midpoint-diff (- midpoint e-midpoint)
-                                            dilated-x (if (= 1 (count sorted-row)) 
-                                                        old-x
-                                                        (cond
-                                                         (and (even? num-e) (< idx mid-idx)) (- e-midpoint (- (* (inc idx-diff) (+ @hspacing widest-e-width)) (/ (+ @hspacing widest-e-width) 2)))
-                                                         (and (even? num-e) (> idx mid-idx)) (+ e-midpoint (- (* (inc idx-diff) (+ @hspacing widest-e-width)) (/ (+ @hspacing widest-e-width) 2)))
-                                                         (and (odd? num-e) (< idx mid-idx)) (- e-midpoint (* idx-diff (+ @hspacing widest-e-width)))
-                                                         (and (odd? num-e) (> idx mid-idx)) (+ e-midpoint (* idx-diff (+ @hspacing widest-e-width)))
-                                                         true e-midpoint))]
+                                        right-e (last sorted-row)
+                                        left-x (entity-x-fn left-e)
+                                        right-x (entity-x-fn right-e)
+                                        es-midpoint (/ (+ left-x right-x) 2)
+                                        ;; _ (println "left-x = " left-x)
+                                        ;; _ (println "right-x = " right-x)
+                                        ;; _ (println "es-midpoint = " es-midpoint)
+                                        num-e (count sorted-row)
+                                        widths (map entity-width-fn sorted-row)
+                                        row-widest-e-width (apply max widths)
+
+                                        fixed-e-width row-widest-e-width
+                                        fixed-e-width global-widest-e-wdith
+                                        
+                                        ;; _ (println "num-e = " num-e)
+                                        ;; _ (println "widths = " widths)
+                                        ;; _ (println "class widths = " (class widths))
+                                        ;; _ (println "fixed-e-width = " fixed-e-width)
+                                        ;; _ (println "class fixed-e-width = " (class fixed-e-width))
+                                        idx (- (count sorted-row) (count entities))
+                                        mid-idx (/ (dec (count sorted-row)) 2)
+                                        idx-diff (int (math-contrib/abs (- mid-idx idx)))
+                                        midpoint-diff (- midpoint es-midpoint)
+                                        dilated-x (if (= 1 (count sorted-row)) 
+                                                    old-x
+                                                    (cond
+                                                     (and (even? num-e) (< idx mid-idx)) (- es-midpoint (- (* (inc idx-diff) (+ @hspacing fixed-e-width)) (/ (+ @hspacing fixed-e-width) 2)))
+                                                     (and (even? num-e) (> idx mid-idx)) (+ es-midpoint (- (* (inc idx-diff) (+ @hspacing fixed-e-width)) (/ (+ @hspacing fixed-e-width) 2)))
+                                                     (and (odd? num-e) (< idx mid-idx)) (- es-midpoint (* idx-diff (+ @hspacing fixed-e-width)))
+                                                     (and (odd? num-e) (> idx mid-idx)) (+ es-midpoint (* idx-diff (+ @hspacing fixed-e-width)))
+                                                     true es-midpoint))]
                                     (+ dilated-x midpoint-diff))]
                         (.setLocation entity new-x (+ new-height-so-far (/ (. size height) 2)))
 
