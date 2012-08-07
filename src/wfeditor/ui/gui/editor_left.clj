@@ -5,7 +5,8 @@
             [wfeditor.io.status.task-run :as task-status]
             [wfeditor.io.file.wfeformat :as fformat]
             [wfeditor.ui.state.gui :as gui-state]
-            [clojure.string :as string])
+            [clojure.string :as string]
+            [clojure.zip :as zip])
   (:use [wfeditor.ui.util.swt :as swt-util])
   (:import
    org.eclipse.swt.SWT
@@ -15,7 +16,9 @@
    org.eclipse.gmf.runtime.draw2d.ui.render.awt.internal.svg.export.GraphicsSVG
    (javax.xml.transform OutputKeys Transformer TransformerFactory)
    javax.xml.transform.dom.DOMSource
-   javax.xml.transform.stream.StreamResult))
+   javax.xml.transform.stream.StreamResult
+   (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider)
+   java.net.URL))
 
 ;;
 ;; refs (declarations here, initial bindings below)
@@ -208,6 +211,81 @@
                                           (wflow/set-workflow updated-wf)))})    
     button-group))
 
+(defn- predefined-wfs-tree-viewer
+  "create a JFace TreeViewer to represent predefined NGS & other workflows"
+  [parent]
+  (let [pre-wf-tree ["Genetics" ["NGS" [(URL. "http://www.palmyrasoftware.com/wf/genetics/ngs/sample4.xml")]]]
+        pre-wf-simple-zip-tree {"Genetics" [{"NGS" [(URL. "http://www.palmyrasoftware.com/wf/genetics/ngs/sample4.xml")]}]}
+        simple-zip-fn (fn [simple-zip-tree] (zip/zipper map? (comp seq second first) (fn [n cs] (let [map (if (seq n) n {n []}) k (first (first map)) vals (second (first map))] (assoc map k (concat vals (seq cs))))) simple-zip-tree))
+        ;; JFace thinks that the nil value in the vector created when
+        ;; first creating a zipper is another root element, and throws
+        ;; an exception when it discovers null arguments in a
+        ;; .setInput method
+        jface-simple-zip-fn (comp #(assoc-in % [1] {}) simple-zip-fn)
+        pre-wf-zip (jface-simple-zip-fn pre-wf-simple-zip-tree)
+        _ (println "pref-wf-zip = " pre-wf-zip)
+        tree-content-provider (proxy [ITreeContentProvider]
+                                  []
+                                ;; the "content" that will be
+                                ;; manipulated by the JFace tree
+                                ;; viewer will be entirely zippers
+                                ;; located at nodes, not the actual
+                                ;; node-data themselves
+                                (getChildren [z]
+                                  (dorun
+                                   (println "JFace TreeViewer getting children for node = " (zip/node z)))
+                                  (let [first-child (zip/down z)
+                                        rest-children (loop [rcs []
+                                                             cz (zip/right first-child)]
+                                                        (if-not cz
+                                                          rcs
+                                                          (recur (conj rcs cz) (zip/right cz))))
+                                        result (concat [first-child] rest-children)
+                                        array-result (to-array result)]
+                                    (println "children return = " result)
+                                    array-result))
+                                (getElements [z]
+                                  (println "getting root nodes == root node = " (zip/node (zip/vector-zip (zip/root z))) "for node = " (zip/node z))
+                                  (to-array (jface-simple-zip-fn (zip/root z))) )
+                                (getParent [z]
+                                  (println "getting parent for node = " (zip/node z) " which is " (zip/node (zip/up z)))
+                                  (zip/up z))
+                                (hasChildren [z]
+                                  (when-not z
+                                    (println "zipper is nil"))
+                                  (println "node name = " (zip/node z) " has children? " (str (if (and z  map?) true false)))
+                                  (if (and z (zip/node z) (map? (zip/node z)))
+                                    true
+                                    false))
+                                (dispose [])
+                                (inputChanged [viewer old-input new-input]
+                                  (println "input has changed. new input = " new-input)))
+        tree-label-provider (proxy [ILabelProvider]
+                                []
+                              ;; the label provider's responsibility
+                              ;; is to take the zipper "content" and
+                              ;; translate that into the real data to
+                              ;; be presented in the GUI
+                              (addListener [listener])
+                              (dispose [])
+                              (getImage [z]
+                                nil)
+                              (getText [z]
+                                (let [node (zip/node z)]
+                                  (cond
+                                   (map? node) (first (first node))
+                                   (nil? node) ""
+                                   true node)))
+                              (isLabelProperty [z property]
+                                nil)
+                              (removeListener [listener]))
+        tree-viewer (TreeViewer. parent)]
+    (doto tree-viewer
+      (.setContentProvider tree-content-provider)
+      (.setLabelProvider tree-label-provider)
+      (.setInput pre-wf-zip))
+    ))
+
 (defn button-debugging-group
   "create the Group widget containing all of the debugging buttons in the left navpane"
   [parent]
@@ -293,8 +371,9 @@
         exec-group (execution-group comp-left)
         button-group (button-group comp-left)
         ;; button-debugging-group (button-debugging-group comp-left)
+        pre-wf-tree-viewer (predefined-wfs-tree-viewer comp-left)
         ]
-    (swt-util/stack-full-width comp-left {:margin 10} [exec-group button-group])
+    (swt-util/stack-full-width comp-left {:margin 10} [exec-group button-group (.getTree pre-wf-tree-viewer)])
     comp-left))
 
 ;;
