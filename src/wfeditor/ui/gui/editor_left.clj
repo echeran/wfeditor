@@ -17,7 +17,7 @@
    (javax.xml.transform OutputKeys Transformer TransformerFactory)
    javax.xml.transform.dom.DOMSource
    javax.xml.transform.stream.StreamResult
-   (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider)
+   (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener)
    java.net.URL))
 
 ;;
@@ -216,7 +216,8 @@
   [parent]
   (let [
         ;; pre-wf-tree ["Genetics" ["NGS" [(URL. "http://www.palmyrasoftware.com/wf/genetics/ngs/sample4.xml")]]]
-        pre-wf-simple-zip-tree {"Genetics" [{"NGS" [(URL. "http://www.palmyrasoftware.com/wf/genetics/ngs/sample4.xml")]}]}
+        pre-wf-simple-zip-tree {"Genetics" [{"NGS" [(URL. "http://www.palmyrasoftware.com/wf/genetics/ngs/sample4.xml")
+                                                    (URL. "http://www.palmyrasoftware.com/wf/genetics/ngs/sample6.xml")]}]}
         simple-zip-fn (fn [simple-zip-tree] (zip/zipper map? (comp seq second first) (fn [n cs] (let [map (if (seq n) n {n []}) k (first (first map)) vals (second (first map))] (assoc map k (concat vals (seq cs))))) simple-zip-tree))
         ;; JFace thinks that the nil value in the vector created when
         ;; first creating a zipper is another root element, and throws
@@ -286,13 +287,28 @@
                                 nil)
                               (removeListener [listener]))
         tree-group (new-widget {:keyname :pre-wf-tree-group :widget-class Group :parent parent :styles [SWT/SHADOW_NONE] :text "Predefined Workflows"})
-        tree-viewer (TreeViewer. tree-group)]
+        tree-viewer (TreeViewer. tree-group)
+
+        dbl-click-listener (proxy [IDoubleClickListener]
+                               []
+                             (doubleClick [event]
+                               (let [selection (.getSelection event)
+                                     source (.getSource event)
+                                     tree-paths (.getPaths selection)
+                                     last-path (last tree-paths)
+                                     last-segment (.getLastSegment last-path)
+                                     elem (-> last-segment :data zip/node)]
+                                 (when (= java.net.URL (class elem))
+                                   (let [url-str (str elem)
+                                         wf (fformat/workflow-from-stream url-str)]
+                                     (wflow/set-workflow wf))))))]
     (doto tree-group
       (.setLayout (FillLayout.)))
     (doto tree-viewer
       (.setContentProvider tree-content-provider)
       (.setLabelProvider tree-label-provider)
-      (.setInput pre-wf-zip-closure))
+      (.setInput pre-wf-zip-closure)
+      (.addDoubleClickListener dbl-click-listener))
     tree-group))
 
 (defn button-debugging-group

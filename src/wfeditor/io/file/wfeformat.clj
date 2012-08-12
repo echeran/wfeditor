@@ -280,6 +280,8 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
         wf-xml-zip (xml-util/xml-tree-to-zip wf-xml-tree)]
     (workflow-from-zip wf-xml-zip)))
 
+(def workflow-from-stream workflow-from-file)
+
 (defn- wfinstance-from-zip
   "return a workflow instance given an XML zipper of the workflow"
   [z]
