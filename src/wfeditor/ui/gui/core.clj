@@ -51,9 +51,10 @@
       (let [shell (get-ancestor-shell parent)]
         (.setText shell ui-const/WINDOW-APP-NAME))
       (let [disp (. Display getCurrent)
-            sys-menu (. disp getSystemMenu)
-            sys-menu-item (. sys-menu getParentItem)]
-        (println "text of parent menuitem = " (.getText sys-menu-item))))
+            sys-menu (. disp getSystemMenu)]
+        (when sys-menu
+          (let [sys-menu-item (. sys-menu getParentItem)]
+            (println "text of parent menuitem = " (.getText sys-menu-item))))))
     (swt-util/sash-ify parent comp-left comp-right (/ 1 4))))
 
 ;; (defn ui-toolbar
