@@ -40,6 +40,7 @@
     ;; security exception when run.  This is as according to the SO info
     ;; at http://stackoverflow.com/questions/7892244/leiningen-has-problems-building-a-working-uberjar
     :uberjar-exclusions [#"ECLIPSEF.SF"
+                         #"ECLIPSE_.SF"
                          #"wfeditor.*\.clj$"
                          #"project.clj"
                          #"code_jam.*.clj$"

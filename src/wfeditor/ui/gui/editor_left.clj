@@ -13,10 +13,6 @@
    (org.eclipse.swt.layout FillLayout RowLayout GridLayout GridData FormLayout FormData FormAttachment)
    (org.eclipse.swt.widgets Label Button FileDialog Group Text Combo Composite Display)
    (org.eclipse.swt.events SelectionEvent SelectionAdapter ModifyListener ModifyEvent)
-   org.eclipse.gmf.runtime.draw2d.ui.render.awt.internal.svg.export.GraphicsSVG
-   (javax.xml.transform OutputKeys Transformer TransformerFactory)
-   javax.xml.transform.dom.DOMSource
-   javax.xml.transform.stream.StreamResult
    (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener)
    java.net.URL))
 
@@ -130,6 +126,45 @@
         server-host io-const/DEFAULT-SERVER-HOST-REL-TO-REMOTE]
     (exec/update-statuses-sge exec-dom user rem-host rem-port loc-port loc-host server-host)))
 
+(defmacro export-svg
+  "a macro to encapsulate the SVG export code that prevents the import of the dependency libs, which, when imported, instantiate a Display object.  this needs to be prevented to ensure other SWT code works as stated"
+  [out-stream]
+  ;; page(s) describing Zest to SVG
+  ;; export using GMF (+
+  ;; dependencies)
+  ;; http://standardout.org/2011/12/eclipse-draw2d-to-svg/
+  ;; http://standardout.org/2011/12/off-screen-rendering-of-eclipse-zest-graphs/
+  ;;
+  ;; macro used to do "conditional importing" as described by this
+  ;; page http://java.dzone.com/articles/clojure-conditionally which
+  ;; uploaded this code snippet https://github.com/jaycfields/expectations/blob/f2a8687/src/clojure/expectations/scenarios.clj#L81-L86
+  `(do
+     (import ~''org.eclipse.gmf.runtime.draw2d.ui.render.awt.internal.svg.export.GraphicsSVG)
+     (import ~''(javax.xml.transform OutputKeys Transformer TransformerFactory))
+     (import ~''javax.xml.transform.dom.DOMSource)
+     (import ~''javax.xml.transform.stream.StreamResult)
+     (let [gv# @wfeditor.ui.gui.zest.canvas/gv
+           graph# (.getGraphControl gv#)
+           graph-root# (.getRootLayer graph#)
+           viewbox# (.. graph-root# ~'getBounds ~'getCopy)
+           graphics# (. org.eclipse.gmf.runtime.draw2d.ui.render.awt.internal.svg.export.GraphicsSVG ~'getInstance viewbox#)]
+       (try
+         (.paint graph-root# graphics#)
+         (let [svg-root# (.getRoot graphics#)
+               transformer# (.newTransformer (. javax.xml.transform.TransformerFactory ~'newInstance))
+               dom-source# (new javax.xml.transform.dom.DOMSource svg-root#)]
+           (.setAttributeNS svg-root# nil "view-box" (string/join " " [(. viewbox# ~'x) (. viewbox# ~'y) (. viewbox# ~'width) (. viewbox# ~'height)]))
+           (doto transformer#
+             (.setOutputProperty javax.xml.transform.OutputKeys/METHOD "xml")
+             (.setOutputProperty javax.xml.transform.OutputKeys/ENCODING "UTF-8")
+             (.setOutputProperty javax.xml.transform.OutputKeys/INDENT "yes"))
+           (let [result# (new javax.xml.transform.stream.StreamResult ~out-stream)
+                 source# (new javax.xml.transform.dom.DOMSource svg-root#)]
+             (.transform transformer# source# result#)))
+         (catch Throwable t# (.printStackTrace t#))
+         (finally
+          (.dispose graphics#))))))
+
 (defn- button-group
   "create the Group widget containing all of the buttons in the left navpane that do something"
   [parent]
@@ -164,36 +199,12 @@
                                                   (exec/create-wfinst-and-set-everywhere wf-inst rem-host rem-port loc-port loc-host server-host))))})
     (update-button export-to-svg-button
                    {:widget-select-fn (fn [event]
-                                        ;; page(s) describing Zest to SVG
-                                        ;; export using GMF (+
-                                        ;; dependencies)
-                                        ;; http://standardout.org/2011/12/eclipse-draw2d-to-svg/
-                                        ;; http://standardout.org/2011/12/off-screen-rendering-of-eclipse-zest-graphs/
-                                        (let [gv @wfeditor.ui.gui.zest.canvas/gv
-                                              graph (.getGraphControl gv)
-                                              graph-root (.getRootLayer graph)
-                                              viewbox (.. graph-root getBounds getCopy)
-                                              graphics (GraphicsSVG/getInstance viewbox)]
-                                          (try
-                                            (.paint graph-root graphics)
-                                            (let [svg-root (.getRoot graphics)
-                                                  transformer (.newTransformer (TransformerFactory/newInstance))
-                                                  dom-source (DOMSource. svg-root)]
-                                              (.setAttributeNS svg-root nil "view-box" (string/join " " [(. viewbox x) (. viewbox y) (. viewbox width) (. viewbox height)]))
-                                              (doto transformer
-                                                (.setOutputProperty OutputKeys/METHOD "xml")
-                                                (.setOutputProperty OutputKeys/ENCODING "UTF-8")
-                                                (.setOutputProperty OutputKeys/INDENT "yes"))
-                                              (. (. Display getCurrent) asyncExec
-                                                 (fn []
-                                                   (let [fd (new-widget {:widget-class FileDialog :parent (get-ancestor-shell parent) :styles [SWT/SAVE]})]
-                                                     (when-let [out-file-name (.open fd)]
-                                                       (with-open [out-stream (clojure.java.io/output-stream out-file-name)]
-                                                         (let [result (StreamResult. out-stream)
-                                                               source (DOMSource. svg-root)]
-                                                           (.transform transformer source result))))))))
-                                            (finally
-                                             (.dispose graphics)))))})
+                                        (. (. Display getCurrent) asyncExec
+                                           (fn []
+                                             (let [fd (new-widget {:widget-class FileDialog :parent (get-ancestor-shell parent) :styles [SWT/SAVE]})]
+                                               (when-let [out-file-name (.open fd)]
+                                                 (with-open [out-stream (clojure.java.io/output-stream out-file-name)]
+                                                   (export-svg out-stream)))))))})
     (update-button update-server-statuses-button
                    {:widget-select-fn (fn [event]
                                         (future (let [{:keys [user exec-dom rem-host rem-port loc-port]} @exec-props
