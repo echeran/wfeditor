@@ -51,7 +51,7 @@ TODO: handle options and args coming in from the CLI"
   ;; subclass constructor, that should go somewhere here, where the
   ;; instance is actually being returned and manipulated
   (let [app-win (wfeditor.ui.gui.core/app-win-proxy)]
-    ;; must create the menu bar before the Shell is constructed (i.e.,
+    ;; must create the menu bar before the Shell is constructed i.e.,
     ;; the addMenuBar call should go in the constructor, but
     ;; constructor code goes here instead
     (.addMenuBar app-win)
@@ -64,7 +64,25 @@ TODO: handle options and args coming in from the CLI"
     (when-let [display (. Display getCurrent)]
       (.dispose display)))
 
-  (gui/cleanup-gui))
+  (gui/cleanup-gui)
+  ;; still have a problem with getting the program to fully shutdown
+  ;; at least on Mac OS X.
+  ;; this is caused somehow by the GMF graphics object used to export
+  ;; the canvas to SVG (even though the object seems to get disposed
+  ;; by the macro code). it causes Mac Java system to spawn an AWT
+  ;; thread, but the Mac Java system doesn't support the dual AWT &
+  ;; SWT system that SWT uses.  putting in a System.exit call to make
+  ;; sure that the program exits until this issue gets (understood
+  ;; and) resolved.
+  ;; System/exit resolution from
+  ;; http://www.eclipse.org/forums/index.php/m/652136/
+  ;; info on CocoaComponent compatibility mode:
+  ;; https://developer.apple.com/library/mac/documentation/Java/Reference/1.5.0/appledoc/api/com/apple/eawt/CocoaComponent.html
+  ;; For a possible fix, might try invokeLater as described by
+  ;; http://www.eclipse.org/swt/faq.php#swtawtosx
+  ;; and https://bugs.eclipse.org/bugs/show_bug.cgi?id=67384
+  (System/exit 0)
+  )
 
 (defn cli-execute
   "The entry point for executing the CLI version of the program"
