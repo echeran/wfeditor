@@ -14,7 +14,8 @@
    (org.eclipse.swt.widgets Label Button FileDialog Group Text Combo Composite Display)
    (org.eclipse.swt.events SelectionEvent SelectionAdapter ModifyListener ModifyEvent)
    (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener)
-   java.net.URL))
+   java.net.URL
+   (org.eclipse.swt.custom CTabFolder CTabItem)))
 
 ;;
 ;; refs (declarations here, initial bindings below)
@@ -400,17 +401,25 @@
       (create-widgets-with-names testing-group Button SWT/CHECK [ "Check one" "...two" "...three"]))
     testing-group))
 
-(defn ui-editor-left
-  "create the entire left-hand side navigation pane"
+(defn- general-ctab-content
+  "create a tab in the CTabFolder for general widges (ex: SSH cnxn props, buttons(?), pre-defined WFs)"
   [parent]
   (let [comp-left (new-widget {:keyname :editor-left :widget-class Composite :parent parent :styles [SWT/BORDER]})
         exec-group (execution-group comp-left)
         button-group (button-group comp-left)
         ;; button-debugging-group (button-debugging-group comp-left)
-        pre-wf-tree-group (predefined-wfs-tree-group comp-left)
-        ]
+        pre-wf-tree-group (predefined-wfs-tree-group comp-left)]
     (swt-util/stack-full-width comp-left {:margin 10} [exec-group button-group pre-wf-tree-group])
     comp-left))
+
+(defn ui-editor-left
+  "create the entire left-hand side navigation pane"
+  [parent]
+  (let [tab-folder (new-widget {:keyname :tab-folder :widget-class CTabFolder :parent parent :styles [SWT/TOP SWT/FLAT]})
+        gen-tab (new-widget {:keyname :general-tab :widget-class CTabItem :parent tab-folder :styles [SWT/NONE] :extra-ctor-args [0] :text "General"})]
+    (do
+      (.setControl gen-tab (general-ctab-content tab-folder)))
+    tab-folder))
 
 ;;
 ;; refs - binding initial values
