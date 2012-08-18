@@ -52,12 +52,14 @@ opts map keys and values:
            (when ~text (.setText widget# ~text))
            widget#)))
   ([opts]
-     (let [{:keys [styles text widget-class parent keyname] :or {styles [SWT/NONE] widget-class Button parent (. Display getCurrent)}} opts]
+     (let [{:keys [styles text widget-class parent keyname extra-ctor-args] :or {styles [SWT/NONE] widget-class Button parent (. Display getCurrent) extra-ctor-args []}} opts]
        `(let [style# (condp = (count ~styles)
                        0 SWT/NONE
                        1 (first ~styles)
                        (apply bit-or ~styles))
-              widget# (new ~widget-class ~parent style#)]
+              widget# (if (seq ~extra-ctor-args)
+                        (new ~widget-class ~parent style# ~@extra-ctor-args)
+                        (new ~widget-class ~parent style#))]
           (when ~text (.setText widget# ~text))
           (wfeditor.ui.util.swt/add-widget ~parent widget# ~keyname)
           widget#))))
