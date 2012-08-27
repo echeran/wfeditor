@@ -424,9 +424,10 @@
 (defn- edit-job-tree-table-viewer
   "create a JFace TreeTable viewer for editing a job in the WF"
   [parent]
-  (let [job-fields (type-util/class-fields wfeditor.model.workflow.Job)
-        table-group (new-widget {:keyname :table-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "Edit Workflow Job"})
+  (let [table-group (new-widget {:keyname :table-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "Edit Workflow Job"})
         ttv (TableViewer. table-group)
+        job-fields (type-util/class-fields wfeditor.model.workflow.Job)
+        column-headings ["Job field" "Extra field for testing"]
         content-provider (proxy [IStructuredContentProvider]
                              []
                            (getElements [input-data]
@@ -444,26 +445,25 @@
                          (isLabelProperty [element property]
                            false)
                          (removeListener [listener]))]
-    (do
-      (. (TableColumn. (.getTable ttv) SWT/LEFT) setText "Job field")
-      (.setText (TableColumn. (.getTable ttv) (SWT/RIGHT)) "Extra field for testing")
-      (.. ttv getTable (setLayoutData (GridData. (GridData/FILL_BOTH)))))
+    (doseq [ch column-headings]
+            (.setText (TableColumn. (.getTable ttv) (SWT/LEFT)) ch))
     (doto table-group
       (.setLayout (GridLayout.)))
     (doto ttv
       (.setContentProvider content-provider)
       (.setLabelProvider label-provider)
       (.setInput job-fields))
-     (doto (.getTable ttv)
+    (doto (.getTable ttv)
+      (.setLayoutData (GridData. (GridData/FILL_BOTH)))
       (.setHeaderVisible true)
       (.setLinesVisible true)
       (.setRedraw true) 
       ;; (.pack)
-      (.showColumn (last (.getColumns (.getTable ttv))))
-      (.showColumn (first (.getColumns (.getTable ttv)))))
-    (do
-      (-> ttv .getTable .getColumns first .pack)
-      (-> ttv .getTable .getColumns second .pack))
+      )
+    (dorun
+     (do
+       (map (memfn showColumn) (.. ttv getTable getColumns))
+       (map (memfn pack) (.. ttv getTable getColumns))))
     table-group))
 
 (defn- edit-wf-ctab-content
