@@ -428,6 +428,9 @@
         ttv (TableViewer. table-group)
         job-fields (type-util/class-fields wfeditor.model.workflow.Job)
         column-headings ["Job field" "Extra field for testing"]
+        columns (doall
+                 (for [ch column-headings]
+                   (new-widget {:keyname (keyword (str "col-" ch)) :widget-class TableColumn :parent (.getTable ttv) :styles [SWT/LEFT] :text ch})))
         content-provider (proxy [IStructuredContentProvider]
                              []
                            (getElements [input-data]
@@ -445,8 +448,6 @@
                          (isLabelProperty [element property]
                            false)
                          (removeListener [listener]))]
-    (doseq [ch column-headings]
-            (.setText (TableColumn. (.getTable ttv) (SWT/LEFT)) ch))
     (doto table-group
       (.setLayout (GridLayout.)))
     (doto ttv
