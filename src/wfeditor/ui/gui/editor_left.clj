@@ -481,10 +481,14 @@
     (doto (.getTable ttv)
       (.setHeaderVisible true)
       (.setLinesVisible true)
-      (.setRedraw true)
+      (.setRedraw true) 
       ;; (.pack)
       (.showColumn (last (.getColumns (.getTable ttv))))
       (.showColumn (first (.getColumns (.getTable ttv)))))
+    (do
+      (-> ttv .getTable .getColumns first .pack)
+      (-> ttv .getTable .getColumns second .pack)
+      )
     table-group
     ))
 
