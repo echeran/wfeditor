@@ -12,7 +12,7 @@
   (:import
    org.eclipse.swt.SWT
    (org.eclipse.swt.layout FillLayout RowLayout GridLayout GridData FormLayout FormData FormAttachment)
-   (org.eclipse.swt.widgets Label Button FileDialog Group Text Combo Composite Display TableColumn)
+   (org.eclipse.swt.widgets Label Button FileDialog Group Text Combo Composite Display TableColumn Table TableItem)
    (org.eclipse.swt.events SelectionEvent SelectionAdapter ModifyListener ModifyEvent)
    (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener TableViewer IStructuredContentProvider ITableLabelProvider ListViewer)
    java.net.URL
@@ -421,11 +421,31 @@
 ;; Edit WF tab functions
 ;;
 
+(defn- edit-job-tree-table
+  "create a regular SWT Table for editing a job in the WF"
+  [parent]
+  (let [table-group (new-widget {:keyname :table-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "Edit Workflow Job"}) 
+        table (new-widget {:keyname :table :widget-class Table :parent table-group :styles [SWT/SINGLE SWT/FULL_SELECTION]})
+        col1 (new-widget {:keyname :col1 :widget-class TableColumn :parent table :styles [SWT/LEFT]})
+        ;; item1 (new-widget {:keyname :item1 :widget-class TableItem :parent table :styles [SWT/NONE]})
+        item1 (TableItem. table SWT/NONE)]
+    (doto table
+      (.setHeaderVisible true)
+      (.setLinesVisible true))
+    (do
+      (.pack col1))
+    (doto table
+      (.setRedraw true))
+    (doto table-group
+      (.setLayout (FillLayout.)))
+    table-group))
+
 (defn- edit-job-tree-table-viewer
   "create a JFace TreeTable viewer for editing a job in the WF"
   [parent]
   (let [job-fields (type-util/class-fields wfeditor.model.workflow.Job)
-        ;; table-comp (new-widget {:keyname :table-comp :widget-class Composite :parent parent :styles [SWT/NONE]})
+        ;; table-comp (new-widget {:keyname :table-comp :widget-class
+        ;; Composite :parent parent :styles [SWT/NONE]})
         table-group (new-widget {:keyname :table-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "Edit Workflow Job"})
         ttv (TableViewer. table-group)
         content-provider (proxy [IStructuredContentProvider]
@@ -449,14 +469,22 @@
                          (removeListener [listener]))]
     (do
       (. (TableColumn. (.getTable ttv) SWT/LEFT) setText "Job field")
-      (.setText (TableColumn. (.getTable ttv) (SWT/RIGHT)) "Extra field for testing"))
+      (.setText (TableColumn. (.getTable ttv) (SWT/RIGHT)) "Extra field for testing")
+      (.. ttv getTable (setLayoutData (GridData. (GridData/FILL_BOTH)))))
     (doto table-group
-      (.setLayout (FillLayout.)))
+      (.setLayout (GridLayout.)))
     (doto ttv
       (.setContentProvider content-provider)
       (.setLabelProvider label-provider)
       (.setInput job-fields))
     ;; table-comp
+    (doto (.getTable ttv)
+      (.setHeaderVisible true)
+      (.setLinesVisible true)
+      (.setRedraw true)
+      ;; (.pack)
+      (.showColumn (last (.getColumns (.getTable ttv))))
+      (.showColumn (first (.getColumns (.getTable ttv)))))
     table-group
     ))
 
@@ -499,10 +527,12 @@
         button (new-widget {:keyname :some-button :widget-class Button :parent comp :styles [SWT/PUSH] :text "This is some button"})
         edit-job-table-comp (edit-job-tree-table-viewer comp)
         list-viewer-group (test-list-viewer-group comp)
-        ;; test-tree-group (predefined-wfs-tree-group comp)
+        edit-job-table2-comp (edit-job-tree-table comp)
         spacer-comp (new-widget {:keyname :spacer-comp :widget-class Composite :parent comp :styles [SWT/NONE]})
         ]
-    (swt-util/stack-full-width comp {:marge 10} [label button edit-job-table-comp list-viewer-group spacer-comp])
+    (swt-util/stack-full-width comp {:marge 10} [label button edit-job-table-comp list-viewer-group
+                                                 edit-job-table2-comp
+                                                 spacer-comp])
     comp))
 
 ;;
