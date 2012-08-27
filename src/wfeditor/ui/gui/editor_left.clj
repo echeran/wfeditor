@@ -1,6 +1,7 @@
 (ns wfeditor.ui.gui.editor-left
   (:require [wfeditor.io.util.const :as io-const]
             [wfeditor.model.workflow :as wflow]
+            [wfeditor.model.util.type :as type-util]
             [wfeditor.io.execution :as exec]
             [wfeditor.io.status.task-run :as task-status]
             [wfeditor.io.file.wfeformat :as fformat]
@@ -11,9 +12,9 @@
   (:import
    org.eclipse.swt.SWT
    (org.eclipse.swt.layout FillLayout RowLayout GridLayout GridData FormLayout FormData FormAttachment)
-   (org.eclipse.swt.widgets Label Button FileDialog Group Text Combo Composite Display)
+   (org.eclipse.swt.widgets Label Button FileDialog Group Text Combo Composite Display TableColumn)
    (org.eclipse.swt.events SelectionEvent SelectionAdapter ModifyListener ModifyEvent)
-   (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener)
+   (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener TableViewer IStructuredContentProvider ITableLabelProvider ListViewer)
    java.net.URL
    (org.eclipse.swt.custom CTabFolder CTabItem)))
 
@@ -35,6 +36,10 @@
      (let [{:keys [user exec-dom]} @exec-props
            wf-inst (wflow/new-wfinstance-fn user exec-dom wf)]
        wf-inst)))
+
+;;
+;; General tab functions
+;;
 
 (defn- execution-group
   "create the group in the navpane storing the fields required for executing jobs on the remote server"
@@ -412,15 +417,97 @@
     (swt-util/stack-full-width comp {:margin 10} [exec-group button-group pre-wf-tree-group])
     comp))
 
+;;
+;; Edit WF tab functions
+;;
+
+(defn- edit-job-tree-table-viewer
+  "create a JFace TreeTable viewer for editing a job in the WF"
+  [parent]
+  (let [job-fields (type-util/class-fields wfeditor.model.workflow.Job)
+        ;; table-comp (new-widget {:keyname :table-comp :widget-class Composite :parent parent :styles [SWT/NONE]})
+        table-group (new-widget {:keyname :table-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "Edit Workflow Job"})
+        ttv (TableViewer. table-group)
+        content-provider (proxy [IStructuredContentProvider]
+                             []
+                           (getElements [input-data]
+                             (to-array input-data))
+                           (inputChanged [viewer old-input new-input])
+                           (dispose []))
+        label-provider (proxy [ITableLabelProvider]
+                           []
+                         (addListener [listener])
+                         (dispose [])
+                         (getColumnImage [element column-index]
+                           nil)
+                         (getColumnText [element column-index]
+                           ;; (println "element = " element)
+                           ;; (println "class element = " (class element))
+                           (str element))
+                         (isLabelProperty [element property]
+                           false)
+                         (removeListener [listener]))]
+    (do
+      (. (TableColumn. (.getTable ttv) SWT/LEFT) setText "Job field")
+      (.setText (TableColumn. (.getTable ttv) (SWT/RIGHT)) "Extra field for testing"))
+    (doto table-group
+      (.setLayout (FillLayout.)))
+    (doto ttv
+      (.setContentProvider content-provider)
+      (.setLabelProvider label-provider)
+      (.setInput job-fields))
+    ;; table-comp
+    table-group
+    ))
+
+(defn- test-list-viewer-group
+  "create a ListViewer to test problems with TableViewer code"
+  [parent]
+  (let [group (new-widget {:keyname :list-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "List Viewer?"})
+        list-viewer (ListViewer. group)
+        test-input ["a" "c" "b" "yo"]
+        content-provider (proxy [IStructuredContentProvider]
+                             []
+                           (getElements [input-data] 
+                             (to-array input-data))
+                           (inputChanged [viewer old-input new-input])
+                           (dispose []))
+        label-provider (proxy [ILabelProvider]
+                           []
+                         (addListener [listener])
+                         (dispose [])
+                         (getImage [element]
+                           nil)
+                         (getText [element]
+                           (str element))
+                         (isLabelProperty [element property]
+                           false)
+                         (removeListener [listener]))]
+    (doto group
+      (.setLayout (FillLayout.)))
+    (doto list-viewer
+      (.setContentProvider content-provider)
+      (.setLabelProvider label-provider)
+      (.setInput test-input))
+    group))
+
 (defn- edit-wf-ctab-content
   "create a tab for editing the WF"
   [parent]
   (let [comp (new-widget {:keyname :comp :widget-class Composite :parent parent :styles [SWT/BORDER]})
         label (new-widget {:keyname :some-label :widget-class Label :parent comp :styles [SWT/LEFT] :text "This is some label"})
         button (new-widget {:keyname :some-button :widget-class Button :parent comp :styles [SWT/PUSH] :text "This is some button"})
-        spacer-comp (new-widget {:keyname :spacer-comp :widget-class Composite :parent comp :styles [SWT/NONE]})]
-    (swt-util/stack-full-width comp {:marge 10} [label button spacer-comp])
+        edit-job-table-comp (edit-job-tree-table-viewer comp)
+        list-viewer-group (test-list-viewer-group comp)
+        ;; test-tree-group (predefined-wfs-tree-group comp)
+        spacer-comp (new-widget {:keyname :spacer-comp :widget-class Composite :parent comp :styles [SWT/NONE]})
+        ]
+    (swt-util/stack-full-width comp {:marge 10} [label button edit-job-table-comp list-viewer-group spacer-comp])
     comp))
+
+;;
+;; build left nav pane
+;;
 
 (defn ui-editor-left
   "create the entire left-hand side navigation pane"
