@@ -421,31 +421,10 @@
 ;; Edit WF tab functions
 ;;
 
-(defn- edit-job-tree-table
-  "create a regular SWT Table for editing a job in the WF"
-  [parent]
-  (let [table-group (new-widget {:keyname :table-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "Edit Workflow Job"}) 
-        table (new-widget {:keyname :table :widget-class Table :parent table-group :styles [SWT/SINGLE SWT/FULL_SELECTION]})
-        col1 (new-widget {:keyname :col1 :widget-class TableColumn :parent table :styles [SWT/LEFT]})
-        ;; item1 (new-widget {:keyname :item1 :widget-class TableItem :parent table :styles [SWT/NONE]})
-        item1 (TableItem. table SWT/NONE)]
-    (doto table
-      (.setHeaderVisible true)
-      (.setLinesVisible true))
-    (do
-      (.pack col1))
-    (doto table
-      (.setRedraw true))
-    (doto table-group
-      (.setLayout (FillLayout.)))
-    table-group))
-
 (defn- edit-job-tree-table-viewer
   "create a JFace TreeTable viewer for editing a job in the WF"
   [parent]
   (let [job-fields (type-util/class-fields wfeditor.model.workflow.Job)
-        ;; table-comp (new-widget {:keyname :table-comp :widget-class
-        ;; Composite :parent parent :styles [SWT/NONE]})
         table-group (new-widget {:keyname :table-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "Edit Workflow Job"})
         ttv (TableViewer. table-group)
         content-provider (proxy [IStructuredContentProvider]
@@ -461,8 +440,6 @@
                          (getColumnImage [element column-index]
                            nil)
                          (getColumnText [element column-index]
-                           ;; (println "element = " element)
-                           ;; (println "class element = " (class element))
                            (str element))
                          (isLabelProperty [element property]
                            false)
@@ -477,8 +454,7 @@
       (.setContentProvider content-provider)
       (.setLabelProvider label-provider)
       (.setInput job-fields))
-    ;; table-comp
-    (doto (.getTable ttv)
+     (doto (.getTable ttv)
       (.setHeaderVisible true)
       (.setLinesVisible true)
       (.setRedraw true) 
@@ -487,41 +463,8 @@
       (.showColumn (first (.getColumns (.getTable ttv)))))
     (do
       (-> ttv .getTable .getColumns first .pack)
-      (-> ttv .getTable .getColumns second .pack)
-      )
-    table-group
-    ))
-
-(defn- test-list-viewer-group
-  "create a ListViewer to test problems with TableViewer code"
-  [parent]
-  (let [group (new-widget {:keyname :list-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "List Viewer?"})
-        list-viewer (ListViewer. group)
-        test-input ["a" "c" "b" "yo"]
-        content-provider (proxy [IStructuredContentProvider]
-                             []
-                           (getElements [input-data] 
-                             (to-array input-data))
-                           (inputChanged [viewer old-input new-input])
-                           (dispose []))
-        label-provider (proxy [ILabelProvider]
-                           []
-                         (addListener [listener])
-                         (dispose [])
-                         (getImage [element]
-                           nil)
-                         (getText [element]
-                           (str element))
-                         (isLabelProperty [element property]
-                           false)
-                         (removeListener [listener]))]
-    (doto group
-      (.setLayout (FillLayout.)))
-    (doto list-viewer
-      (.setContentProvider content-provider)
-      (.setLabelProvider label-provider)
-      (.setInput test-input))
-    group))
+      (-> ttv .getTable .getColumns second .pack))
+    table-group))
 
 (defn- edit-wf-ctab-content
   "create a tab for editing the WF"
@@ -529,14 +472,10 @@
   (let [comp (new-widget {:keyname :comp :widget-class Composite :parent parent :styles [SWT/BORDER]})
         label (new-widget {:keyname :some-label :widget-class Label :parent comp :styles [SWT/LEFT] :text "This is some label"})
         button (new-widget {:keyname :some-button :widget-class Button :parent comp :styles [SWT/PUSH] :text "This is some button"})
-        edit-job-table-comp (edit-job-tree-table-viewer comp)
-        list-viewer-group (test-list-viewer-group comp)
-        edit-job-table2-comp (edit-job-tree-table comp)
+        edit-job-table-group (edit-job-tree-table-viewer comp)
         spacer-comp (new-widget {:keyname :spacer-comp :widget-class Composite :parent comp :styles [SWT/NONE]})
         ]
-    (swt-util/stack-full-width comp {:marge 10} [label button edit-job-table-comp list-viewer-group
-                                                 edit-job-table2-comp
-                                                 spacer-comp])
+    (swt-util/stack-full-width comp {:marge 10} [label button edit-job-table-group spacer-comp])
     comp))
 
 ;;
