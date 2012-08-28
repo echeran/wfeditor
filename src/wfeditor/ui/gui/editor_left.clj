@@ -427,8 +427,6 @@
   [parent]
   (let [table-group (new-widget {:keyname :table-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "Edit Workflow Job"})
         job (atom (wflow/new-job-fn "Job Name" "Prog. Exec. Loc." "Prog. Args." "Prog. Opts.")) 
-        ;; label (new-widget {:keyname :some-label :widget-class Label :parent table-group :styles [SWT/LEFT] :text "This is some label"})
-        ;; button (new-widget {:keyname :some-button :widget-class Button :parent table-group :styles [SWT/PUSH] :text "This is some button"})
         ttv (TableViewer. table-group)
         job-fields (type-util/class-fields wfeditor.model.workflow.Job)
         column-headings ["Job field" "Value"]
@@ -485,10 +483,6 @@
                               (.refresh ttv)))))
         cell-editors (for [col col-props]
                        (TextCellEditor. (.getTable ttv)))]
-    ;; (update-button button
-    ;;                {:widget-select-fn (fn [event]
-    ;;                                     (println "job = " @job))})
-
     ;; basic display config
     (doto table-group
       (.setLayout (GridLayout.)))
