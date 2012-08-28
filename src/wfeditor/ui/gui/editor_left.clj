@@ -14,7 +14,7 @@
    (org.eclipse.swt.layout FillLayout RowLayout GridLayout GridData FormLayout FormData FormAttachment)
    (org.eclipse.swt.widgets Label Button FileDialog Group Text Combo Composite Display TableColumn Table TableItem)
    (org.eclipse.swt.events SelectionEvent SelectionAdapter ModifyListener ModifyEvent)
-   (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener TableViewer IStructuredContentProvider ITableLabelProvider ListViewer)
+   (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener TableViewer IStructuredContentProvider ITableLabelProvider ListViewer ICellModifier TextCellEditor)
    java.net.URL
    (org.eclipse.swt.custom CTabFolder CTabItem)))
 
@@ -427,7 +427,7 @@
   (let [table-group (new-widget {:keyname :table-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "Edit Workflow Job"})
         ttv (TableViewer. table-group)
         job-fields (type-util/class-fields wfeditor.model.workflow.Job)
-        column-headings ["Job field" "Extra field for testing"]
+        column-headings ["Job field" "Value"]
         columns (doall
                  (for [ch column-headings]
                    (new-widget {:keyname (keyword (str "col-" ch)) :widget-class TableColumn :parent (.getTable ttv) :styles [SWT/LEFT] :text ch})))
@@ -444,27 +444,57 @@
                          (getColumnImage [element column-index]
                            nil)
                          (getColumnText [element column-index]
-                           (str element))
+                           (condp = column-index
+                             0 (str (name (nth element column-index)))
+                             1 (str (nth element column-index))))
                          (isLabelProperty [element property]
                            false)
-                         (removeListener [listener]))]
+                         (removeListener [listener]))
+        job (atom (wflow/new-job-fn "Job Name" "Prog. Exec. Loc." "Prog. Args." "Prog. Opts."))
+        col-props ["key" "value"]
+        cell-modifier (proxy [ICellModifier]
+                          []
+                        (canModify [element property]
+                          (= "value" property))
+                        (getValue [element property]
+                          (condp = property
+                            "key" (name (nth element 0))
+                            "value" (or (get @job (nth element 0)) "nil")))
+                        (modify [element property value]
+                          (let [element (if (= TableItem (class element))
+                                          (.getData element)
+                                          element)] 
+                            (swap! job merge element))))
+        cell-editors (for [col col-props]
+                      (TextCellEditor. (.getTable ttv)))]
+    ;; basic display config
     (doto table-group
       (.setLayout (GridLayout.)))
     (doto ttv
       (.setContentProvider content-provider)
       (.setLabelProvider label-provider)
-      (.setInput job-fields))
+      (.setInput @job)
+      )
+    ;; configs to format table display and align cols properly
     (doto (.getTable ttv)
       (.setLayoutData (GridData. (GridData/FILL_BOTH)))
       (.setHeaderVisible true)
       (.setLinesVisible true)
-      (.setRedraw true) 
+      (.setRedraw true)
       ;; (.pack)
       )
     (dorun
      (do
        (map (memfn showColumn) (.. ttv getTable getColumns))
        (map (memfn pack) (.. ttv getTable getColumns))))
+    ;; configs for control editors
+    (doto ttv
+      ;; into-array preserves the object type in a Java array better
+      ;; than to-array
+      (.setColumnProperties (into-array col-props))
+      (.setCellModifier cell-modifier)
+      (.setCellEditors (into-array cell-editors)))
+    ;; return value
     table-group))
 
 (defn- edit-wf-ctab-content
