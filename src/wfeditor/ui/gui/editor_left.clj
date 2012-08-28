@@ -452,7 +452,7 @@
                                  (str (or (get @job key) ui-const/NIL-VAL-STR-REP))
                                  (if-let [val (get @job key)]
                                    (condp = key
-                                     :task-statuses (task-status/status-field val)
+                                     :task-statuses (if val (task-status/status-field val) ui-const/NIL-VAR-STR-REP)
                                      (str val))
                                    ui-const/NIL-VAL-STR-REP))))
                          (isLabelProperty [element property]
