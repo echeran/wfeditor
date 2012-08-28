@@ -35,6 +35,18 @@
       (map-utils/deep-merge-with merge-fn base-map newer-map))
     base-map))
 
+(defn status-field
+  "given a map of the tasks ids and statuses, return the one-line string for the field/tooltip/etc. giving the full status frequencies info"
+  [task-status-map]
+  (let [status-order [:error :failed :uncertain :killed :running :waiting :success]
+        statuses (vals task-status-map)
+        total (count statuses)
+        freqs (frequencies statuses)
+        status-freq-line-fn (fn [s] (when (freqs s) (str (name s) " (" (freqs s) "/" total ")")))
+        parts (remove nil? (map status-freq-line-fn status-order))
+        field-line (string/join ", " parts)]
+    field-line))
+
 ;;
 ;; global status functions
 ;;

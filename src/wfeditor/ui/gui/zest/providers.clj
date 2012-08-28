@@ -3,7 +3,8 @@
             [wfeditor.io.execution :as exec]
             [clojure.string :as string]
             [wfeditor.ui.util.swt :as swt-util]
-            [wfeditor.io.util.const :as io-const])
+            [wfeditor.io.util.const :as io-const]
+            [wfeditor.io.status.task-run :as task-status])
   ;; need to import the Clojure defrecord, etc. (Java-interop types)
   ;; as according to
   ;; http://dbostwick.posterous.com/using-clojures-deftype-and-defrecord-and-name
@@ -34,18 +35,6 @@
      (if (<= (count s) (+ begin ellipsis end))
          s
          (clojure.string/join (concat (subs s 0 begin) (take ellipsis (repeat ".")) (subs s (- (count s) end) (count s)))))))
-
-(defn- status-tooltip-field
-  "given a map of the tasks ids and statuses, return the one-line string for the tooltip giving the full status frequencies info"
-  [task-status-map]
-  (let [status-order [:error :failed :uncertain :killed :running :waiting :success]
-        statuses (vals task-status-map)
-        total (count statuses)
-        freqs (frequencies statuses)
-        status-freq-line-fn (fn [s] (when (freqs s) (str (name s) " (" (freqs s) "/" total ")")))
-        parts (remove nil? (map status-freq-line-fn status-order))
-        tooltip-line (string/join ", " parts)]
-    tooltip-line))
 
 (defn- display-status
   "given a job's task statuses map, return a single status for coloring a Job in the canvas containing the workflow graph"
@@ -105,7 +94,7 @@
     (getTooltip [entity]
       (when (= (class entity) wfeditor.model.workflow.Job)
         (let [tooltip-field-names ["Name" "ID" "Status" "Prog. Name" "Command" "Out file" "Err file"]
-              tooltip-field-vals [(:name entity) (:id entity) (status-tooltip-field (:task-statuses entity)) (:prog-name entity) (str-abbr (exec/job-command entity)) (:std-out-file entity) (:std-err-file entity)]
+              tooltip-field-vals [(:name entity) (:id entity) (task-status/status-field (:task-statuses entity)) (:prog-name entity) (str-abbr (exec/job-command entity)) (:std-out-file entity) (:std-err-file entity)]
               tooltip-field-fn (fn [name val] (let [pr-val (or val "")] (str name ": " pr-val)))
               tooltip-string-parts (map tooltip-field-fn tooltip-field-names tooltip-field-vals)
               tooltip-string (string/join "\n" tooltip-string-parts)]

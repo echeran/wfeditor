@@ -6,6 +6,7 @@
             [wfeditor.io.status.task-run :as task-status]
             [wfeditor.io.file.wfeformat :as fformat]
             [wfeditor.ui.state.gui :as gui-state]
+            [wfeditor.ui.util.const :as ui-const]
             [clojure.string :as string]
             [clojure.zip :as zip])
   (:use [wfeditor.ui.util.swt :as swt-util])
@@ -426,8 +427,8 @@
   [parent]
   (let [table-group (new-widget {:keyname :table-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "Edit Workflow Job"})
         job (atom (wflow/new-job-fn "Job Name" "Prog. Exec. Loc." "Prog. Args." "Prog. Opts.")) 
-        label (new-widget {:keyname :some-label :widget-class Label :parent table-group :styles [SWT/LEFT] :text "This is some label"})
-        button (new-widget {:keyname :some-button :widget-class Button :parent table-group :styles [SWT/PUSH] :text "This is some button"})        
+        ;; label (new-widget {:keyname :some-label :widget-class Label :parent table-group :styles [SWT/LEFT] :text "This is some label"})
+        ;; button (new-widget {:keyname :some-button :widget-class Button :parent table-group :styles [SWT/PUSH] :text "This is some button"})
         ttv (TableViewer. table-group)
         job-fields (type-util/class-fields wfeditor.model.workflow.Job)
         column-headings ["Job field" "Value"]
@@ -449,7 +450,13 @@
                          (getColumnText [element column-index]
                            (condp = column-index
                              0 (str (name (nth element column-index)))
-                             1 (str (nth element column-index))))
+                             1 (let [key (nth element 0)]
+                                 (str (or (get @job key) ui-const/NIL-VAL-STR-REP))
+                                 (if-let [val (get @job key)]
+                                   (condp = key
+                                     :task-statuses (task-status/status-field val)
+                                     (str val))
+                                   ui-const/NIL-VAL-STR-REP))))
                          (isLabelProperty [element property]
                            false)
                          (removeListener [listener]))
@@ -457,21 +464,31 @@
         cell-modifier (proxy [ICellModifier]
                           []
                         (canModify [element property]
-                          (= "value" property))
+                          (let [key (nth element 0)]
+                            (if (and (= "value" property) (not (#{:id :task-statuses} key)))
+                              true
+                              false)))
                         (getValue [element property]
                           (condp = property
                             "key" (name (nth element 0))
-                            "value" (or (get @job (nth element 0)) "nil")))
+                            "value" (or (get @job (nth element 0)) ui-const/NIL-VAL-STR-REP)))
                         (modify [element property value]
                           (let [element (if (= TableItem (class element))
                                           (.getData element)
-                                          element)] 
-                            (swap! job merge element))))
+                                          element)
+                                key (nth element 0)
+                                val (if (= value ui-const/NIL-VAL-STR-REP)
+                                      nil
+                                      value)]
+                            (when-not (#{:id} key)
+                              (swap! job assoc key val)
+                              (.refresh ttv)))))
         cell-editors (for [col col-props]
                        (TextCellEditor. (.getTable ttv)))]
-    (update-button button
-                   {:widget-select-fn (fn [event]
-                                        (println "job = " @job))})
+    ;; (update-button button
+    ;;                {:widget-select-fn (fn [event]
+    ;;                                     (println "job = " @job))})
+
     ;; basic display config
     (doto table-group
       (.setLayout (GridLayout.)))
