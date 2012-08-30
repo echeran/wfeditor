@@ -436,8 +436,24 @@
         content-provider (proxy [IStructuredContentProvider]
                              []
                            (getElements [input-data]
+                             (println "input-data = " input-data)
                              (to-array input-data))
-                           (inputChanged [viewer old-input new-input])
+                           (inputChanged [viewer old-input new-input]
+                             (println "old input = " old-input)
+                             (println "new input = " new-input)
+                             (when-not new-input
+                               ;; (.setInput viewer job-fields)
+                               (.setInput viewer (wflow/new-job-fn "Job was nil so created this placeholder" "<Prog. Exec. Loc.>" "<Prog. Args.>" "<Prog. Opts.>"))
+                               (.refresh viewer true)
+
+                               (dorun
+                                (do
+                                  (map (memfn showColumn) (.. viewer getTable getColumns))
+                                  (map (memfn pack) (.. viewer getTable getColumns))))
+                               (.refresh viewer true)
+                               )
+
+                             )
                            (dispose []))
         label-provider (proxy [ITableLabelProvider]
                            []
