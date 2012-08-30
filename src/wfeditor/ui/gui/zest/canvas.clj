@@ -3,7 +3,8 @@
    [wfeditor.ui.gui.zest.providers :as zproviders]
    [wfeditor.model.workflow :as wflow]
    [clojure.string :as string]
-   [clojure.contrib.math :as math-contrib])
+   [clojure.contrib.math :as math-contrib]
+   [wfeditor.ui.state.gui :as gui-state])
   (:import
    org.eclipse.zest.core.viewers.GraphViewer
    org.eclipse.swt.SWT
@@ -15,7 +16,8 @@
    org.eclipse.zest.layouts.algorithms.SpaceTreeLayoutAlgorithm
    org.eclipse.zest.layouts.LayoutStyles
    org.eclipse.swt.layout.GridData
-   org.eclipse.swt.widgets.Display))
+   org.eclipse.swt.widgets.Display
+   (org.eclipse.jface.viewers ISelectionChangedListener StructuredSelection)))
 
 
 ;;
@@ -188,12 +190,28 @@
         ;; have to convert the Clojure seq into a Java array to make
         ;; the Java classes of GEF/Zest happy
         layout (graph-viewer-layout)
-        parent-grid-data (GridData. (GridData/FILL_BOTH))]
+        parent-grid-data (GridData. (GridData/FILL_BOTH))
+        sel-chgd-listener (proxy [ISelectionChangedListener]
+                              []
+                            (selectionChanged [event]
+                              (let [source (.getSource event)
+                                    selection ^StructuredSelection (.getSelection event)
+                                    selected-widgets (.toList selection)
+                                    job-to-edit (if (and (not (.isEmpty selection)) (= 1 (count (.toList selection))))
+                                                  (.getFirstElement selection)
+                                                  nil)]
+                                (println "source = " source)
+                                (println "selection = " selection)
+                                (println "selection isEmpty? = " (.isEmpty selection))
+                                (println "job to edit = " job-to-edit)
+                                (dosync
+                                 (ref-set gui-state/job-to-edit job-to-edit)))))]
     (.setLayoutData (.getControl viewer) parent-grid-data)
     (doto viewer
       (.setContentProvider content-provider)
       (.setLabelProvider label-provider)
       (.setInput init-input)
+      (.addSelectionChangedListener sel-chgd-listener)
       (.setLayoutAlgorithm layout true)
       (.applyLayout))
     (dosync

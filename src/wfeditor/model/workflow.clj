@@ -79,6 +79,15 @@ id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file deps"
 
 
 ;;
+;; job utility functions
+;;
+
+(defn nil-job-fn
+  "creates a job with nil'ed required fields"
+  []
+  (new-job-fn nil nil nil nil))
+
+;;
 ;; workflow utility functions
 ;;
 

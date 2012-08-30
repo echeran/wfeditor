@@ -426,7 +426,7 @@
   "create a JFace TreeTable viewer for editing a job in the WF"
   [parent]
   (let [table-group (new-widget {:keyname :table-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "Edit Workflow Job"})
-        job (atom (wflow/new-job-fn "Job Name" "Prog. Exec. Loc." "Prog. Args." "Prog. Opts.")) 
+        ;; job (atom (wflow/new-job-fn "Job Name" "Prog. Exec. Loc." "Prog. Args." "Prog. Opts."))
         ttv (TableViewer. table-group)
         job-fields (type-util/class-fields wfeditor.model.workflow.Job)
         column-headings ["Job field" "Value"]
@@ -446,15 +446,24 @@
                          (getColumnImage [element column-index]
                            nil)
                          (getColumnText [element column-index]
-                           (condp = column-index
-                             0 (str (name (nth element column-index)))
-                             1 (let [key (nth element 0)]
-                                 (str (or (get @job key) ui-const/NIL-VAL-STR-REP))
-                                 (if-let [val (get @job key)]
-                                   (condp = key
-                                     :task-statuses (if val (task-status/status-field val) ui-const/NIL-VAL-STR-REP)
-                                     (str val))
-                                   ui-const/NIL-VAL-STR-REP))))
+                           (println "element = " element " (class element) = " (class element))
+                           (let [result
+                                 (if (string? element)
+                                   ;; (condp = column-index
+                                   ;;   0 element
+                                   ;;   1 ui-const/NIL-VAL-STR-REP)
+                                   element
+                                   (condp = column-index
+                                     0 (str (name (nth element column-index)))
+                                     1 (let [key (nth element 0)]
+                                         (str (or (get @gui-state/job-to-edit key) ui-const/NIL-VAL-STR-REP))
+                                         (if-let [val (get @gui-state/job-to-edit key)]
+                                           (condp = key
+                                             :task-statuses (if val (task-status/status-field val) ui-const/NIL-VAL-STR-REP)
+                                             (str val))
+                                           ui-const/NIL-VAL-STR-REP))))]
+                             (println "result = " result " (class result) = " (class result))
+                             result))
                          (isLabelProperty [element property]
                            false)
                          (removeListener [listener]))
@@ -462,15 +471,24 @@
         cell-modifier (proxy [ICellModifier]
                           []
                         (canModify [element property]
-                          (let [key (nth element 0)]
-                            (if (and (= "value" property) (not (#{:id :task-statuses} key)))
-                              true
-                              false)))
+                          (if (string? element)
+                            false
+                            (let [key (nth element 0)]
+                              (if (and (= "value" property) (not (#{:id :task-statuses} key)))
+                                true
+                                false))))
                         (getValue [element property]
-                          (condp = property
-                            "key" (name (nth element 0))
-                            "value" (or (get @job (nth element 0)) ui-const/NIL-VAL-STR-REP)))
+                          (if (not (string? element))
+                            (condp = property
+                              "key" (name (nth element 0))
+                              "value" (or (get @gui-state/job-to-edit (nth element 0)) ui-const/NIL-VAL-STR-REP))
+                            ;; (condp = property
+                            ;;   "key" element
+                            ;;   "value" ui-const/NIL-VAL-STR-REP)
+                            element
+                            ))
                         (modify [element property value]
+                          (println "modifying element, element = " element " (class element) = " (class element))
                           (let [element (if (= TableItem (class element))
                                           (.getData element)
                                           element)
@@ -479,7 +497,8 @@
                                       nil
                                       value)]
                             (when-not (#{:id} key)
-                              (swap! job assoc key val)
+                              (dosync
+                               (alter gui-state/job-to-edit assoc key val))
                               (.refresh ttv)))))
         cell-editors (for [col col-props]
                        (TextCellEditor. (.getTable ttv)))]
@@ -489,7 +508,7 @@
     (doto ttv
       (.setContentProvider content-provider)
       (.setLabelProvider label-provider)
-      (.setInput @job)
+      (.setInput @gui-state/job-to-edit)
       )
     ;; configs to format table display and align cols properly
     (doto (.getTable ttv)
@@ -550,7 +569,6 @@
                       :loc-port io-const/DEFAULT-LOCAL-PORT}))
 
 ;;
-
 ;; add-watch definitions
 ;;
 

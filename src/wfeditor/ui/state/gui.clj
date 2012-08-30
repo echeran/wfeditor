@@ -1,6 +1,7 @@
 (ns wfeditor.ui.state.gui
   (:require [clojure.zip :as zip]
-            [clojure.contrib.zip-filter :as zf])
+            [clojure.contrib.zip-filter :as zf]
+            [wfeditor.model.workflow :as wflow])
   (:import org.eclipse.swt.SWT
            [org.eclipse.swt.widgets Display Shell Button Composite]))
 
@@ -23,6 +24,8 @@
 ;;
 
 (declare gui-map)
+
+(declare job-to-edit)
 
 ;;
 ;; functions
@@ -181,3 +184,10 @@ Note: when using this address with gui-> and gui1->, the first element of the ad
 ;; http://stackoverflow.com/questions/11409140/stumped-with-functional-breadth-first-tree-traversal-in-clojure
 ;; this is the way to traverse a zipper entirely http://www.ibm.com/developerworks/java/library/j-treevisit/index.html
 (def gui-map (ref {}))
+
+;; the Job object that is edited in the table in the left nav pane
+(def job-to-edit (ref (wflow/new-job-fn "<Job Name>" "<Prog. Exec. Loc.>" "<Prog. Args.>" "<Prog. Opts.>")))
+
+
+
+
