@@ -436,24 +436,23 @@
         content-provider (proxy [IStructuredContentProvider]
                              []
                            (getElements [input-data]
-                             (println "input-data = " input-data)
+                             ;; (println "input-data = " input-data)
                              (to-array input-data))
                            (inputChanged [viewer old-input new-input]
-                             (println "old input = " old-input)
-                             (println "new input = " new-input)
+                             ;; (println "old input = " old-input)
+                             ;; (println "new input = " new-input)
                              (when-not new-input
-                               ;; (.setInput viewer job-fields)
-                               (.setInput viewer (wflow/new-job-fn "Job was nil so created this placeholder" "<Prog. Exec. Loc.>" "<Prog. Args.>" "<Prog. Opts.>"))
-                               (.refresh viewer true)
-
+                               (.setInput viewer job-fields)
+                               ;; (.setInput viewer (wflow/new-job-fn "Job was nil so created this placeholder" "<Prog. Exec. Loc.>" "<Prog. Args.>" "<Prog. Opts.>"))
+                               ;; (dosync
+                               ;;  (ref-set gui-state/job-to-edit (wflow/new-job-fn "Job was nil so created this placeholder" "<Prog. Exec. Loc.>" "<Prog. Args.>" "<Prog. Opts.>")))
+                               ;; (.setInput viewer @gui-state/job-to-edit)
+                               (.refresh viewer) 
                                (dorun
                                 (do
                                   (map (memfn showColumn) (.. viewer getTable getColumns))
                                   (map (memfn pack) (.. viewer getTable getColumns))))
-                               (.refresh viewer true)
-                               )
-
-                             )
+                               (.refresh viewer)))
                            (dispose []))
         label-provider (proxy [ITableLabelProvider]
                            []
@@ -462,13 +461,12 @@
                          (getColumnImage [element column-index]
                            nil)
                          (getColumnText [element column-index]
-                           (println "element = " element " (class element) = " (class element))
+                           ;; (println "element = " element " (class element) = " (class element))
                            (let [result
                                  (if (string? element)
-                                   ;; (condp = column-index
-                                   ;;   0 element
-                                   ;;   1 ui-const/NIL-VAL-STR-REP)
-                                   element
+                                   (condp = column-index
+                                     0 element
+                                     1 ui-const/NIL-VAL-STR-REP)
                                    (condp = column-index
                                      0 (str (name (nth element column-index)))
                                      1 (let [key (nth element 0)]
@@ -478,7 +476,7 @@
                                              :task-statuses (if val (task-status/status-field val) ui-const/NIL-VAL-STR-REP)
                                              (str val))
                                            ui-const/NIL-VAL-STR-REP))))]
-                             (println "result = " result " (class result) = " (class result))
+                             ;; (println "result = " result " (class result) = " (class result))
                              result))
                          (isLabelProperty [element property]
                            false)
@@ -498,13 +496,11 @@
                             (condp = property
                               "key" (name (nth element 0))
                               "value" (or (get @gui-state/job-to-edit (nth element 0)) ui-const/NIL-VAL-STR-REP))
-                            ;; (condp = property
-                            ;;   "key" element
-                            ;;   "value" ui-const/NIL-VAL-STR-REP)
-                            element
+                            (condp = property
+                              "key" element
+                              "value" ui-const/NIL-VAL-STR-REP)
                             ))
                         (modify [element property value]
-                          (println "modifying element, element = " element " (class element) = " (class element))
                           (let [element (if (= TableItem (class element))
                                           (.getData element)
                                           element)
@@ -545,6 +541,11 @@
       (.setColumnProperties (into-array col-props))
       (.setCellModifier cell-modifier)
       (.setCellEditors (into-array cell-editors)))
+    ;; add-watch
+    (add-watch gui-state/job-to-edit :re-bind (fn [key r old new]
+                                                (doto ttv
+                                                  (.setInput new)
+                                                  (.refresh))))
     ;; return value
     table-group))
 

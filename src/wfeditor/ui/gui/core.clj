@@ -10,6 +10,7 @@
             [wfeditor.ui.state.gui :as gui-state])
   (:use [wfeditor.ui.util.swt :as swt-util])
   (:import
+   wfeditor.model.workflow.Job
    org.eclipse.jface.window.ApplicationWindow
    org.eclipse.swt.SWT
    (org.eclipse.swt.layout GridLayout FillLayout RowLayout)

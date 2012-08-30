@@ -197,13 +197,13 @@
                               (let [source (.getSource event)
                                     selection ^StructuredSelection (.getSelection event)
                                     selected-widgets (.toList selection)
-                                    job-to-edit (if (and (not (.isEmpty selection)) (= 1 (count (.toList selection))))
+                                    job-to-edit (if (and (not (.isEmpty selection)) (= 1 (count (.toList selection))) (= (class (.getFirstElement selection)) wfeditor.model.workflow.Job))
                                                   (.getFirstElement selection)
                                                   nil)]
-                                (println "source = " source)
-                                (println "selection = " selection)
-                                (println "selection isEmpty? = " (.isEmpty selection))
-                                (println "job to edit = " job-to-edit)
+                                ;; (println "source = " source)
+                                ;; (println "selection = " selection)
+                                ;; (println "selection isEmpty? = " (.isEmpty selection))
+                                ;; (println "job to edit = " job-to-edit)
                                 (dosync
                                  (ref-set gui-state/job-to-edit job-to-edit)))))]
     (.setLayoutData (.getControl viewer) parent-grid-data)
