@@ -436,23 +436,13 @@
         content-provider (proxy [IStructuredContentProvider]
                              []
                            (getElements [input-data]
-                             ;; (println "input-data = " input-data)
                              (to-array input-data))
                            (inputChanged [viewer old-input new-input]
-                             ;; (println "old input = " old-input)
-                             ;; (println "new input = " new-input)
+                             (println "old input = " old-input)
+                             (println "new input = " new-input)
                              (when-not new-input
-                               (.setInput viewer job-fields)
-                               ;; (.setInput viewer (wflow/new-job-fn "Job was nil so created this placeholder" "<Prog. Exec. Loc.>" "<Prog. Args.>" "<Prog. Opts.>"))
-                               ;; (dosync
-                               ;;  (ref-set gui-state/job-to-edit (wflow/new-job-fn "Job was nil so created this placeholder" "<Prog. Exec. Loc.>" "<Prog. Args.>" "<Prog. Opts.>")))
-                               ;; (.setInput viewer @gui-state/job-to-edit)
-                               (.refresh viewer) 
-                               (dorun
-                                (do
-                                  (map (memfn showColumn) (.. viewer getTable getColumns))
-                                  (map (memfn pack) (.. viewer getTable getColumns))))
-                               (.refresh viewer)))
+                               (dosync
+                                (ref-set gui-state/job-to-edit job-fields))))
                            (dispose []))
         label-provider (proxy [ITableLabelProvider]
                            []
@@ -461,7 +451,6 @@
                          (getColumnImage [element column-index]
                            nil)
                          (getColumnText [element column-index]
-                           ;; (println "element = " element " (class element) = " (class element))
                            (let [result
                                  (if (string? element)
                                    (condp = column-index
@@ -476,7 +465,6 @@
                                              :task-statuses (if val (task-status/status-field val) ui-const/NIL-VAL-STR-REP)
                                              (str val))
                                            ui-const/NIL-VAL-STR-REP))))]
-                             ;; (println "result = " result " (class result) = " (class result))
                              result))
                          (isLabelProperty [element property]
                            false)
@@ -509,8 +497,9 @@
                                       nil
                                       value)]
                             (when-not (#{:id} key)
-                              (dosync
-                               (alter gui-state/job-to-edit assoc key val))
+                              (let [alter-assoc-fn (fn [j k v] (when j (assoc j k v)))]
+                                (dosync
+                                 (alter gui-state/job-to-edit alter-assoc-fn key val)))
                               (.refresh ttv)))))
         cell-editors (for [col col-props]
                        (TextCellEditor. (.getTable ttv)))]
@@ -524,10 +513,12 @@
       )
     ;; configs to format table display and align cols properly
     (doto (.getTable ttv)
-      (.setLayoutData (GridData. (GridData/FILL_BOTH)))
+      (.setLayoutData (GridData. GridData/FILL_BOTH))
       (.setHeaderVisible true)
       (.setLinesVisible true)
       (.setRedraw true)
+      ;; don't pack table - shrinks the right margin if not needed,
+      ;; looks weird
       ;; (.pack)
       )
     (dorun
@@ -543,9 +534,19 @@
       (.setCellEditors (into-array cell-editors)))
     ;; add-watch
     (add-watch gui-state/job-to-edit :re-bind (fn [key r old new]
-                                                (doto ttv
-                                                  (.setInput new)
-                                                  (.refresh))))
+                                                (.refresh ttv)
+                                                (dorun
+                                                 (doseq [column (.. ttv getTable getColumns)]
+                                                   (.pack column)))
+                                                (dorun
+                                                 (doseq [column (.. ttv getTable getColumns)]
+                                                   (.showColumn (.getTable ttv) column)))
+                                                (.redraw (.getTable ttv))
+                                                (.update (.getTable ttv))
+
+                                                (println "old job val = " old)
+                                                (println "new job val = " new)
+                                                ))
     ;; return value
     table-group))
 
