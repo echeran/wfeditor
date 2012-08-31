@@ -17,7 +17,8 @@
    (org.eclipse.swt.events SelectionEvent SelectionAdapter ModifyListener ModifyEvent)
    (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener TableViewer IStructuredContentProvider ITableLabelProvider ListViewer ICellModifier TextCellEditor)
    java.net.URL
-   (org.eclipse.swt.custom CTabFolder CTabItem)))
+   (org.eclipse.swt.custom CTabFolder CTabItem)
+   (org.eclipse.jface.layout TableColumnLayout)))
 
 ;;
 ;; refs (declarations here, initial bindings below)
@@ -438,11 +439,20 @@
                            (getElements [input-data]
                              (to-array input-data))
                            (inputChanged [viewer old-input new-input]
-                             (println "old input = " old-input)
-                             (println "new input = " new-input)
                              (when-not new-input
+                               (.setInput viewer job-fields)
                                (dosync
-                                (ref-set gui-state/job-to-edit job-fields))))
+                                (ref-set gui-state/job-to-edit nil)))
+
+                             (.refresh ttv)
+                             (dorun
+                              (doseq [column (.. ttv getTable getColumns)]
+                                (.pack column)))
+                             (dorun
+                              (doseq [column (.. ttv getTable getColumns)]
+                                (.showColumn (.getTable ttv) column)))
+
+                             )
                            (dispose []))
         label-provider (proxy [ITableLabelProvider]
                            []
@@ -473,7 +483,7 @@
         cell-modifier (proxy [ICellModifier]
                           []
                         (canModify [element property]
-                          (if (string? element)
+                          (if (or (nil? @gui-state/job-to-edit) (string? element))
                             false
                             (let [key (nth element 0)]
                               (if (and (= "value" property) (not (#{:id :task-statuses} key)))
@@ -503,9 +513,22 @@
                               (.refresh ttv)))))
         cell-editors (for [col col-props]
                        (TextCellEditor. (.getTable ttv)))]
+    ;; TODO: fix extra column to the right using TableColumnLayout and
+    ;; setting ColumnWeightData using proportions and minimum widths
+    ;; http://javafact.com/2010/07/26/working-with-jface-tableviewer/
+    ;; http://stackoverflow.com/questions/9211106/swt-table-layout-resize-the-column-of-a-table-to-fill-all-the-available-spac
+    ;; TODO: figure out how to get the initial input to the tableviewr
+    ;; to be nil and yet have all the job's keys appear as rows and
+    ;; the table show all those rows.  somehow helpful related links:
+    ;; http://www.eclipse.org/forums/index.php/t/158152/
+    ;; http://stackoverflow.com/questions/4508564/make-a-jface-tableviewer-resize-with-its-surrounding-composite
+    ;; http://www.eclipse.org/nebula/widgets/xviewer/xviewer.php
+    ;; http://www.eclipse.org/forums/index.php/m/635630/
+    ;; http://www.eclipsezone.com/eclipse/forums/t76524.html
+
     ;; basic display config
     (doto table-group
-      (.setLayout (GridLayout.)))
+      (.setLayout (GridLayout. 1 false)))
     (doto ttv
       (.setContentProvider content-provider)
       (.setLabelProvider label-provider)
@@ -522,9 +545,20 @@
       ;; (.pack)
       )
     (dorun
-     (do
-       (map (memfn showColumn) (.. ttv getTable getColumns))
-       (map (memfn pack) (.. ttv getTable getColumns))))
+     (map #(.showColumn (.getTable ttv) %) (.. ttv getTable getColumns)))
+    (dorun
+     (map (memfn pack) (.. ttv getTable getColumns)))
+    (dosync
+     (ref-set gui-state/job-to-edit nil))
+    (.refresh ttv)
+    (dorun
+     (doseq [column (.. ttv getTable getColumns)]
+       (.pack column)))
+    (dorun
+     (doseq [column (.. ttv getTable getColumns)]
+       (.showColumn (.getTable ttv) column)))
+    (.redraw (.getTable ttv))
+    (.update (.getTable ttv))
     ;; configs for control editors
     (doto ttv
       ;; into-array preserves the object type in a Java array better
@@ -541,11 +575,9 @@
                                                 (dorun
                                                  (doseq [column (.. ttv getTable getColumns)]
                                                    (.showColumn (.getTable ttv) column)))
+                                                (.showColumn (.getTable ttv) (first (.. ttv getTable getColumns)))
                                                 (.redraw (.getTable ttv))
                                                 (.update (.getTable ttv))
-
-                                                (println "old job val = " old)
-                                                (println "new job val = " new)
                                                 ))
     ;; return value
     table-group))
