@@ -18,7 +18,8 @@
    (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener TableViewer IStructuredContentProvider ITableLabelProvider ListViewer ICellModifier TextCellEditor)
    java.net.URL
    (org.eclipse.swt.custom CTabFolder CTabItem)
-   (org.eclipse.jface.layout TableColumnLayout)))
+   (org.eclipse.jface.layout TableColumnLayout)
+   wfeditor.model.workflow.Job))
 
 ;;
 ;; refs (declarations here, initial bindings below)
@@ -429,6 +430,7 @@
   (let [table-group (new-widget {:keyname :table-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "Edit Workflow Job"})
         ;; job (atom (wflow/new-job-fn "Job Name" "Prog. Exec. Loc." "Prog. Args." "Prog. Opts."))
         ttv (TableViewer. table-group)
+        job (atom @gui-state/job-to-edit)
         job-fields (type-util/class-fields wfeditor.model.workflow.Job)
         column-headings ["Job field" "Value"]
         columns (doall
@@ -443,16 +445,13 @@
                                (.setInput viewer job-fields)
                                (dosync
                                 (ref-set gui-state/job-to-edit nil)))
-
                              (.refresh ttv)
                              (dorun
                               (doseq [column (.. ttv getTable getColumns)]
                                 (.pack column)))
                              (dorun
                               (doseq [column (.. ttv getTable getColumns)]
-                                (.showColumn (.getTable ttv) column)))
-
-                             )
+                                (.showColumn (.getTable ttv) column))))
                            (dispose []))
         label-provider (proxy [ITableLabelProvider]
                            []
@@ -469,8 +468,8 @@
                                    (condp = column-index
                                      0 (str (name (nth element column-index)))
                                      1 (let [key (nth element 0)]
-                                         (str (or (get @gui-state/job-to-edit key) ui-const/NIL-VAL-STR-REP))
-                                         (if-let [val (get @gui-state/job-to-edit key)]
+                                         (str (or (get @job key) ui-const/NIL-VAL-STR-REP))
+                                         (if-let [val (get @job key)]
                                            (condp = key
                                              :task-statuses (if val (task-status/status-field val) ui-const/NIL-VAL-STR-REP)
                                              (str val))
@@ -483,7 +482,9 @@
         cell-modifier (proxy [ICellModifier]
                           []
                         (canModify [element property]
-                          (if (or (nil? @gui-state/job-to-edit) (string? element))
+                          (if (or (nil? @job)
+                                  (string? element)
+                                  (and (= Job (class @job)) (:id @job)))
                             false
                             (let [key (nth element 0)]
                               (if (and (= "value" property) (not (#{:id :task-statuses} key)))
@@ -493,11 +494,10 @@
                           (if (not (string? element))
                             (condp = property
                               "key" (name (nth element 0))
-                              "value" (or (get @gui-state/job-to-edit (nth element 0)) ui-const/NIL-VAL-STR-REP))
+                              "value" (or (get @job (nth element 0)) ui-const/NIL-VAL-STR-REP))
                             (condp = property
                               "key" element
-                              "value" ui-const/NIL-VAL-STR-REP)
-                            ))
+                              "value" ui-const/NIL-VAL-STR-REP)))
                         (modify [element property value]
                           (let [element (if (= TableItem (class element))
                                           (.getData element)
@@ -508,8 +508,13 @@
                                       value)]
                             (when-not (#{:id} key)
                               (let [alter-assoc-fn (fn [j k v] (when j (assoc j k v)))]
+                                (swap! job alter-assoc-fn key val)
                                 (dosync
-                                 (alter gui-state/job-to-edit alter-assoc-fn key val)))
+                                 (let [old-job @gui-state/job-to-edit
+                                       new-job @job
+                                       wf (wflow/workflow)
+                                       new-wf (wflow/replace-job wf old-job new-job)]
+                                   (wflow/set-workflow new-wf))))
                               (.refresh ttv)))))
         cell-editors (for [col col-props]
                        (TextCellEditor. (.getTable ttv)))]
@@ -517,7 +522,7 @@
     ;; setting ColumnWeightData using proportions and minimum widths
     ;; http://javafact.com/2010/07/26/working-with-jface-tableviewer/
     ;; http://stackoverflow.com/questions/9211106/swt-table-layout-resize-the-column-of-a-table-to-fill-all-the-available-spac
-    ;; TODO: figure out how to get the initial input to the tableviewr
+    ;; TODO: figure out how to get the initial input to the tableviewer
     ;; to be nil and yet have all the job's keys appear as rows and
     ;; the table show all those rows.  somehow helpful related links:
     ;; http://www.eclipse.org/forums/index.php/t/158152/
@@ -526,14 +531,28 @@
     ;; http://www.eclipse.org/forums/index.php/m/635630/
     ;; http://www.eclipsezone.com/eclipse/forums/t76524.html
 
+
+    ;; add-watch
+    (add-watch gui-state/job-to-edit :re-bind (fn [key r old new]
+                                                (when-not (= @job new)
+                                                  (reset! job new))
+                                                (.refresh ttv)
+                                                (dorun
+                                                 (doseq [column (.. ttv getTable getColumns)]
+                                                   (.pack column)))
+                                                (dorun
+                                                 (doseq [column (.. ttv getTable getColumns)]
+                                                   (.showColumn (.getTable ttv) column)))
+                                                (.showColumn (.getTable ttv) (first (.. ttv getTable getColumns)))
+                                                (.redraw (.getTable ttv))
+                                                (.update (.getTable ttv))))
     ;; basic display config
     (doto table-group
       (.setLayout (GridLayout. 1 false)))
     (doto ttv
       (.setContentProvider content-provider)
       (.setLabelProvider label-provider)
-      (.setInput @gui-state/job-to-edit)
-      )
+      (.setInput @gui-state/job-to-edit))
     ;; configs to format table display and align cols properly
     (doto (.getTable ttv)
       (.setLayoutData (GridData. GridData/FILL_BOTH))
@@ -566,19 +585,6 @@
       (.setColumnProperties (into-array col-props))
       (.setCellModifier cell-modifier)
       (.setCellEditors (into-array cell-editors)))
-    ;; add-watch
-    (add-watch gui-state/job-to-edit :re-bind (fn [key r old new]
-                                                (.refresh ttv)
-                                                (dorun
-                                                 (doseq [column (.. ttv getTable getColumns)]
-                                                   (.pack column)))
-                                                (dorun
-                                                 (doseq [column (.. ttv getTable getColumns)]
-                                                   (.showColumn (.getTable ttv) column)))
-                                                (.showColumn (.getTable ttv) (first (.. ttv getTable getColumns)))
-                                                (.redraw (.getTable ttv))
-                                                (.update (.getTable ttv))
-                                                ))
     ;; return value
     table-group))
 
