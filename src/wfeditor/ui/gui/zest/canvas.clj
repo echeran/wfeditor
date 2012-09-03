@@ -183,7 +183,47 @@
 (defn graph-viewer-create
   "create (but don't return?) the Zest GraphViewer object creating the whole Zest canvas"
   [parent]
-  (let [viewer (GraphViewer. parent SWT/BORDER)
+  (let [;; viewer (GraphViewer. parent SWT/BORDER)
+        viewer (proxy [GraphViewer]
+                   [parent SWT/BORDER]
+                 (inputChanged [input old-input]
+                   (let [pre-selection (. this getSelection)]
+                     (when (not (.isEmpty pre-selection))
+                       (let [sel-list (into [] (.toList pre-selection))
+                             first-elem (first sel-list)
+                             graph-item (. this findGraphItem first-elem)]
+                         (println "pre-selection = ")
+                         (println sel-list)
+                         (println "first selected item = " first-elem)
+                         (println "graph item of first elem = " graph-item)))
+                     (. (. this getControl) setDynamicLayout false)
+                     (proxy-super inputChanged input old-input)
+                     (. (. this getControl) setDynamicLayout true)
+                     (. (. this getControl) applyLayout)
+                     (println "applied layout")
+                     (println "before refresh")
+                     (. this refresh)
+                     (println "after refresh")
+                     (let [post-selection (. this getSelection)]
+                       (when (not (.isEmpty post-selection))
+                         (println "post-selection = ")
+                         (println (into [] (.toList post-selection)))))
+                     (println "originally selected selection re-selected")
+                     (. this setSelection pre-selection false)
+                     (let [pps (. this getSelection)]
+                       (println "pps = " pps)
+                       (println (into [] (.toList pps))))
+                     (let [sel-list (into [] (.toList pre-selection))
+                           first-elem (first sel-list)
+                           hello-elem (assoc first-elem :name "hello")
+                           graph-item (. this findGraphItem hello-elem)]
+                       (when graph-item
+                         (.highlight graph-item)
+                         (println "first selected elem's graph-item highlighted")
+                         (let [pps (. this getSelection)]
+                           (println "pps = " pps)
+                           (println (into [] (.toList pps))))))
+                     (println "finished with inputChanged in GraphViewer (proxy)"))))
         content-provider (zproviders/node-content-provider-proxy)
         label-provider (zproviders/label-provider-proxy)
         init-input (wflow/workflow)

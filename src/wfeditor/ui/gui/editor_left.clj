@@ -487,7 +487,7 @@
                                   (and (= Job (class @job)) (:id @job)))
                             false
                             (let [key (nth element 0)]
-                              (if (and (= "value" property) (not (#{:id :task-statuses} key)))
+                              (if (and (= "value" property) (not (#{:id :task-statuses :prog-args :prog-opts :array} key)))
                                 true
                                 false))))
                         (getValue [element property]
