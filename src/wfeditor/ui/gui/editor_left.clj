@@ -430,7 +430,7 @@
   (let [table-group (new-widget {:keyname :table-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "Edit Workflow Job"})
         ;; job (atom (wflow/new-job-fn "Job Name" "Prog. Exec. Loc." "Prog. Args." "Prog. Opts."))
         ttv (TableViewer. table-group)
-        job (atom @gui-state/job-to-edit)
+        ;; job (atom @gui-state/job-to-edit)
         job-fields (type-util/class-fields wfeditor.model.workflow.Job)
         column-headings ["Job field" "Value"]
         columns (doall
@@ -468,8 +468,8 @@
                                    (condp = column-index
                                      0 (str (name (nth element column-index)))
                                      1 (let [key (nth element 0)]
-                                         (str (or (get @job key) ui-const/NIL-VAL-STR-REP))
-                                         (if-let [val (get @job key)]
+                                         (str (or (get @gui-state/job-editor-cache key) ui-const/NIL-VAL-STR-REP))
+                                         (if-let [val (get @gui-state/job-editor-cache key)]
                                            (condp = key
                                              :task-statuses (if val (task-status/status-field val) ui-const/NIL-VAL-STR-REP)
                                              (str val))
@@ -482,9 +482,9 @@
         cell-modifier (proxy [ICellModifier]
                           []
                         (canModify [element property]
-                          (if (or (nil? @job)
+                          (if (or (nil? @gui-state/job-editor-cache)
                                   (string? element)
-                                  (and (= Job (class @job)) (:id @job)))
+                                  (and (= Job (class @gui-state/job-editor-cache)) (:id @gui-state/job-editor-cache)))
                             false
                             (let [key (nth element 0)]
                               (if (and (= "value" property) (not (#{:id :task-statuses :prog-args :prog-opts :array} key)))
@@ -494,7 +494,7 @@
                           (if (not (string? element))
                             (condp = property
                               "key" (name (nth element 0))
-                              "value" (or (get @job (nth element 0)) ui-const/NIL-VAL-STR-REP))
+                              "value" (or (get @gui-state/job-editor-cache (nth element 0)) ui-const/NIL-VAL-STR-REP))
                             (condp = property
                               "key" element
                               "value" ui-const/NIL-VAL-STR-REP)))
@@ -508,13 +508,14 @@
                                       value)]
                             (when-not (#{:id} key)
                               (let [alter-assoc-fn (fn [j k v] (when j (assoc j k v)))]
-                                (swap! job alter-assoc-fn key val)
                                 (dosync
+                                 (alter gui-state/job-editor-cache alter-assoc-fn key val)
                                  (let [old-job @gui-state/job-to-edit
-                                       new-job @job
+                                       new-job @gui-state/job-editor-cache
                                        wf (wflow/workflow)
                                        new-wf (wflow/replace-job wf old-job new-job)]
-                                   (wflow/set-workflow new-wf))))
+                                   (wflow/set-workflow new-wf))
+                                 (ref-set gui-state/job-to-edit @gui-state/job-editor-cache)))
                               (.refresh ttv)))))
         cell-editors (for [col col-props]
                        (TextCellEditor. (.getTable ttv)))]
@@ -534,8 +535,9 @@
 
     ;; add-watch
     (add-watch gui-state/job-to-edit :re-bind (fn [key r old new]
-                                                (when-not (= @job new)
-                                                  (reset! job new))
+                                                (when-not (= @gui-state/job-editor-cache new)
+                                                  (dosync
+                                                   (ref-set gui-state/job-editor-cache new)))
                                                 (.refresh ttv)
                                                 (dorun
                                                  (doseq [column (.. ttv getTable getColumns)]

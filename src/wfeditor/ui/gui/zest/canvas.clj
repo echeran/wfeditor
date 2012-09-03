@@ -2,6 +2,7 @@
   (:require
    [wfeditor.ui.gui.zest.providers :as zproviders]
    [wfeditor.model.workflow :as wflow]
+   [clojure.set :as set]
    [clojure.string :as string]
    [clojure.contrib.math :as math-contrib]
    [wfeditor.ui.state.gui :as gui-state])
@@ -17,7 +18,8 @@
    org.eclipse.zest.layouts.LayoutStyles
    org.eclipse.swt.layout.GridData
    org.eclipse.swt.widgets.Display
-   (org.eclipse.jface.viewers ISelectionChangedListener StructuredSelection)))
+   (org.eclipse.jface.viewers ISelectionChangedListener StructuredSelection)
+   wfeditor.model.workflow.Job))
 
 
 ;;
@@ -187,43 +189,30 @@
         viewer (proxy [GraphViewer]
                    [parent SWT/BORDER]
                  (inputChanged [input old-input]
-                   (let [pre-selection (. this getSelection)]
-                     (when (not (.isEmpty pre-selection))
-                       (let [sel-list (into [] (.toList pre-selection))
-                             first-elem (first sel-list)
-                             graph-item (. this findGraphItem first-elem)]
-                         (println "pre-selection = ")
-                         (println sel-list)
-                         (println "first selected item = " first-elem)
-                         (println "graph item of first elem = " graph-item)))
+                   (let [pre-selection (. this getSelection)
+                         pre-select-elems (if (.isEmpty pre-selection)
+                                            #{}
+                                            (into #{} (.toList pre-selection)))]
+                     ;; info on proxy-super and `this' in a proxy
+                     ;; http://kotka.de/blog/2010/03/proxy_gen-class_little_brother.html
+                     ;; http://www.gettingclojure.com/articles:extending-java-classes-using-proxy
                      (. (. this getControl) setDynamicLayout false)
                      (proxy-super inputChanged input old-input)
                      (. (. this getControl) setDynamicLayout true)
                      (. (. this getControl) applyLayout)
-                     (println "applied layout")
-                     (println "before refresh")
                      (. this refresh)
-                     (println "after refresh")
-                     (let [post-selection (. this getSelection)]
-                       (when (not (.isEmpty post-selection))
-                         (println "post-selection = ")
-                         (println (into [] (.toList post-selection)))))
-                     (println "originally selected selection re-selected")
-                     (. this setSelection pre-selection false)
-                     (let [pps (. this getSelection)]
-                       (println "pps = " pps)
-                       (println (into [] (.toList pps))))
-                     (let [sel-list (into [] (.toList pre-selection))
-                           first-elem (first sel-list)
-                           hello-elem (assoc first-elem :name "hello")
-                           graph-item (. this findGraphItem hello-elem)]
-                       (when graph-item
-                         (.highlight graph-item)
-                         (println "first selected elem's graph-item highlighted")
-                         (let [pps (. this getSelection)]
-                           (println "pps = " pps)
-                           (println (into [] (.toList pps))))))
-                     (println "finished with inputChanged in GraphViewer (proxy)"))))
+                     (let [post-selection (. this getSelection)
+                           post-select-elems (if (.isEmpty post-selection)
+                                               #{}
+                                               (into #{} (.toList post-selection)))
+                           new-select-elems (set/union
+                                             pre-select-elems
+                                             post-select-elems)
+                           new-select-elems (into new-select-elems [ (when (= Job (class @gui-state/job-to-edit)) @gui-state/job-to-edit) ])
+                           new-selection (if (seq new-select-elems)
+                                           (StructuredSelection. (to-array new-select-elems))
+                                           (StructuredSelection.))]
+                       (. this setSelection new-selection false)))))
         content-provider (zproviders/node-content-provider-proxy)
         label-provider (zproviders/label-provider-proxy)
         init-input (wflow/workflow)
