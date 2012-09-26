@@ -14,7 +14,7 @@
 ;; relay.server and relay.client constants
 ;;
 
-(def DEFAULT-HOST "elangocheran.com")
+(def DEFAULT-HOST "palmyrasoftware.com")
 
 (def DEFAULT-PORT 8080)
 
