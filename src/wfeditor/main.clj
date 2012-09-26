@@ -104,7 +104,7 @@ TODO: handle options and args coming in from the CLI"
   "parse the command-line arguments and, as the clojure.tools.cli provides, returns a vector containing 3 elements: 1) the parsed options, 2) remaining arguments, and 3) a help banner. works well with user-args as a list of the command-line arguments"
   [user-args]
   (let [[options arguments banner] (clojure.tools.cli/cli user-args
-                                        ["-g" "--[no-]gui" "Run the GUI frontend with the program" :default true :flag true]
+                                        ;; ["-g" "--[no-]gui" "Run the GUI frontend with the program" :default true :flag true]
                                         ["-h" "--help" "Display the command-line help statement" :default false :flag true]
                                         ["-p" "--port" "(server mode) the port of the server process" :default io-const/DEFAULT-PORT :parse-fn #(Integer/parseInt %) ]
                                         ["-S"  "--server" "Run in server mode" :default false :flag true])]
