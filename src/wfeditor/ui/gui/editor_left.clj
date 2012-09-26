@@ -463,10 +463,10 @@
                            (let [result
                                  (if (string? element)
                                    (condp = column-index
-                                     0 element
+                                     0 (ui-const/JOB-FIELD-FULL-NAMES (keyword element))
                                      1 ui-const/NIL-VAL-STR-REP)
                                    (condp = column-index
-                                     0 (str (name (nth element column-index)))
+                                     0 (str (ui-const/JOB-FIELD-FULL-NAMES (nth element column-index)))
                                      1 (let [key (nth element 0)]
                                          (str (or (get @gui-state/job-editor-cache key) ui-const/NIL-VAL-STR-REP))
                                          (if-let [val (get @gui-state/job-editor-cache key)]
