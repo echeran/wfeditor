@@ -5,9 +5,9 @@
 ;; names and titles of program, app, etc.
 ;;
 
-(def WINDOW-APP-NAME global-const/PROGRAM-NAME-COMPACT)
+(def WINDOW-APP-NAME global-const/PROGRAM-NAME)
 
-(def WINDOW-TITLEBAR global-const/PROGRAM-NAME-COMPACT)
+(def WINDOW-TITLEBAR global-const/PROGRAM-NAME)
 
 ;;
 ;; left nav pane - Edit WF tab - Job editor table

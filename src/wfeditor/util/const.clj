@@ -10,11 +10,11 @@
 ;; program name(s)
 ;;
 
-(def PROGRAM-NAME "Workflow Editor")
+(def PROGRAM-NAME "Workflow Commander")
 
-(def PROGRAM-NAME-COMPACT "WFEditor")
+(def PROGRAM-NAME-COMPACT "WFCommander")
 
-(def PROGRAM-NAME-ABBR "WFE")
+(def PROGRAM-NAME-ABBR "WFC")
 
 
 (def PROGRAM-NAME-LC (.toLowerCase PROGRAM-NAME))
