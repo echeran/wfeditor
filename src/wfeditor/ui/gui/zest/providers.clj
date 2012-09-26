@@ -80,7 +80,7 @@
                         :success [0 255 0]
                         :running [255 255 0]
                         ;; using UNC blue for waiting state color, from http://en.wikipedia.org/wiki/Carolina_blue
-                        :waiting [86 160 211]
+                        :waiting [173 218 255]
                         :error [255 0 0]
                         :failed [255 0 0]
                         :uncertain [255 127 0]
