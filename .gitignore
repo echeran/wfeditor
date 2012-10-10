@@ -5,3 +5,12 @@ pom.xml
 .lein-failures
 .lein-deps-sum
 *class
+*~
+*png
+*pdf
+*zip
+*gz
+*.DS_Store
+*.key
+*.kth
+*.bak*
