@@ -28,6 +28,13 @@
 (declare exec-props)
 
 ;;
+;; record types
+;;
+
+(defrecord PredefinedWF [name url version desc author institution contact website])
+
+
+;;
 ;; functions
 ;;
 
@@ -231,14 +238,19 @@
                                           (wflow/set-workflow updated-wf)))})    
     button-group))
 
+(defn- new-predefined-wf-fn [name url & {:keys [version desc author institution contact website] :or {version "" desc "" author "" institution "" contact "" website ""}}]
+  (PredefinedWF. name url version desc author institution contact website))
+
+
 (defn- predefined-wfs-tree-group
   "create a JFace TreeViewer to represent predefined NGS & other workflows"
   [parent]
   (let [
         ;; pre-wf-tree ["Genetics" ["NGS" [(URL. "http://www.palmyrasoftware.com/wf/genetics/ngs/sample4.xml")]]]
-        pre-wf-simple-zip-tree {"Genetics" [{"NGS" [(URL. "http://www.palmyrasoftware.com/wf/genetics/ngs/sample4.xml")
-                                                    (URL. "http://www.palmyrasoftware.com/wf/genetics/ngs/sample6.xml")]}]}
-        simple-zip-fn (fn [simple-zip-tree] (zip/zipper map? (comp seq second first) (fn [n cs] (let [map (if (seq n) n {n []}) k (first (first map)) vals (second (first map))] (assoc map k (concat vals (seq cs))))) simple-zip-tree))
+        pre-wf-simple-zip-tree {"Genetics" [{"NGS" [ (new-predefined-wf-fn "Bowtie+GATK demo" (URL. "http://www.palmyrasoftware.com/wf/genetics/ngs/sample4.xml"))
+                                                     (new-predefined-wf-fn "Bowtie+GATK demo - array job" (URL. "http://www.palmyrasoftware.com/wf/genetics/ngs/sample6.xml"))]}]}
+        is-branch-fn (every-pred map? (complement (partial instance? clojure.lang.IRecord)))
+        simple-zip-fn (fn [simple-zip-tree] (zip/zipper is-branch-fn (comp seq second first) (fn [n cs] (let [map (if (seq n) n {n []}) k (first (first map)) vals (second (first map))] (assoc map k (concat vals (seq cs))))) simple-zip-tree))
         ;; JFace thinks that the nil value in the vector created when
         ;; first creating a zipper is another root element, and throws
         ;; an exception when it discovers null arguments in a
@@ -278,7 +290,7 @@
                                 (getParent [zc]
                                   ((:apply-fn zc) zip/up))
                                 (hasChildren [zc]
-                                  (if (and zc (:data zc) (:data ((:apply-fn zc) zip/node)) (map? (:data ((:apply-fn zc) zip/node))))
+                                  (if (and zc (:data zc) (:data ((:apply-fn zc) zip/node)) (is-branch-fn (:data ((:apply-fn zc) zip/node))))
                                     true
                                     false))
                                 (dispose [])
@@ -296,11 +308,12 @@
                               (getText [zc]
                                 (let [node-subtree (:data ((:apply-fn zc) zip/node))
                                       node (cond
-                                            (map? node-subtree) (first (first node-subtree))
+                                            (is-branch-fn node-subtree) (first (first node-subtree))
                                             (nil? node-subtree) ""
                                             true node-subtree)
                                       result (condp = (class node)
                                                String node
+                                               PredefinedWF (:name node)
                                                (str node))]
                                   result))
                               (isLabelProperty [zc property]
@@ -318,8 +331,8 @@
                                      last-path (last tree-paths)
                                      last-segment (.getLastSegment last-path)
                                      elem (-> last-segment :data zip/node)]
-                                 (when (= java.net.URL (class elem))
-                                   (let [url-str (str elem)
+                                 (when (= PredefinedWF (class elem))
+                                   (let [url-str (str (:url elem))
                                          wf (fformat/workflow-from-stream url-str)]
                                      (wflow/set-workflow wf))))))]
     (doto tree-group
