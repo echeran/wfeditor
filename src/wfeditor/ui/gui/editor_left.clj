@@ -15,7 +15,7 @@
    (org.eclipse.swt.layout FillLayout RowLayout GridLayout GridData FormLayout FormData FormAttachment)
    (org.eclipse.swt.widgets Label Button FileDialog Group Text Combo Composite Display TableColumn Table TableItem)
    (org.eclipse.swt.events SelectionEvent SelectionAdapter ModifyListener ModifyEvent)
-   (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener TableViewer IStructuredContentProvider ITableLabelProvider ListViewer ICellModifier TextCellEditor ViewerSorter)
+   (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener TableViewer IStructuredContentProvider ITableLabelProvider ListViewer ICellModifier TextCellEditor ViewerSorter ColumnLabelProvider)
    java.net.URL
    (org.eclipse.swt.custom CTabFolder CTabItem)
    (org.eclipse.jface.layout TableColumnLayout)
@@ -295,7 +295,14 @@
                                     false))
                                 (dispose [])
                                 (inputChanged [viewer old-input new-input]))
-        tree-label-provider (proxy [ILabelProvider]
+        get-node-fn (fn [zc]
+                      (let [node-subtree (:data ((:apply-fn zc) zip/node))
+                            node (cond
+                                  (is-branch-fn node-subtree) (first (first node-subtree))
+                                  (nil? node-subtree) ""
+                                  true node-subtree)]
+                        node))
+        tree-label-provider (proxy [ColumnLabelProvider]
                                 []
                               ;; the label provider's responsibility
                               ;; is to take the zipper closure "content" and
@@ -306,11 +313,13 @@
                               (getImage [zc]
                                 nil)
                               (getText [zc]
-                                (let [node-subtree (:data ((:apply-fn zc) zip/node))
-                                      node (cond
-                                            (is-branch-fn node-subtree) (first (first node-subtree))
-                                            (nil? node-subtree) ""
-                                            true node-subtree)
+                                (let [
+                                      ;; node-subtree (:data ((:apply-fn zc) zip/node))
+                                      ;; node (cond
+                                      ;;       (is-branch-fn node-subtree) (first (first node-subtree))
+                                      ;;       (nil? node-subtree) ""
+                                      ;;       true node-subtree)
+                                      node (get-node-fn zc)
                                       result (condp = (class node)
                                                String node
                                                PredefinedWF (:name node)
@@ -318,7 +327,19 @@
                                   result))
                               (isLabelProperty [zc property]
                                 nil)
-                              (removeListener [listener]))
+                              (removeListener [listener])
+                              (getToolTipText [zc]
+                                (let [node (get-node-fn zc)
+                                      predef-wf-tooltip-fn (fn [pdwf key]
+                                                             (when-let [field-val (get pdwf key)]
+                                                               
+                                                               (str (ui-const/PREDEFINED-WF-FIELD-FULL-NAMES key) ": " (get pdwf key))))
+                                      predefined-wf-tooltip (string/join "\n" (remove nil? (map (partial predef-wf-tooltip-fn zc) [:name :url :version :desc :author :institution :contact :website])))
+                                      result (condp = (class node)
+                                               String node
+                                               PredefinedWF predefined-wf-tooltip
+                                               (str node))]
+                                  result)))
         tree-group (new-widget {:keyname :pre-wf-tree-group :widget-class Group :parent parent :styles [SWT/SHADOW_NONE] :text "Predefined Workflows"})
         tree-viewer (TreeViewer. tree-group)
 
