@@ -15,7 +15,7 @@
    (org.eclipse.swt.layout FillLayout RowLayout GridLayout GridData FormLayout FormData FormAttachment)
    (org.eclipse.swt.widgets Label Button FileDialog Group Text Combo Composite Display TableColumn Table TableItem)
    (org.eclipse.swt.events SelectionEvent SelectionAdapter ModifyListener ModifyEvent)
-   (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener TableViewer IStructuredContentProvider ITableLabelProvider ListViewer ICellModifier TextCellEditor ViewerSorter ColumnLabelProvider)
+   (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener TableViewer IStructuredContentProvider ITableLabelProvider ListViewer ICellModifier TextCellEditor ViewerSorter ColumnLabelProvider ColumnViewerToolTipSupport)
    java.net.URL
    (org.eclipse.swt.custom CTabFolder CTabItem)
    (org.eclipse.jface.layout TableColumnLayout)
@@ -247,8 +247,8 @@
   [parent]
   (let [
         ;; pre-wf-tree ["Genetics" ["NGS" [(URL. "http://www.palmyrasoftware.com/wf/genetics/ngs/sample4.xml")]]]
-        pre-wf-simple-zip-tree {"Genetics" [{"NGS" [ (new-predefined-wf-fn "Bowtie+GATK demo" (URL. "http://www.palmyrasoftware.com/wf/genetics/ngs/sample4.xml"))
-                                                     (new-predefined-wf-fn "Bowtie+GATK demo - array job" (URL. "http://www.palmyrasoftware.com/wf/genetics/ngs/sample6.xml"))]}]}
+        pre-wf-simple-zip-tree {"Genetics" [{"NGS" [ (new-predefined-wf-fn "Bowtie+GATK demo" (URL. "http://www.palmyrasoftware.com/wf/genetics/ngs/sample4.xml") :desc "Demonstrating an example workflow in NGS DNA sequencing" :author "Staff" :institution "Palmyra Software" :contact "info@palmyrasoftware.com")
+                                                     (new-predefined-wf-fn "Bowtie+GATK demo - array job" (URL. "http://www.palmyrasoftware.com/wf/genetics/ngs/sample6.xml") :desc "Demonstrating simplifying a workflow through array jobs" :author "Staff" :institution "Palmyra Software" :contact "info@palmyrasoftware.com")]}]}
         is-branch-fn (every-pred map? (complement (partial instance? clojure.lang.IRecord)))
         simple-zip-fn (fn [simple-zip-tree] (zip/zipper is-branch-fn (comp seq second first) (fn [n cs] (let [map (if (seq n) n {n []}) k (first (first map)) vals (second (first map))] (assoc map k (concat vals (seq cs))))) simple-zip-tree))
         ;; JFace thinks that the nil value in the vector created when
@@ -313,13 +313,7 @@
                               (getImage [zc]
                                 nil)
                               (getText [zc]
-                                (let [
-                                      ;; node-subtree (:data ((:apply-fn zc) zip/node))
-                                      ;; node (cond
-                                      ;;       (is-branch-fn node-subtree) (first (first node-subtree))
-                                      ;;       (nil? node-subtree) ""
-                                      ;;       true node-subtree)
-                                      node (get-node-fn zc)
+                                (let [node (get-node-fn zc)
                                       result (condp = (class node)
                                                String node
                                                PredefinedWF (:name node)
@@ -334,7 +328,7 @@
                                                              (when-let [field-val (get pdwf key)]
                                                                
                                                                (str (ui-const/PREDEFINED-WF-FIELD-FULL-NAMES key) ": " (get pdwf key))))
-                                      predefined-wf-tooltip (string/join "\n" (remove nil? (map (partial predef-wf-tooltip-fn zc) [:name :url :version :desc :author :institution :contact :website])))
+                                      predefined-wf-tooltip (string/join "\n" (remove nil? (map (partial predef-wf-tooltip-fn node) [:name :url :version :desc :author :institution :contact :website])))
                                       result (condp = (class node)
                                                String node
                                                PredefinedWF predefined-wf-tooltip
@@ -363,6 +357,8 @@
       (.setLabelProvider tree-label-provider)
       (.setInput pre-wf-zip-closure)
       (.addDoubleClickListener dbl-click-listener))
+    (do
+      (ColumnViewerToolTipSupport/enableFor tree-viewer))
     tree-group))
 
 (defn button-debugging-group
