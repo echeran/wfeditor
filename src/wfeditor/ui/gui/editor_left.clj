@@ -15,7 +15,7 @@
    (org.eclipse.swt.layout FillLayout RowLayout GridLayout GridData FormLayout FormData FormAttachment)
    (org.eclipse.swt.widgets Label Button FileDialog Group Text Combo Composite Display TableColumn Table TableItem)
    (org.eclipse.swt.events SelectionEvent SelectionAdapter ModifyListener ModifyEvent)
-   (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener TableViewer IStructuredContentProvider ITableLabelProvider ListViewer ICellModifier TextCellEditor)
+   (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener TableViewer IStructuredContentProvider ITableLabelProvider ListViewer ICellModifier TextCellEditor ViewerSorter)
    java.net.URL
    (org.eclipse.swt.custom CTabFolder CTabItem)
    (org.eclipse.jface.layout TableColumnLayout)
@@ -523,7 +523,13 @@
                                  (ref-set gui-state/job-to-edit @gui-state/job-editor-cache)))
                               (.refresh ttv)))))
         cell-editors (for [col col-props]
-                       (TextCellEditor. (.getTable ttv)))]
+                       (TextCellEditor. (.getTable ttv)))
+        view-sorter (proxy [ViewerSorter]
+                        []
+                      (compare [viewer e1 e2]
+                        (if (string? e1)
+                          (compare (.indexOf job-fields e1) (.indexOf job-fields e2))
+                          (compare (.indexOf job-fields (name (nth e1 0))) (.indexOf job-fields (name (nth e2 0)))))))]
     ;; TODO: fix extra column to the right using TableColumnLayout and
     ;; setting ColumnWeightData using proportions and minimum widths
     ;; http://javafact.com/2010/07/26/working-with-jface-tableviewer/
@@ -550,7 +556,8 @@
     (doto ttv
       (.setContentProvider content-provider)
       (.setLabelProvider label-provider)
-      (.setInput @gui-state/job-to-edit))
+      (.setInput @gui-state/job-to-edit)
+      (.setSorter view-sorter)) 
     ;; configs to format table display and align cols properly
     (doto (.getTable ttv)
       (.setLayoutData (GridData. GridData/FILL_BOTH))
