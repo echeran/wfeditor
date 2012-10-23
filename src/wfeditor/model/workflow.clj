@@ -29,7 +29,7 @@
 ;; map: prog-opts (string->vector of strings), task-statuses
 ;; (int->keyword), array (the keys and vals are not explicity named in
 ;; the XML format as with the other fields of Job)
-(defrecord Job [id name desc prog-name prog-ver prog-exec-loc prog-exec-ver prog-args prog-opts std-out-file std-err-file task-statuses array])
+(defrecord Job [name prog-exec-loc prog-args prog-opts id task-statuses prog-name desc std-out-file std-err-file array prog-ver prog-exec-ver])
 
 ;; replacement for the defstruct declaration of graphs in
 ;; clojure.contrib.graph
@@ -60,7 +60,7 @@ name, prog-exec-loc, prog-args prog-opts
 the following are optional:
 id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file deps"
   [name prog-exec-loc prog-args prog-opts & {:keys [id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file task-statuses array] :or {id nil desc nil prog-name nil prog-ver nil prog-exec-ver nil std-out-file nil std-err-file nil task-statuses nil array nil}}]
-  (Job. id name desc prog-name prog-ver prog-exec-loc prog-exec-ver prog-args prog-opts std-out-file std-err-file task-statuses array))
+  (Job. name prog-exec-loc prog-args prog-opts id task-statuses prog-name desc std-out-file std-err-file array prog-ver prog-exec-ver))
 
 (defn new-graph-fn
   "return a new graph type"
