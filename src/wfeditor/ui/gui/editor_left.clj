@@ -436,6 +436,17 @@
         columns (doall
                  (for [ch column-headings]
                    (new-widget {:keyname (keyword (str "col-" ch)) :widget-class TableColumn :parent (.getTable ttv) :styles [SWT/LEFT] :text ch})))
+        refresh-table-gui-fn (fn [ttv]
+                               (.refresh ttv)
+                               (dorun
+                                (doseq [column (.. ttv getTable getColumns)]
+                                  (.pack column)))
+                               (dorun
+                                (doseq [column (.. ttv getTable getColumns)]
+                                  (.showColumn (.getTable ttv) column)))
+                               (.showColumn (.getTable ttv) (first (.. ttv getTable getColumns)))
+                               (.redraw (.getTable ttv))
+                               (.update (.getTable ttv)))
         content-provider (proxy [IStructuredContentProvider]
                              []
                            (getElements [input-data]
@@ -445,13 +456,7 @@
                                (.setInput viewer job-fields)
                                (dosync
                                 (ref-set gui-state/job-to-edit nil)))
-                             (.refresh ttv)
-                             (dorun
-                              (doseq [column (.. ttv getTable getColumns)]
-                                (.pack column)))
-                             (dorun
-                              (doseq [column (.. ttv getTable getColumns)]
-                                (.showColumn (.getTable ttv) column))))
+                             (refresh-table-gui-fn ttv))
                            (dispose []))
         label-provider (proxy [ITableLabelProvider]
                            []
@@ -538,16 +543,7 @@
                                                 (when-not (= @gui-state/job-editor-cache new)
                                                   (dosync
                                                    (ref-set gui-state/job-editor-cache new)))
-                                                (.refresh ttv)
-                                                (dorun
-                                                 (doseq [column (.. ttv getTable getColumns)]
-                                                   (.pack column)))
-                                                (dorun
-                                                 (doseq [column (.. ttv getTable getColumns)]
-                                                   (.showColumn (.getTable ttv) column)))
-                                                (.showColumn (.getTable ttv) (first (.. ttv getTable getColumns)))
-                                                (.redraw (.getTable ttv))
-                                                (.update (.getTable ttv))))
+                                                (refresh-table-gui-fn ttv)))
     ;; basic display config
     (doto table-group
       (.setLayout (GridLayout. 1 false)))
@@ -571,15 +567,7 @@
      (map (memfn pack) (.. ttv getTable getColumns)))
     (dosync
      (ref-set gui-state/job-to-edit nil))
-    (.refresh ttv)
-    (dorun
-     (doseq [column (.. ttv getTable getColumns)]
-       (.pack column)))
-    (dorun
-     (doseq [column (.. ttv getTable getColumns)]
-       (.showColumn (.getTable ttv) column)))
-    (.redraw (.getTable ttv))
-    (.update (.getTable ttv))
+    (refresh-table-gui-fn ttv)
     ;; configs for control editors
     (doto ttv
       ;; into-array preserves the object type in a Java array better
