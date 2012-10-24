@@ -31,7 +31,7 @@
 ;; record types
 ;;
 
-(defrecord PredefinedWF [name url version desc author institution contact website])
+(defrecord PredefinedWF [name url version desc citation institution author contact website])
 
 
 ;;
@@ -238,8 +238,8 @@
                                           (wflow/set-workflow updated-wf)))})    
     button-group))
 
-(defn- new-predefined-wf-fn [name url & {:keys [version desc author institution contact website] :or {version "" desc "" author "" institution "" contact "" website ""}}]
-  (PredefinedWF. name url version desc author institution contact website))
+(defn- new-predefined-wf-fn [name url & {:keys [version desc citation institution author contact website] :or {version "" desc "" citation "" institution "" author "" contact "" website ""}}]
+  (PredefinedWF. name url version desc citation institution author contact website))
 
 
 (defn- predefined-wfs-tree-group
@@ -328,7 +328,7 @@
                                                              (when-let [field-val (get pdwf key)]
                                                                
                                                                (str (ui-const/PREDEFINED-WF-FIELD-FULL-NAMES key) ": " (get pdwf key))))
-                                      predefined-wf-tooltip (string/join "\n" (remove nil? (map (partial predef-wf-tooltip-fn node) [:name :url :version :desc :author :institution :contact :website])))
+                                      predefined-wf-tooltip (string/join "\n" (remove nil? (map (partial predef-wf-tooltip-fn node) [:name :version :desc :citation :institution :author :contact :website :url])))
                                       result (condp = (class node)
                                                String node
                                                PredefinedWF predefined-wf-tooltip
