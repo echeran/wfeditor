@@ -3,7 +3,7 @@
    [wfeditor.io.util.thread :as thread-util]
    [wfeditor.io.util.const :as io-const]
    [wfeditor.io.status.task-run :as task-status]
-   [wfeditor.ui.gui.editor-left :as editor-left]))
+   [wfeditor.ui.gui.left.general-tab :as general-tab]))
 
 
 ;;
@@ -69,7 +69,7 @@
 (defn- create-bg-thread-status-from-server-updater-thread
   "return a future that encapsulates an auto-repeating background thread that updates the global job statuses from status info on the server"
   []
-  (thread-util/do-and-sleep-repeatedly-bg-thread-try-catch #(do ( println "error in status from server updater bg thread: " (.getMessage %))) (fn [] ) (* 30 1000) editor-left/update-job-statuses-from-server))
+  (thread-util/do-and-sleep-repeatedly-bg-thread-try-catch #(do ( println "error in status from server updater bg thread: " (.getMessage %))) (fn [] ) (* 30 1000) general-tab/update-job-statuses-from-server))
 
 (defn init-bg-thread-status-from-server-updater-thread
   "initialize the var with a future containing the background thread that updates the global job statuses from status info on the server"
