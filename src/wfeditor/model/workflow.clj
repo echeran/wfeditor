@@ -164,6 +164,35 @@ note: this is the reverse of the dep-graph"
         new-wf (assoc wf :graph new-dep-graph)]
     new-wf))
 
+(defn add-job
+  "return a new wf by adding a new job to the old wf"
+  [wf job]
+  (let [dep-graph (dep-graph wf)
+        job-set (:nodes dep-graph)
+        new-job-set (conj job-set job)
+        new-dep-graph (assoc dep-graph :nodes new-job-set)
+        new-wf (assoc wf :graph new-dep-graph)]
+    new-wf))
+
+(defn delete-job
+  "(untested) return a new wf by deleting a job from the old wf"
+  [wf job]
+  (let [dep-graph (dep-graph wf)
+        job-set (:nodes dep-graph)]
+    (if (job-set job)
+      (let [new-job-set (disj job-set job)
+            neighbors-map (:neighbors dep-graph)
+            new-neighbors-map (into {} (for [[j deps] neighbors-map]
+                                         (when (not= j job)
+                                           (let [new-deps (remove #{job} deps)]
+                                             [j new-deps]))))
+            new-dep-graph (-> dep-graph
+                              (assoc :nodes new-job-set)
+                              (assoc :neighbors new-neighbors-map))
+            new-wf (assoc wf :graph new-dep-graph)]
+        new-wf)
+      wf)))
+
 (defn depends-upon
   "return the obects that this job depends upon based on the state of the graph"
   ([job]

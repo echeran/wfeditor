@@ -14,12 +14,14 @@
   (:import
    org.eclipse.swt.SWT
    (org.eclipse.swt.layout FillLayout RowLayout GridLayout GridData FormLayout FormData FormAttachment)
-   (org.eclipse.swt.widgets Label Button FileDialog Group Text Combo Composite Display TableColumn Table TableItem)
+   (org.eclipse.swt.widgets Button FileDialog Group Text Combo Composite Display TableColumn Table TableItem Label)
    (org.eclipse.swt.events SelectionEvent SelectionAdapter ModifyListener ModifyEvent)
    (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener TableViewer IStructuredContentProvider ITableLabelProvider ListViewer ICellModifier TextCellEditor ViewerSorter ColumnLabelProvider ColumnViewerToolTipSupport)
    java.net.URL
    (org.eclipse.swt.custom CTabFolder CTabItem)
    (org.eclipse.jface.layout TableColumnLayout)
+   (org.eclipse.jface.dialogs TitleAreaDialog)
+   (org.eclipse.jface.window Window)
    wfeditor.model.workflow.Job))
 
 
@@ -188,13 +190,77 @@
     ;; return value
     table-group))
 
+(defn- gui-add-job
+  "create a new job, add it to the current wf, using a dialog (requires SWT ancestor shell widget)"
+  [parent]
+  (let [
+        job-name (atom "")
+        prog-exec-loc (atom "")
+        prog-args (atom [])
+        prog-opts (atom {})
+        ;; TODO: create custom modal
+        dlg (proxy [org.eclipse.jface.dialogs.TitleAreaDialog]
+                [parent]
+              (createContents [parent]
+                (let [contents (proxy-super createContents parent)]
+                  (do
+                    (. this setMessage "Set properties of the new job")
+                    (. this setTitle "Add new job"))
+                  contents))
+              (createDialogArea [parent]
+                (let [comp (proxy-super createDialogArea parent)
+                      ;; grid-comp (Composite. comp SWT/NONE)
+                      comp2 (Composite. comp SWT/NONE)
+                      ;; text2 (Text. comp2 SWT/BORDER)
+                      ;; label2 (doto (Label. comp2 SWT/LEFT) (.setText "hello"))
+                      job-name-label (doto (Label. comp2 SWT/LEFT) (.setText (str (ui-const/JOB-FIELD-FULL-NAMES :name) ":")))
+                      job-name-text (Text. comp2 SWT/BORDER)
+                      prog-exec-loc-label (doto (Label. comp2 SWT/LEFT) (.setText (str (ui-const/JOB-FIELD-FULL-NAMES :prog-exec-loc) ":")))
+                      prog-exec-loc-text (Text. comp2 SWT/BORDER)
+                      job-args-label (doto (Label. comp2 SWT/LEFT) (.setText (str (ui-const/JOB-FIELD-FULL-NAMES :prog-args) ":")))
+                      job-args-text (Text. comp2 SWT/BORDER)
+                      job-opts-label (doto (Label. comp2 SWT/LEFT) (.setText (str (ui-const/JOB-FIELD-FULL-NAMES :prog-opts) ":")))
+                      job-opts-text (Text. comp2 SWT/BORDER)
+                      grid-layout (GridLayout.)
+                      ]
+                  ;; do not set a layout for the composite given to
+                  ;; createDialogArea by the super class because SWT
+                  ;; seems to get confused
+                  (.setLayout comp2 (FillLayout. SWT/VERTICAL))
+                  (.setLayout comp2 grid-layout)
+                  (set! (. grid-layout numColumns) 2)
+                  (dorun (map #(.setLayoutData % (GridData. GridData/HORIZONTAL_ALIGN_BEGINNING)) [job-name-label prog-exec-loc-label job-args-label job-opts-label]))
+                  (dorun (map #(.setLayoutData % (GridData. GridData/FILL_HORIZONTAL)) [job-name-text prog-exec-loc-text job-args-text job-opts-text]))
+                  comp)))]
+    (when (= (.open dlg) Window/OK)
+      (let [new-job (wflow/nil-job-fn)]
+        
+        (dosync
+         (alter wflow/wf wflow/add-job new-job))))))
+
+(defn- mod-buttons-group
+  "a set of buttons (and widgets) to modify (add/delete/etc.) the WF"
+  [parent]
+  (let [group (new-widget {:keyname :group :widget-class Group :parent parent :style [SWT/SHADOW_NONE] :text "Add/Delete Jobs"})
+        bounding-comp (new-widget {:keyname :bounding-comp :widget-class Composite :parent group :style [SWT/NONE]})
+        add-button (new-widget {:keyname :add-button :widget-class Button :parent bounding-comp :style [SWT/PUSH] :text "Add a Job"})
+        del-button (new-widget {:keyname :del-button :widget-class Button :parent bounding-comp :style [SWT/PUSH] :text "Delete a Single Job"})]
+    (swt-util/stack-full-width bounding-comp {:margin 10} [add-button del-button])
+    (doto group
+      (.setLayout (RowLayout. SWT/VERTICAL)))
+    (update-button add-button
+                   {:widget-select-fn (fn [event]
+                                        (gui-add-job (get-ancestor-shell group)))})
+    group))
+
 (defn edit-wf-ctab-content
   "create a tab for editing the WF"
   [parent]
   (let [comp (new-widget {:keyname :comp :widget-class Composite :parent parent :styles [SWT/BORDER]})
 
         edit-job-table-group (edit-job-tree-table-viewer comp)
+        mod-group (mod-buttons-group comp)
         spacer-comp (new-widget {:keyname :spacer-comp :widget-class Composite :parent comp :styles [SWT/NONE]})
         ]
-    (swt-util/stack-full-width comp {:marge 10} [edit-job-table-group spacer-comp])
+    (swt-util/stack-full-width comp {:margin 10} [edit-job-table-group mod-group spacer-comp])
     comp))
