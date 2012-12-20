@@ -29,6 +29,144 @@
 ;; Edit WF tab functions
 ;;
 
+(defrecord ZipperVector [zippers])
+
+(defn- tree-viewer-test
+  "create a test zip to create a TreeViewer"
+  [parent]
+  (let [
+        ;; pre-wf-tree ["Genetics" ["NGS" [(URL. "http://www.palmyrasoftware.com/wf/genetics/ngs/sample4.xml")]]]
+        ;; pre-wf-simple-zip-tree {"Genetics" [{"NGS" [ (new-predefined-wf-fn "Bowtie+GATK demo" (URL. "http://www.palmyrasoftware.com/wf/genetics/ngs/sample4.xml") :desc "Demonstrating an example workflow in NGS DNA sequencing" :author "Staff" :institution "Palmyra Software" :contact "info@palmyrasoftware.com")
+        ;;                                              (new-predefined-wf-fn "Bowtie+GATK demo - array job" (URL. "http://www.palmyrasoftware.com/wf/genetics/ngs/sample6.xml") :desc "Demonstrating simplifying a workflow through array jobs" :author "Staff" :institution "Palmyra Software" :contact "info@palmyrasoftware.com")]}]}
+        is-branch-fn (every-pred map? (complement (partial instance? clojure.lang.IRecord)))
+        simple-zip-fn (fn [simple-zip-tree] (zip/zipper is-branch-fn (comp seq second first) (fn [n cs] (let [map (if (seq n) n {n []}) k (first (first map)) vals (second (first map))] (assoc map k (concat vals (seq cs))))) simple-zip-tree))
+        ;; JFace thinks that the nil value in the vector created when
+        ;; first creating a zipper is another root element, and throws
+        ;; an exception when it discovers null arguments in a
+        ;; .setInput method
+        ;; hence, have enclosed the zipper in a simplistic closure as
+        ;; described in Joy of Clojure
+        ;; TODO: simplify closure usage with reify (?) and/or
+        ;; defrecord, protocol (??)
+
+
+        dummy-zip-tree {:a [{:b [:e :f]} {:c :g} {:d [{:h [:i]}]}]}
+        dummy-zip (simple-zip-fn dummy-zip-tree)
+
+        zipper-vector (ZipperVector. [dummy-zip])
+
+      
+        ;; jface-simple-zip-fn (comp #(assoc-in % [1] {}) simple-zip-fn)
+        tree-zip-closure-fn (fn closure-fn [z]
+                              {:data z
+                               :apply-fn (fn [new-fn]
+                                           (closure-fn (new-fn z)))})
+        ;; pre-wf-zip (jface-simple-zip-fn pre-wf-simple-zip-tree)
+        ;; pre-wf-zip-closure (tree-zip-closure-fn (simple-zip-fn pre-wf-simple-zip-tree))
+
+        tree-content-provider (proxy [ITreeContentProvider]
+                                  []
+                                ;; the "content" that will be
+                                ;; manipulated by the JFace tree
+                                ;; viewer will be entirely closures of zippers
+                                ;; located at nodes, not the actual
+                                ;; node-data themselves
+                                (getChildren [zc] 
+                                  (let [first-child (zip/down zc)
+                                        rest-children (loop [rcs []
+                                                             czc (zip/right first-child)]
+                                                        (if-not czc
+                                                          rcs
+                                                          (recur (conj rcs czc) (zip/right czc))))
+                                        result (concat [first-child] rest-children)
+                                        array-result (to-array result)]
+                                    array-result))
+                                (getElements [zipper-vector]
+                                  ;; (to-array [(tree-zip-closure-fn (simple-zip-fn (:data ((:apply-fn zc) zip/root))))])
+                                  (to-array (:zippers zipper-vector))
+                                  )
+                                (getParent [zc]
+                                  (zip/up zc))
+                                (hasChildren [zc]
+                                  (let [result
+                                        (if (and zc (zip/node zc) (is-branch-fn (zip/node zc)))
+                                          true
+                                          false)]
+                                    result))
+                                (dispose [])
+                                (inputChanged [viewer old-input new-input]))
+        get-node-fn (fn [zc]
+                      (let [node-subtree (zip/node zc)
+                            node (cond
+                                  (is-branch-fn node-subtree) (first (first node-subtree))
+                                  (nil? node-subtree) ""
+                                  true node-subtree)]
+                        node))
+        tree-label-provider (proxy [ColumnLabelProvider]
+                                []
+                              ;; the label provider's responsibility
+                              ;; is to take the zipper closure "content" and
+                              ;; translate that into the real data to
+                              ;; be presented in the GUI
+                              (addListener [listener])
+                              (dispose [])
+                              (getImage [zc]
+                                nil)
+                              (getText [zc]
+                                (let [node (get-node-fn zc)
+                                      result (condp = (class node)
+                                               String node
+                                               clojure.lang.Keyword (name node)
+                                               ;; PredefinedWF (:name node)
+                                               (str node))]
+                                  result))
+                              (isLabelProperty [zc property]
+                                nil)
+                              (removeListener [listener])
+                              ;; (getToolTipText [zc]
+                              ;;   (let [node (get-node-fn zc)
+                              ;;         predef-wf-tooltip-fn (fn [pdwf key]
+                              ;;                                (when-let [field-val (get pdwf key)]
+                                                               
+                              ;;                                  (str (ui-const/PREDEFINED-WF-FIELD-FULL-NAMES key) ": " (get pdwf key))))
+                              ;;         predefined-wf-tooltip (string/join "\n" (remove nil? (map (partial predef-wf-tooltip-fn node) [:name :version :desc :citation :institution :author :contact :website :url])))
+                              ;;         result (condp = (class node)
+                              ;;                  String node
+                              ;;                  PredefinedWF predefined-wf-tooltip
+                              ;;                  (str node))]
+                              ;;     result))
+                              )
+        tree-group (new-widget {:keyname :tree-viewer-test-group :widget-class Group :parent parent :styles [SWT/SHADOW_NONE] :text "TreeViewer Test"})
+        tree-viewer (TreeViewer. tree-group)
+
+        dbl-click-listener (proxy [IDoubleClickListener]
+                               []
+                             (doubleClick [event]
+                               (let [selection (.getSelection event)
+                                     source (.getSource event)
+                                     tree-paths (.getPaths selection)
+                                     last-path (last tree-paths)
+                                     last-segment (.getLastSegment last-path)
+                                     elem (-> last-segment zip/node)]
+                                 ;; (when (= PredefinedWF (class elem))
+                                 ;;   (let [url-str (str (:url elem))
+                                 ;;         wf (fformat/workflow-from-stream url-str)]
+                                 ;;     (wflow/set-workflow wf)))
+                                 (when (= clojure.lang.Keyword (class elem))
+                                   (name elem))
+                                 )))]
+    (doto tree-group
+      (.setLayout (FillLayout.)))
+    (doto tree-viewer
+      (.setContentProvider tree-content-provider)
+      (.setLabelProvider tree-label-provider)
+      (.setInput zipper-vector)
+      (.addDoubleClickListener dbl-click-listener))
+    (do
+      (ColumnViewerToolTipSupport/enableFor tree-viewer))
+    tree-group))
+
+
 (defn- edit-job-tree-table-viewer
   "create a JFace TreeTable viewer for editing a job in the WF"
   [parent]
@@ -260,6 +398,7 @@
 
         edit-job-table-group (edit-job-tree-table-viewer comp)
         mod-group (mod-buttons-group comp)
+        ;; tree-viewer-test-group (tree-viewer-test comp)
         spacer-comp (new-widget {:keyname :spacer-comp :widget-class Composite :parent comp :styles [SWT/NONE]})
         ]
     (swt-util/stack-full-width comp {:margin 10} [edit-job-table-group mod-group spacer-comp])
