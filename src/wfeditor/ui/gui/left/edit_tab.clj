@@ -29,7 +29,7 @@
 ;; Edit WF tab functions
 ;;
 
-(defrecord ZipperVector [zippers])
+;; (defrecord ZipperVector [zippers])
 
 (defn- tree-viewer-test
   "create a test zip to create a TreeViewer"
@@ -53,8 +53,8 @@
         dummy-zip-tree {:a [{:b [:e :f]} {:c :g} {:d [{:h [:i]}]}]}
         dummy-zip (simple-zip-fn dummy-zip-tree)
 
-        zipper-vector (ZipperVector. [dummy-zip])
-
+        ;; zipper-vector (ZipperVector. [dummy-zip])
+        zipper-vector [dummy-zip]
       
         ;; jface-simple-zip-fn (comp #(assoc-in % [1] {}) simple-zip-fn)
         tree-zip-closure-fn (fn closure-fn [z]
@@ -83,7 +83,7 @@
                                     array-result))
                                 (getElements [zipper-vector]
                                   ;; (to-array [(tree-zip-closure-fn (simple-zip-fn (:data ((:apply-fn zc) zip/root))))])
-                                  (to-array (:zippers zipper-vector))
+                                  (to-array  zipper-vector)
                                   )
                                 (getParent [zc]
                                   (zip/up zc))
