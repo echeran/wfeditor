@@ -244,7 +244,6 @@
   "create a JFace TreeViewer to represent predefined NGS & other workflows"
   [parent]
   (let [
-        ;; pre-wf-tree ["Genetics" ["NGS" [(URL. "http://www.palmyrasoftware.com/wf/genetics/ngs/sample4.xml")]]]
         pre-wf-simple-zip-tree {"Genetics" [{"NGS" [ (new-predefined-wf-fn "Bowtie+GATK demo" (URL. "http://www.palmyrasoftware.com/wf/genetics/ngs/sample4.xml") :desc "Demonstrating an example workflow in NGS DNA sequencing" :author "Staff" :institution "Palmyra Software" :contact "info@palmyrasoftware.com")
                                                      (new-predefined-wf-fn "Bowtie+GATK demo - array job" (URL. "http://www.palmyrasoftware.com/wf/genetics/ngs/sample6.xml") :desc "Demonstrating simplifying a workflow through array jobs" :author "Staff" :institution "Palmyra Software" :contact "info@palmyrasoftware.com")]}]}
         is-branch-fn (every-pred map? (complement (partial instance? clojure.lang.IRecord)))
@@ -253,18 +252,10 @@
         ;; first creating a zipper is another root element, and throws
         ;; an exception when it discovers null arguments in a
         ;; .setInput method
-        ;; hence, have enclosed the zipper in a simplistic closure as
-        ;; described in Joy of Clojure
-        ;; TODO: simplify closure usage with reify (?) and/or
-        ;; defrecord, protocol (??)
+        ;; hence, have enclosed the zipper in a vector
         
         jface-simple-zip-fn (comp #(assoc-in % [1] {}) simple-zip-fn)
-        ;; tree-zip-closure-fn (fn closure-fn [z]
-        ;;                       {:data z
-        ;;                        :apply-fn (fn [new-fn]
-        ;;                                    (closure-fn (new-fn z)))})
         pre-wf-zip (jface-simple-zip-fn pre-wf-simple-zip-tree)
-        ;; pre-wf-zip-closure (tree-zip-closure-fn (simple-zip-fn pre-wf-simple-zip-tree))
         pre-wf-zip (simple-zip-fn pre-wf-simple-zip-tree)
         zipper-vector [pre-wf-zip]
         
@@ -286,9 +277,7 @@
                                         array-result (to-array result)]
                                     array-result))
                                 (getElements [zc]
-                                  ;; (to-array [(tree-zip-closure-fn (simple-zip-fn (:data ((:apply-fn zc) zip/root))))])
-                                  (to-array zipper-vector)
-                                  )
+                                  (to-array zipper-vector))
                                 (getParent [zc]
                                   (zip/up zc))
                                 (hasChildren [zc]

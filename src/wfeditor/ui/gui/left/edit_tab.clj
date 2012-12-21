@@ -35,35 +35,18 @@
   "create a test zip to create a TreeViewer"
   [parent]
   (let [
-        ;; pre-wf-tree ["Genetics" ["NGS" [(URL. "http://www.palmyrasoftware.com/wf/genetics/ngs/sample4.xml")]]]
-        ;; pre-wf-simple-zip-tree {"Genetics" [{"NGS" [ (new-predefined-wf-fn "Bowtie+GATK demo" (URL. "http://www.palmyrasoftware.com/wf/genetics/ngs/sample4.xml") :desc "Demonstrating an example workflow in NGS DNA sequencing" :author "Staff" :institution "Palmyra Software" :contact "info@palmyrasoftware.com")
-        ;;                                              (new-predefined-wf-fn "Bowtie+GATK demo - array job" (URL. "http://www.palmyrasoftware.com/wf/genetics/ngs/sample6.xml") :desc "Demonstrating simplifying a workflow through array jobs" :author "Staff" :institution "Palmyra Software" :contact "info@palmyrasoftware.com")]}]}
         is-branch-fn (every-pred map? (complement (partial instance? clojure.lang.IRecord)))
         simple-zip-fn (fn [simple-zip-tree] (zip/zipper is-branch-fn (comp seq second first) (fn [n cs] (let [map (if (seq n) n {n []}) k (first (first map)) vals (second (first map))] (assoc map k (concat vals (seq cs))))) simple-zip-tree))
         ;; JFace thinks that the nil value in the vector created when
         ;; first creating a zipper is another root element, and throws
         ;; an exception when it discovers null arguments in a
         ;; .setInput method
-        ;; hence, have enclosed the zipper in a simplistic closure as
-        ;; described in Joy of Clojure
-        ;; TODO: simplify closure usage with reify (?) and/or
-        ;; defrecord, protocol (??)
-
+        ;; hence, have enclosed the zipper in a vector
 
         dummy-zip-tree {:a [{:b [:e :f]} {:c :g} {:d [{:h [:i]}]}]}
         dummy-zip (simple-zip-fn dummy-zip-tree)
-
-        ;; zipper-vector (ZipperVector. [dummy-zip])
         zipper-vector [dummy-zip]
       
-        ;; jface-simple-zip-fn (comp #(assoc-in % [1] {}) simple-zip-fn)
-        tree-zip-closure-fn (fn closure-fn [z]
-                              {:data z
-                               :apply-fn (fn [new-fn]
-                                           (closure-fn (new-fn z)))})
-        ;; pre-wf-zip (jface-simple-zip-fn pre-wf-simple-zip-tree)
-        ;; pre-wf-zip-closure (tree-zip-closure-fn (simple-zip-fn pre-wf-simple-zip-tree))
-
         tree-content-provider (proxy [ITreeContentProvider]
                                   []
                                 ;; the "content" that will be
@@ -82,17 +65,13 @@
                                         array-result (to-array result)]
                                     array-result))
                                 (getElements [zipper-vector]
-                                  ;; (to-array [(tree-zip-closure-fn (simple-zip-fn (:data ((:apply-fn zc) zip/root))))])
-                                  (to-array  zipper-vector)
-                                  )
+                                  (to-array  zipper-vector))
                                 (getParent [zc]
                                   (zip/up zc))
-                                (hasChildren [zc]
-                                  (let [result
-                                        (if (and zc (zip/node zc) (is-branch-fn (zip/node zc)))
-                                          true
-                                          false)]
-                                    result))
+                                (hasChildren [zc] 
+                                  (if (and zc (zip/node zc) (is-branch-fn (zip/node zc)))
+                                    true
+                                    false))
                                 (dispose [])
                                 (inputChanged [viewer old-input new-input]))
         get-node-fn (fn [zc]
@@ -117,25 +96,11 @@
                                       result (condp = (class node)
                                                String node
                                                clojure.lang.Keyword (name node)
-                                               ;; PredefinedWF (:name node)
                                                (str node))]
                                   result))
                               (isLabelProperty [zc property]
                                 nil)
-                              (removeListener [listener])
-                              ;; (getToolTipText [zc]
-                              ;;   (let [node (get-node-fn zc)
-                              ;;         predef-wf-tooltip-fn (fn [pdwf key]
-                              ;;                                (when-let [field-val (get pdwf key)]
-                                                               
-                              ;;                                  (str (ui-const/PREDEFINED-WF-FIELD-FULL-NAMES key) ": " (get pdwf key))))
-                              ;;         predefined-wf-tooltip (string/join "\n" (remove nil? (map (partial predef-wf-tooltip-fn node) [:name :version :desc :citation :institution :author :contact :website :url])))
-                              ;;         result (condp = (class node)
-                              ;;                  String node
-                              ;;                  PredefinedWF predefined-wf-tooltip
-                              ;;                  (str node))]
-                              ;;     result))
-                              )
+                              (removeListener [listener]))
         tree-group (new-widget {:keyname :tree-viewer-test-group :widget-class Group :parent parent :styles [SWT/SHADOW_NONE] :text "TreeViewer Test"})
         tree-viewer (TreeViewer. tree-group)
 
@@ -148,10 +113,6 @@
                                      last-path (last tree-paths)
                                      last-segment (.getLastSegment last-path)
                                      elem (-> last-segment zip/node)]
-                                 ;; (when (= PredefinedWF (class elem))
-                                 ;;   (let [url-str (str (:url elem))
-                                 ;;         wf (fformat/workflow-from-stream url-str)]
-                                 ;;     (wflow/set-workflow wf)))
                                  (when (= clojure.lang.Keyword (class elem))
                                    (name elem))
                                  )))]
