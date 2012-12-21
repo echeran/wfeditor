@@ -258,14 +258,16 @@
         ;; TODO: simplify closure usage with reify (?) and/or
         ;; defrecord, protocol (??)
         
-        ;; jface-simple-zip-fn (comp #(assoc-in % [1] {}) simple-zip-fn)
-        tree-zip-closure-fn (fn closure-fn [z]
-                              {:data z
-                               :apply-fn (fn [new-fn]
-                                           (closure-fn (new-fn z)))})
-        ;; pre-wf-zip (jface-simple-zip-fn pre-wf-simple-zip-tree)
-        pre-wf-zip-closure (tree-zip-closure-fn (simple-zip-fn pre-wf-simple-zip-tree))
-
+        jface-simple-zip-fn (comp #(assoc-in % [1] {}) simple-zip-fn)
+        ;; tree-zip-closure-fn (fn closure-fn [z]
+        ;;                       {:data z
+        ;;                        :apply-fn (fn [new-fn]
+        ;;                                    (closure-fn (new-fn z)))})
+        pre-wf-zip (jface-simple-zip-fn pre-wf-simple-zip-tree)
+        ;; pre-wf-zip-closure (tree-zip-closure-fn (simple-zip-fn pre-wf-simple-zip-tree))
+        pre-wf-zip (simple-zip-fn pre-wf-simple-zip-tree)
+        zipper-vector [pre-wf-zip]
+        
         tree-content-provider (proxy [ITreeContentProvider]
                                   []
                                 ;; the "content" that will be
@@ -274,27 +276,29 @@
                                 ;; located at nodes, not the actual
                                 ;; node-data themselves
                                 (getChildren [zc] 
-                                  (let [first-child ((:apply-fn zc) zip/down)
+                                  (let [first-child (zip/down zc)
                                         rest-children (loop [rcs []
-                                                             czc ((:apply-fn first-child) zip/right)]
-                                                        (if-not (:data czc)
+                                                             czc (zip/right first-child)]
+                                                        (if-not czc
                                                           rcs
-                                                          (recur (conj rcs czc) ((:apply-fn czc) zip/right))))
+                                                          (recur (conj rcs czc) (zip/right czc))))
                                         result (concat [first-child] rest-children)
                                         array-result (to-array result)]
                                     array-result))
                                 (getElements [zc]
-                                  (to-array [(tree-zip-closure-fn (simple-zip-fn (:data ((:apply-fn zc) zip/root))))]) )
+                                  ;; (to-array [(tree-zip-closure-fn (simple-zip-fn (:data ((:apply-fn zc) zip/root))))])
+                                  (to-array zipper-vector)
+                                  )
                                 (getParent [zc]
-                                  ((:apply-fn zc) zip/up))
+                                  (zip/up zc))
                                 (hasChildren [zc]
-                                  (if (and zc (:data zc) (:data ((:apply-fn zc) zip/node)) (is-branch-fn (:data ((:apply-fn zc) zip/node))))
+                                  (if (and zc (zip/node zc) (is-branch-fn (zip/node zc)))
                                     true
                                     false))
                                 (dispose [])
                                 (inputChanged [viewer old-input new-input]))
         get-node-fn (fn [zc]
-                      (let [node-subtree (:data ((:apply-fn zc) zip/node))
+                      (let [node-subtree (zip/node zc)
                             node (cond
                                   (is-branch-fn node-subtree) (first (first node-subtree))
                                   (nil? node-subtree) ""
@@ -343,7 +347,7 @@
                                      tree-paths (.getPaths selection)
                                      last-path (last tree-paths)
                                      last-segment (.getLastSegment last-path)
-                                     elem (-> last-segment :data zip/node)]
+                                     elem (-> last-segment zip/node)]
                                  (when (= PredefinedWF (class elem))
                                    (let [url-str (str (:url elem))
                                          wf (fformat/workflow-from-stream url-str)]
@@ -353,7 +357,7 @@
     (doto tree-viewer
       (.setContentProvider tree-content-provider)
       (.setLabelProvider tree-label-provider)
-      (.setInput pre-wf-zip-closure)
+      (.setInput zipper-vector)
       (.addDoubleClickListener dbl-click-listener))
     (do
       (ColumnViewerToolTipSupport/enableFor tree-viewer))
