@@ -129,7 +129,7 @@
       (ColumnViewerToolTipSupport/enableFor tree-viewer))
     tree-group))
 
-(defn- edit-job-tree-table-viewer-2
+(defn- edit-job-table-tree-viewer
   "create a JFace TreeTable viewer for editing a job in the WF"
   [parent]
   (let [table-group (new-widget {:keyname :table-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "Edit Workflow Job"})
@@ -359,7 +359,7 @@
     ;; return value
     table-group))
 
-(defn- edit-job-tree-table-viewer
+(defn- edit-job-table-viewer
   "create a JFace TreeTable viewer for editing a job in the WF"
   [parent]
   (let [table-group (new-widget {:keyname :table-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "Edit Workflow Job"})
@@ -587,13 +587,14 @@
   "create a tab for editing the WF"
   [parent]
   (let [comp (new-widget {:keyname :comp :widget-class Composite :parent parent :styles [SWT/BORDER]})
-        edit-job-table-group (edit-job-tree-table-viewer comp)
+        edit-job-table-tree-group (edit-job-table-tree-viewer comp)        
+        ;; edit-job-table-group (edit-job-table-viewer comp)
         mod-group (mod-buttons-group comp)
-        ;; tree-viewer-test-group (tree-viewer-test comp)
         spacer-comp (new-widget {:keyname :spacer-comp :widget-class Composite :parent comp :styles [SWT/NONE]})
-        edit-job-table-group-2 (edit-job-tree-table-viewer-2 comp)        
         ]
-    (swt-util/stack-full-width comp {:margin 10} [edit-job-table-group mod-group spacer-comp
-                                                  edit-job-table-group-2
+    (swt-util/stack-full-width comp {:margin 10} [
+                                                  edit-job-table-tree-group
+                                                  ;; edit-job-table-group
+                                                  mod-group spacer-comp
                                                   ])
     comp))
