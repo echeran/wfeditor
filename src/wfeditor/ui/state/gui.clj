@@ -29,6 +29,10 @@
 
 (declare job-editor-cache)
 
+(declare job-to-edit-2)
+
+(declare job-editor-cache-2)
+
 ;;
 ;; functions
 ;;
@@ -191,3 +195,9 @@ Note: when using this address with gui-> and gui1->, the first element of the ad
 (def job-to-edit (ref (wflow/new-job-fn "<Job Name>" "<Prog. Exec. Loc.>" "<Prog. Args.>" "<Prog. Opts.>")))
 
 (def job-editor-cache (ref @job-to-edit))
+
+
+;; the Job object that is edited in the table in the left nav pane
+(def job-to-edit-2 (ref (wflow/new-job-fn "<Job Name>" "<Prog. Exec. Loc.>" ["arg1"] {"--opt1" nil})))
+
+(def job-editor-cache-2 (ref @job-to-edit))

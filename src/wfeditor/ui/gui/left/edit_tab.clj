@@ -8,17 +8,19 @@
             [wfeditor.ui.gui.left.general-tab :as general-tab]
             [wfeditor.ui.state.gui :as gui-state]
             [wfeditor.ui.util.const :as ui-const]
+            [clojure.contrib.zip-filter.xml :as zfx]
             [clojure.string :as string]
             [clojure.zip :as zip])
-  (:use [wfeditor.ui.util.swt :as swt-util])
+  (:use [wfeditor.ui.util.swt :as swt-util]
+        [clojure.contrib.core :only (-?>)])
   (:import
    org.eclipse.swt.SWT
    (org.eclipse.swt.layout FillLayout RowLayout GridLayout GridData FormLayout FormData FormAttachment)
    (org.eclipse.swt.widgets Button FileDialog Group Text Combo Composite Display TableColumn Table TableItem Label)
    (org.eclipse.swt.events SelectionEvent SelectionAdapter ModifyListener ModifyEvent)
-   (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener TableViewer IStructuredContentProvider ITableLabelProvider ListViewer ICellModifier TextCellEditor ViewerSorter ColumnLabelProvider ColumnViewerToolTipSupport)
+   (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener TableViewer IStructuredContentProvider ITableLabelProvider ListViewer ICellModifier TextCellEditor ViewerSorter ColumnLabelProvider ColumnViewerToolTipSupport TableTreeViewer)
    java.net.URL
-   (org.eclipse.swt.custom CTabFolder CTabItem)
+   (org.eclipse.swt.custom CTabFolder CTabItem TableTreeItem)
    (org.eclipse.jface.layout TableColumnLayout)
    (org.eclipse.jface.dialogs TitleAreaDialog)
    (org.eclipse.jface.window Window)
@@ -127,6 +129,235 @@
       (ColumnViewerToolTipSupport/enableFor tree-viewer))
     tree-group))
 
+(defn- edit-job-tree-table-viewer-2
+  "create a JFace TreeTable viewer for editing a job in the WF"
+  [parent]
+  (let [table-group (new-widget {:keyname :table-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "Edit Workflow Job"})
+        ;; job (atom (wflow/new-job-fn "Job Name" "Prog. Exec. Loc." "Prog. Args." "Prog. Opts."))
+        ttv (TableTreeViewer. table-group)
+        ;; job (atom @gui-state/job-to-edit)
+        job-fields (type-util/class-fields wfeditor.model.workflow.Job)
+        column-headings ["Job field" "Value"]
+        columns (doall
+                 (for [ch column-headings]
+                   (new-widget {:keyname (keyword (str "col-" ch)) :widget-class TableColumn :parent (.. ttv getTableTree getTable) :styles [SWT/LEFT] :text ch})))
+
+        ;; TODO: refactor is-branch-fn and simple-zip-fn into a
+        ;; separate ns
+        is-branch-fn (every-pred map? (complement (partial instance? clojure.lang.IRecord)))
+        simple-zip-fn (fn [simple-zip-tree] (zip/zipper is-branch-fn (comp seq second first) (fn [n cs] (let [map (if (seq n) n {n []}) k (first (first map)) vals (second (first map))] (assoc map k (concat vals (seq cs))))) simple-zip-tree))       
+        
+        ttv-table-fn (fn [ttv] (.getTable (.getTableTree ttv)))
+        refresh-table-gui-fn (fn [ttv]
+                               (.refresh ttv)
+                               (dorun
+                                (doseq [column (.. ttv getTableTree getTable getColumns)]
+                                  (.pack column)))
+                               (dorun
+                                (doseq [column (.. ttv getTableTree getTable getColumns)]
+                                  (.showColumn (.. ttv getTableTree getTable) column)))
+                               (.showColumn (.. ttv getTableTree getTable) (first (.. ttv getTableTree getTable getColumns)))
+                               (.redraw (.. ttv getTableTree getTable))
+                               (.update (.. ttv getTableTree getTable)))
+        content-provider (proxy [IStructuredContentProvider]
+                             []
+                           (getElements [input-data]
+                             (to-array input-data))
+                           (inputChanged [viewer old-input new-input]
+                             (when-not new-input
+                               (.setInput viewer job-fields)
+                               (dosync
+                                (ref-set gui-state/job-to-edit-2 nil)))
+                             (refresh-table-gui-fn ttv))
+                           (dispose []))
+
+
+        zip-children-fn (fn [zc]
+                          ;; need to return a coll of the locs of
+                          ;; children nodes, not the children nodes themselves
+                          (let [first-child (zip/down zc)
+                                rest-children (loop [rcs []
+                                                     czc (zip/right first-child)]
+                                                (if-not czc
+                                                  rcs
+                                                  (recur (conj rcs czc) (zip/right czc))))
+                                result (concat [first-child] rest-children)]
+                            result))
+        has-children-fn (fn [zc] (if (-?> zc zip/down zip/branch?) true false))
+        zip-elem-tag-fn (fn [zc] (:tag (zip/node zc)))
+        tree-content-provider (proxy [ITreeContentProvider]
+                                  []
+                                ;; the "content" that will be
+                                ;; manipulated by the JFace tree
+                                ;; viewer will be entirely closures of zippers
+                                ;; located at nodes, not the actual
+                                ;; node-data themselves
+                                (getChildren [zc] 
+                                  (let [result (zip-children-fn zc)
+                                        array-result (to-array result)]
+                                    array-result))
+                                (getElements [job-vector]
+                                  (let [job (first job-vector)
+                                        job-zip (fformat/zip-from-job job)
+                                        elements (zip-children-fn job-zip)]
+                                    (to-array elements)))
+                                (getParent [zc]
+                                  (let [parent-zip (zip/up zc)
+                                        parent-tag (zip-elem-tag-fn parent-zip)]
+                                    (if (= parent-tag :job) 
+                                      nil 
+                                      (zip/up zc))))
+                                (hasChildren [zc]
+                                  (let [has-chil (has-children-fn zc)
+                                        elem-tag (zip-elem-tag-fn zc)]
+                                    (condp = elem-tag
+                                      :opt false
+                                      has-chil)))
+                                (dispose [])
+                                (inputChanged [viewer old-input new-input]))        
+        label-provider (proxy [ITableLabelProvider]
+                           []
+                         (addListener [listener])
+                         (dispose [])
+                         (getColumnImage [element column-index]
+                           nil)
+                         (getColumnText [element column-index]
+                           (let [elem-tag (zip-elem-tag-fn element)
+                                 result
+                                 (if (or (not (vector? element)) (not (and (vector? element) (map? (first element)))))
+                                   (condp = column-index
+                                     0 (ui-const/JOB-FIELD-FULL-NAMES (keyword element))
+                                     1 ui-const/NIL-VAL-STR-REP)
+                                   (condp = column-index
+                                     0 (condp = elem-tag
+                                         :arg (let [idx (count (zip/lefts element))]
+                                                (str (ui-const/JOB-FIELD-FULL-NAMES :arg) " " (inc idx)))
+                                         :opt (let [flag (zfx/xml1-> element :flag zfx/text)]
+                                                flag)
+                                         (str (get ui-const/JOB-FIELD-FULL-NAMES elem-tag)))
+                                     1 (condp = elem-tag
+                                         :arg (-> element zfx/text)
+                                         :opt (let [val (fformat/nil-pun-empty-str (zfx/xml1-> element :val zfx/text))]
+                                                (or val ui-const/NIL-VAL-STR-REP))
+                                         (if-let [val (and (not (has-children-fn element)) (get @gui-state/job-editor-cache-2 elem-tag))]
+                                           (str val)
+                                           ui-const/NIL-VAL-STR-REP))
+                                     ui-const/NIL-VAL-STR-REP))]
+                             result))
+                         (isLabelProperty [element property]
+                           false)
+                         (removeListener [listener]))
+        col-props ["key" "value"]
+        cell-modifier (proxy [ICellModifier]
+                          []
+                        (canModify [element property]
+                          (if (or (nil? @gui-state/job-editor-cache-2)
+                                  (string? element)
+                                  (and (= Job (class @gui-state/job-editor-cache-2)) (:id @gui-state/job-editor-cache-2)))
+                            false
+                            (let [key (nth element 0)]
+                              (if (and (= "value" property) (not (#{:id :task-statuses :prog-args :prog-opts :array} key)))
+                                true
+                                false))))
+                        (getValue [element property]
+                          (if (not (string? element))
+                            (condp = property
+                              "key" (name (nth element 0))
+                              "value" (or (get @gui-state/job-editor-cache-2 (nth element 0)) ui-const/NIL-VAL-STR-REP))
+                            (condp = property
+                              "key" element
+                              "value" ui-const/NIL-VAL-STR-REP)))
+                        (modify [element property value]
+                          (let [element (if (= TableTreeItem (class element))
+                                          (.getData element)
+                                          element)
+                                key (nth element 0)
+                                val (if (= value ui-const/NIL-VAL-STR-REP)
+                                      nil
+                                      value)]
+                            (when-not (#{:id} key)
+                              (let [alter-assoc-fn (fn [j k v] (when j (assoc j k v)))]
+                                (dosync
+                                 (alter gui-state/job-editor-cache alter-assoc-fn key val)
+                                 (let [old-job @gui-state/job-to-edit-2
+                                       new-job @gui-state/job-editor-cache-2
+                                       wf (wflow/workflow)
+                                       new-wf (wflow/replace-job wf old-job new-job)]
+                                   (wflow/set-workflow new-wf))
+                                 (ref-set gui-state/job-to-edit-2 @gui-state/job-editor-cache-2)))
+                              (.refresh ttv)))))
+        cell-editors (for [col col-props]
+                       (TextCellEditor. (.. ttv getTableTree getTable)))
+        view-sorter (proxy [ViewerSorter]
+                        []
+                      (compare [viewer e1 e2]
+                        (if (string? e1)
+                          (compare (.indexOf job-fields e1) (.indexOf job-fields e2))
+                          (compare (.indexOf job-fields (name (nth e1 0))) (.indexOf job-fields (name (nth e2 0)))))))]
+    ;; TODO: fix extra column to the right using TableColumnLayout and
+    ;; setting ColumnWeightData using proportions and minimum widths
+    ;; http://javafact.com/2010/07/26/working-with-jface-tableviewer/
+    ;; http://stackoverflow.com/questions/9211106/swt-table-layout-resize-the-column-of-a-table-to-fill-all-the-available-spac
+    ;; TODO: figure out how to get the initial input to the tableviewer
+    ;; to be nil and yet have all the job's keys appear as rows and
+    ;; the table show all those rows.  somehow helpful related links:
+    ;; http://www.eclipse.org/forums/index.php/t/158152/
+    ;; http://stackoverflow.com/questions/4508564/make-a-jface-tableviewer-resize-with-its-surrounding-composite
+    ;; http://www.eclipse.org/nebula/widgets/xviewer/xviewer.php
+    ;; http://www.eclipse.org/forums/index.php/m/635630/
+    ;; http://www.eclipsezone.com/eclipse/forums/t76524.html
+
+
+    ;; add-watch
+    (add-watch gui-state/job-to-edit :re-bind (fn [key r old new]
+                                                (when-not (= @gui-state/job-editor-cache-2 new)
+                                                  (dosync
+                                                   (ref-set gui-state/job-editor-cache-2 new)))
+                                                (refresh-table-gui-fn ttv)))
+    ;; basic display config
+    (doto table-group
+      (.setLayout (GridLayout. 1 false)))
+    (doto ttv
+      (.setContentProvider tree-content-provider)
+      (.setLabelProvider label-provider)
+      (.setInput [@gui-state/job-to-edit-2])
+
+      ;; TODO: uncomment, get to work with TableTreeViewer
+      ;; (.setSorter view-sorter)
+      
+      )
+    
+    ;; configs to format table display and align cols properly
+    (doto (.. ttv getTableTree getTable)
+      (.setLayoutData (GridData. GridData/FILL_BOTH))
+      (.setHeaderVisible true)
+      (.setLinesVisible true)
+      (.setRedraw true)
+      ;; don't pack table - shrinks the right margin if not needed,
+      ;; looks weird
+      ;; (.pack)
+      )
+    (dorun
+     (map #(.showColumn (.. ttv getTableTree getTable) %) (.. ttv getTableTree getTable getColumns)))
+    (dorun
+     (map (memfn pack) (.. ttv getTableTree getTable getColumns)))
+    (dosync
+     (ref-set gui-state/job-to-edit-2 nil))
+    (refresh-table-gui-fn ttv)
+    ;; configs for control editors
+    (doto ttv
+      ;; into-array preserves the object type in a Java array better
+      ;; than to-array
+      (.setColumnProperties (into-array col-props))
+
+      ;; TODO: uncomment, get to work with TableTreeViewer
+      ;; (.setCellModifier cell-modifier)
+      ;; (.setCellEditors (into-array cell-editors))
+
+      
+      )
+    ;; return value
+    table-group))
 
 (defn- edit-job-tree-table-viewer
   "create a JFace TreeTable viewer for editing a job in the WF"
@@ -356,11 +587,13 @@
   "create a tab for editing the WF"
   [parent]
   (let [comp (new-widget {:keyname :comp :widget-class Composite :parent parent :styles [SWT/BORDER]})
-
         edit-job-table-group (edit-job-tree-table-viewer comp)
         mod-group (mod-buttons-group comp)
         ;; tree-viewer-test-group (tree-viewer-test comp)
         spacer-comp (new-widget {:keyname :spacer-comp :widget-class Composite :parent comp :styles [SWT/NONE]})
+        edit-job-table-group-2 (edit-job-tree-table-viewer-2 comp)        
         ]
-    (swt-util/stack-full-width comp {:margin 10} [edit-job-table-group mod-group spacer-comp])
+    (swt-util/stack-full-width comp {:margin 10} [edit-job-table-group mod-group spacer-comp
+                                                  edit-job-table-group-2
+                                                  ])
     comp))

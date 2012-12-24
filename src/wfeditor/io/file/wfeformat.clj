@@ -38,19 +38,19 @@
 (defn- xml-subtree
   "helper method for creating XML trees to represent values stored in WFE types.
 assumes that no attributes are present in any of the tags. (this is acceptable for WFE since attributes are eschewed and substituted by representing them as child elements.)"
-  [tag val]
+  [tag val & [{:keys [prune-empty] :or {prune-empty true}}]]
   (cond
-   (remove-fn val) (if-not (format-reqd-states tag)
+   (remove-fn val) (if (and prune-empty (not (format-reqd-states tag)))
                      nil
                      {:tag tag :attrs nil :content []})
-   (sequential? val) {:tag tag :attrs nil :content (into [] (remove nil? (for [x val] (xml-subtree (format-hierarchy tag) x))))}
+   (sequential? val) {:tag tag :attrs nil :content (into [] (remove nil? (for [x val] (xml-subtree (format-hierarchy tag) x {:prune-empty prune-empty}))))}
    (map? val) (let [keyval-tag (format-hierarchy tag)
                     [key-tag val-tag] (format-hierarchy keyval-tag)]
                 {:tag tag :attrs nil :content
                  (into [] (remove nil? (for [[k v] val]
                                          {:tag keyval-tag :attrs nil :content
-                                          [(xml-subtree key-tag k)
-                                           (xml-subtree val-tag v)]})))})
+                                          [(xml-subtree key-tag k {:prune-empty prune-empty})
+                                           (xml-subtree val-tag v {:prune-empty prune-empty})]})))})
    (keyword? val) {:tag tag :attrs nil :content [(name val)]}
    ;; we need all other scalars to be cast to Strings for the purposes
    ;; of the Clojure XML emit function
@@ -58,43 +58,46 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
 
 (defn- map-coll-vals-xml-subtree
   "helper method for maps which map keys to collections. this is for maps like the program options, where one option may occur multiple times with different values"
-  [tag map]
+  [tag map & [{:keys [prune-empty] :or {prune-empty true}}]]
   (let [keyval-tag (format-hierarchy tag)
         [key-tag val-tag] (format-hierarchy keyval-tag)]
     {:tag tag :attrs nil :content
      (into [] (remove nil? (flatten (for [[k coll] map]
                                       (if (or (nil? coll) (empty? coll))
                                        {:tag keyval-tag :attrs nil :content
-                                        [(xml-subtree key-tag k)
-                                         (xml-subtree val-tag coll)]}
+                                        [(xml-subtree key-tag k {:prune-empty prune-empty})
+                                         (xml-subtree val-tag coll {:prune-empty prune-empty})]}
                                        (for [v coll]
                                          {:tag keyval-tag :attrs nil :content
-                                          [(xml-subtree key-tag k)
-                                           (xml-subtree val-tag v)]}))))))}))
+                                          [(xml-subtree key-tag k {:prune-empty prune-empty})
+                                           (xml-subtree val-tag v {:prune-empty prune-empty})]}))))))}))
 
 (defn- job-array-xml-tree
   "return the xml subtree for the array map (that is, a map under the field named 'array' in the Job object that represents a job array)"
-  [array-map]
+  [array-map & [{:keys [prune-empty] :or {prune-empty true}}]]
   (when (seq (remove remove-fn (vals array-map)))
     (let [array-keys (:array format-hierarchy)]
       {:tag :array :attrs nil :content
        (into [] (remove nil? (for [k array-keys]
                                (let [val (get array-map k)]
-                                 (xml-subtree k val)))))})))
+                                 (xml-subtree k val {:prune-empty prune-empty})))))})))
 
 (defn- job-xml-tree
   "implementation of defmethod for xml-tree multimethod for the Job record class"
-  [wf job]
-  (let [job-keys (keys job)
-        job-deps (map #(get % :name) ((:neighbors (wf/dep-graph wf)) job))]
-    {:tag :job :attrs nil :content
-     (into [] (remove nil? (concat (for [key job-keys]
-                                      (let [val (get job key)] 
-                                        (condp = key
-                                          :prog-opts (map-coll-vals-xml-subtree key val)
-                                          :array (job-array-xml-tree val)
-                                          (xml-subtree key val))))
-                                   (list (xml-subtree :deps job-deps)))))}))
+  ([job]
+     (job-xml-tree nil job {:prune-empty false}))
+  ([wf job & [{:keys [prune-empty] :or {prune-empty true}}]]
+     (let [job-keys (keys job)]
+       {:tag :job :attrs nil :content
+        (into [] (remove nil? (concat (for [key job-keys]
+                                        (let [val (get job key)]
+                                          (condp = key
+                                            :prog-opts (map-coll-vals-xml-subtree key val {:prune-empty prune-empty})
+                                            :array (job-array-xml-tree val {:prune-empty prune-empty})
+                                            (xml-subtree key val {:prune-empty prune-empty}))))
+                                      (into [] (when wf
+                                                 (let [job-deps (map #(get % :name) ((:neighbors (wf/dep-graph wf)) job))]
+                                                   (xml-subtree :deps job-deps {:prune-empty prune-empty})))))))})))
 
 (defn- wf-meta-xml-tree
   "helper method for wf-xml-tree"
@@ -147,7 +150,7 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
 ;; functions to create datatypes from XML
 ;;
 
-(defn- nil-pun-empty-str
+(defn nil-pun-empty-str
   "if the input is an empty string, return nil.  else, return the input val"
   [s]
   (if (and (string? s) (empty? s))
@@ -334,3 +337,14 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
   "save (using spit) the contents of the workflow object (wf) to the file provided (file-name) or create it if it doesn't exist"
   [wf file-name]
   (spit file-name (workflow-to-string wf)))
+
+;;
+;; other developer-friendly high-level functions
+;;
+
+(defn zip-from-job
+  "create a zipper given only a Job object"
+  [job]
+  (let [xml-tree (job-xml-tree job)
+        zip (xml-util/xml-tree-to-zip xml-tree)]
+    zip))
