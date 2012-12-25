@@ -16,11 +16,11 @@
   (:import
    org.eclipse.swt.SWT
    (org.eclipse.swt.layout FillLayout RowLayout GridLayout GridData FormLayout FormData FormAttachment)
-   (org.eclipse.swt.widgets Button FileDialog Group Text Combo Composite Display TableColumn Table TableItem Label)
+   (org.eclipse.swt.widgets Button FileDialog Group Text Combo Composite Display TableColumn Table TableItem Label TreeItem TreeColumn)
    (org.eclipse.swt.events SelectionEvent SelectionAdapter ModifyListener ModifyEvent)
-   (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener TableViewer IStructuredContentProvider ITableLabelProvider ListViewer ICellModifier TextCellEditor ViewerSorter ColumnLabelProvider ColumnViewerToolTipSupport TableTreeViewer)
+   (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener TableViewer IStructuredContentProvider ITableLabelProvider ListViewer ICellModifier TextCellEditor ViewerSorter ColumnLabelProvider ColumnViewerToolTipSupport)
    java.net.URL
-   (org.eclipse.swt.custom CTabFolder CTabItem TableTreeItem)
+   (org.eclipse.swt.custom CTabFolder CTabItem)
    (org.eclipse.jface.layout TableColumnLayout)
    (org.eclipse.jface.dialogs TitleAreaDialog)
    (org.eclipse.jface.window Window)
@@ -134,7 +134,7 @@
   [parent]
   (let [table-group (new-widget {:keyname :table-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "Edit Workflow Job"})
         ;; job (atom (wflow/new-job-fn "Job Name" "Prog. Exec. Loc." "Prog. Args." "Prog. Opts."))
-        ttv (TableTreeViewer. table-group)
+        ttv (TreeViewer. table-group)
         ;; job (atom @gui-state/job-to-edit)
         job-fields (type-util/class-fields wfeditor.model.workflow.Job)
         job-to-edit-ref gui-state/job-to-edit
@@ -142,25 +142,25 @@
         column-headings ["Job field" "Value"]
         columns (doall
                  (for [ch column-headings]
-                   (new-widget {:keyname (keyword (str "col-" ch)) :widget-class TableColumn :parent (.. ttv getTableTree getTable) :styles [SWT/LEFT] :text ch})))
+                   (new-widget {:keyname (keyword (str "col-" ch)) :widget-class TreeColumn :parent (.. ttv getTree) :styles [SWT/LEFT] :text ch})))
 
         ;; TODO: refactor is-branch-fn and simple-zip-fn into a
         ;; separate ns
         is-branch-fn (every-pred map? (complement (partial instance? clojure.lang.IRecord)))
         simple-zip-fn (fn [simple-zip-tree] (zip/zipper is-branch-fn (comp seq second first) (fn [n cs] (let [map (if (seq n) n {n []}) k (first (first map)) vals (second (first map))] (assoc map k (concat vals (seq cs))))) simple-zip-tree))       
         
-        ttv-table-fn (fn [ttv] (.getTable (.getTableTree ttv)))
+        ttv-table-fn (fn [ttv] (.getTree ttv))
         refresh-table-gui-fn (fn [ttv]
                                (.refresh ttv)
                                (dorun
-                                (doseq [column (.. ttv getTableTree getTable getColumns)]
+                                (doseq [column (.. ttv getTree getColumns)]
                                   (.pack column)))
                                (dorun
-                                (doseq [column (.. ttv getTableTree getTable getColumns)]
-                                  (.showColumn (.. ttv getTableTree getTable) column)))
-                               (.showColumn (.. ttv getTableTree getTable) (first (.. ttv getTableTree getTable getColumns)))
-                               (.redraw (.. ttv getTableTree getTable))
-                               (.update (.. ttv getTableTree getTable)))
+                                (doseq [column (.. ttv getTree getColumns)]
+                                  (.showColumn (.. ttv getTree) column)))
+                               (.showColumn (.. ttv getTree) (first (.. ttv getTree getColumns)))
+                               (.redraw (.. ttv getTree))
+                               (.update (.. ttv getTree)))
         ;; content-provider (proxy [IStructuredContentProvider]
         ;;                      []
         ;;                    (getElements [input-data]
@@ -280,7 +280,7 @@
                               "key" element
                               "value" ui-const/NIL-VAL-STR-REP)))
                         (modify [element property value]
-                          (let [element (if (= TableTreeItem (class element))
+                          (let [element (if (= TreeItem (class element))
                                           (.getData element)
                                           element)
                                 key (nth element 0)
@@ -299,7 +299,7 @@
                                  (ref-set job-to-edit-ref @job-cache-ref)))
                               (.refresh ttv)))))
         cell-editors (for [col col-props]
-                       (TextCellEditor. (.. ttv getTableTree getTable)))
+                       (TextCellEditor. (.. ttv getTree)))
         view-sorter (proxy [ViewerSorter]
                         []
                       (compare [viewer e1 e2]
@@ -340,23 +340,20 @@
       )
     
     ;; configs to format table display and align cols properly
-    (doto (.. ttv getTableTree)
-      (.setLayoutData (GridData. GridData/FILL_BOTH))
-      (.setRedraw true)
-      
-      )
-    (doto (.. ttv getTableTree getTable)
+    (doto (.. ttv getTree)
       ;; (.setLayoutData (GridData. GridData/FILL_BOTH))
       (.setHeaderVisible true)
       (.setLinesVisible true)
+      (.setLayoutData (GridData. GridData/FILL_BOTH))
+      (.setRedraw true)
       ;; don't pack table - shrinks the right margin if not needed,
       ;; looks weird
       ;; (.pack)
       )
     (dorun
-     (map #(.showColumn (.. ttv getTableTree getTable) %) (.. ttv getTableTree getTable getColumns)))
+     (map #(.showColumn (.. ttv getTree) %) (.. ttv getTree getColumns)))
     (dorun
-     (map (memfn pack) (.. ttv getTableTree getTable getColumns)))
+     (map (memfn pack) (.. ttv getTree getColumns)))
     (dosync
      (ref-set job-to-edit-ref nil))
     (refresh-table-gui-fn ttv)
