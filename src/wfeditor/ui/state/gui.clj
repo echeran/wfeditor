@@ -192,7 +192,7 @@ Note: when using this address with gui-> and gui1->, the first element of the ad
 (def gui-map (ref {}))
 
 ;; the Job object that is edited in the table in the left nav pane
-(def job-to-edit (ref (wflow/new-job-fn "<Job Name>" "<Prog. Exec. Loc.>" "<Prog. Args.>" "<Prog. Opts.>")))
+(def job-to-edit (ref (wflow/new-job-fn "<Job Name>" "<Prog. Exec. Loc.>" ["<Prog. Args.>"] {"<Prog. Opts.>" nil})))
 
 (def job-editor-cache (ref @job-to-edit))
 

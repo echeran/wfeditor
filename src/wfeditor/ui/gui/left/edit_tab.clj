@@ -137,6 +137,8 @@
         ttv (TableTreeViewer. table-group)
         ;; job (atom @gui-state/job-to-edit)
         job-fields (type-util/class-fields wfeditor.model.workflow.Job)
+        job-to-edit-ref gui-state/job-to-edit
+        job-cache-ref gui-state/job-editor-cache
         column-headings ["Job field" "Value"]
         columns (doall
                  (for [ch column-headings]
@@ -159,19 +161,17 @@
                                (.showColumn (.. ttv getTableTree getTable) (first (.. ttv getTableTree getTable getColumns)))
                                (.redraw (.. ttv getTableTree getTable))
                                (.update (.. ttv getTableTree getTable)))
-        content-provider (proxy [IStructuredContentProvider]
-                             []
-                           (getElements [input-data]
-                             (to-array input-data))
-                           (inputChanged [viewer old-input new-input]
-                             (when-not new-input
-                               (.setInput viewer job-fields)
-                               (dosync
-                                (ref-set gui-state/job-to-edit-2 nil)))
-                             (refresh-table-gui-fn ttv))
-                           (dispose []))
-
-
+        ;; content-provider (proxy [IStructuredContentProvider]
+        ;;                      []
+        ;;                    (getElements [input-data]
+        ;;                      (to-array input-data))
+        ;;                    (inputChanged [viewer old-input new-input]
+        ;;                      (when-not new-input
+        ;;                        (.setInput viewer job-fields)
+        ;;                        (dosync
+        ;;                         (ref-set job-to-edit-ref nil)))
+        ;;                      (refresh-table-gui-fn ttv))
+        ;;                    (dispose []))
         zip-children-fn (fn [zc]
                           ;; need to return a coll of the locs of
                           ;; children nodes, not the children nodes themselves
@@ -198,6 +198,7 @@
                                     array-result))
                                 (getElements [job-vector]
                                   (let [job (first job-vector)
+                                        _ (println "getElements: job = " job)
                                         job-zip (fformat/zip-from-job job)
                                         elements (zip-children-fn job-zip)]
                                     (to-array elements)))
@@ -214,7 +215,13 @@
                                       :opt false
                                       has-chil)))
                                 (dispose [])
-                                (inputChanged [viewer old-input new-input]))        
+                                (inputChanged [viewer old-input new-input]
+                                  (when-not new-input
+                                    (let [empty-job (wflow/nil-job-fn)]
+                                      (.setInput viewer [empty-job])
+                                      (dosync
+                                       (ref-set job-to-edit-ref nil))))
+                                  (refresh-table-gui-fn ttv)))        
         label-provider (proxy [ITableLabelProvider]
                            []
                          (addListener [listener])
@@ -227,7 +234,9 @@
                                  (if (or (not (vector? element)) (not (and (vector? element) (map? (first element)))))
                                    (condp = column-index
                                      0 (ui-const/JOB-FIELD-FULL-NAMES (keyword element))
-                                     1 ui-const/NIL-VAL-STR-REP)
+                                     1 (do
+                                         (println "getColumnText: nil val in col 1 for element = " element)
+                                         ui-const/NIL-VAL-STR-REP))
                                    (condp = column-index
                                      0 (condp = elem-tag
                                          :arg (let [idx (count (zip/lefts element))]
@@ -235,13 +244,16 @@
                                          :opt (let [flag (zfx/xml1-> element :flag zfx/text)]
                                                 flag)
                                          (str (get ui-const/JOB-FIELD-FULL-NAMES elem-tag)))
-                                     1 (condp = elem-tag
-                                         :arg (-> element zfx/text)
-                                         :opt (let [val (fformat/nil-pun-empty-str (zfx/xml1-> element :val zfx/text))]
-                                                (or val ui-const/NIL-VAL-STR-REP))
-                                         (if-let [val (and (not (has-children-fn element)) (get @gui-state/job-editor-cache-2 elem-tag))]
-                                           (str val)
-                                           ui-const/NIL-VAL-STR-REP))
+                                     1 (do
+                                         (when (#{:arg :opt} elem-tag)
+                                           (println "getColumnText: normal text for col 1, element = " element))
+                                         (condp = elem-tag
+                                           :arg (-> element zfx/text)
+                                           :opt (let [val (fformat/nil-pun-empty-str (zfx/xml1-> element :val zfx/text))]
+                                                  (or val ui-const/NIL-VAL-STR-REP))
+                                           (if-let [val (and (not (has-children-fn element)) (get @job-cache-ref elem-tag))]
+                                             (str val)
+                                             ui-const/NIL-VAL-STR-REP)))
                                      ui-const/NIL-VAL-STR-REP))]
                              result))
                          (isLabelProperty [element property]
@@ -251,9 +263,9 @@
         cell-modifier (proxy [ICellModifier]
                           []
                         (canModify [element property]
-                          (if (or (nil? @gui-state/job-editor-cache-2)
+                          (if (or (nil? @job-cache-ref)
                                   (string? element)
-                                  (and (= Job (class @gui-state/job-editor-cache-2)) (:id @gui-state/job-editor-cache-2)))
+                                  (and (= Job (class @job-cache-ref)) (:id @job-cache-ref)))
                             false
                             (let [key (nth element 0)]
                               (if (and (= "value" property) (not (#{:id :task-statuses :prog-args :prog-opts :array} key)))
@@ -263,7 +275,7 @@
                           (if (not (string? element))
                             (condp = property
                               "key" (name (nth element 0))
-                              "value" (or (get @gui-state/job-editor-cache-2 (nth element 0)) ui-const/NIL-VAL-STR-REP))
+                              "value" (or (get @job-cache-ref (nth element 0)) ui-const/NIL-VAL-STR-REP))
                             (condp = property
                               "key" element
                               "value" ui-const/NIL-VAL-STR-REP)))
@@ -279,12 +291,12 @@
                               (let [alter-assoc-fn (fn [j k v] (when j (assoc j k v)))]
                                 (dosync
                                  (alter gui-state/job-editor-cache alter-assoc-fn key val)
-                                 (let [old-job @gui-state/job-to-edit-2
-                                       new-job @gui-state/job-editor-cache-2
+                                 (let [old-job @job-to-edit-ref
+                                       new-job @job-cache-ref
                                        wf (wflow/workflow)
                                        new-wf (wflow/replace-job wf old-job new-job)]
                                    (wflow/set-workflow new-wf))
-                                 (ref-set gui-state/job-to-edit-2 @gui-state/job-editor-cache-2)))
+                                 (ref-set job-to-edit-ref @job-cache-ref)))
                               (.refresh ttv)))))
         cell-editors (for [col col-props]
                        (TextCellEditor. (.. ttv getTableTree getTable)))
@@ -309,10 +321,10 @@
 
 
     ;; add-watch
-    (add-watch gui-state/job-to-edit :re-bind (fn [key r old new]
-                                                (when-not (= @gui-state/job-editor-cache-2 new)
+    (add-watch job-to-edit-ref :re-bind (fn [key r old new]
+                                                (when-not (= @job-cache-ref new)
                                                   (dosync
-                                                   (ref-set gui-state/job-editor-cache-2 new)))
+                                                   (ref-set job-cache-ref new)))
                                                 (refresh-table-gui-fn ttv)))
     ;; basic display config
     (doto table-group
@@ -320,7 +332,7 @@
     (doto ttv
       (.setContentProvider tree-content-provider)
       (.setLabelProvider label-provider)
-      (.setInput [@gui-state/job-to-edit-2])
+      (.setInput [@job-to-edit-ref])
 
       ;; TODO: uncomment, get to work with TableTreeViewer
       ;; (.setSorter view-sorter)
@@ -328,11 +340,15 @@
       )
     
     ;; configs to format table display and align cols properly
-    (doto (.. ttv getTableTree getTable)
+    (doto (.. ttv getTableTree)
       (.setLayoutData (GridData. GridData/FILL_BOTH))
+      (.setRedraw true)
+      
+      )
+    (doto (.. ttv getTableTree getTable)
+      ;; (.setLayoutData (GridData. GridData/FILL_BOTH))
       (.setHeaderVisible true)
       (.setLinesVisible true)
-      (.setRedraw true)
       ;; don't pack table - shrinks the right margin if not needed,
       ;; looks weird
       ;; (.pack)
@@ -342,7 +358,7 @@
     (dorun
      (map (memfn pack) (.. ttv getTableTree getTable getColumns)))
     (dosync
-     (ref-set gui-state/job-to-edit-2 nil))
+     (ref-set job-to-edit-ref nil))
     (refresh-table-gui-fn ttv)
     ;; configs for control editors
     (doto ttv
@@ -365,7 +381,7 @@
   (let [table-group (new-widget {:keyname :table-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "Edit Workflow Job"})
         ;; job (atom (wflow/new-job-fn "Job Name" "Prog. Exec. Loc." "Prog. Args." "Prog. Opts."))
         ttv (TableViewer. table-group)
-        ;; job (atom @gui-state/job-to-edit)
+        ;; job (atom @job-to-edit-ref)
         job-fields (type-util/class-fields wfeditor.model.workflow.Job)
         column-headings ["Job field" "Value"]
         columns (doall
