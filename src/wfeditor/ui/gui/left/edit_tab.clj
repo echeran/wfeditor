@@ -196,11 +196,11 @@
                                   (let [result (zip-children-fn zc)
                                         array-result (to-array result)]
                                     array-result))
-                                (getElements [job-vector]
-                                  (let [job (first job-vector)
-                                        _ (println "getElements: job = " job)
-                                        job-zip (fformat/zip-from-job job)
-                                        elements (zip-children-fn job-zip)]
+                                (getElements [zipper-vector]
+                                  (println "______")
+                                  (println "ContentProvider - getElements, input job = " (zip/root (first zipper-vector)))
+                                  (let [z (first zipper-vector)
+                                        elements (zip-children-fn z)]
                                     (to-array elements)))
                                 (getParent [zc]
                                   (let [parent-zip (zip/up zc)
@@ -216,11 +216,25 @@
                                       has-chil)))
                                 (dispose [])
                                 (inputChanged [viewer old-input new-input]
-                                  (when-not new-input
-                                    (let [empty-job (wflow/nil-job-fn)]
-                                      (.setInput viewer [empty-job])
+                                  (println "_____")
+                                  (println "ContentProvider - inputChanged, new-input = " new-input)
+                                  (println "^^^^^")
+                                  (if-not new-input
+                                    (let [empty-job (wflow/nil-job-fn)
+                                          empty-job-zip (fformat/zip-from-job empty-job)]
+                                      (println "  _____")
+                                      (println "  new-input is nil, setting vector zip of nil Job as input")
+                                      (.setInput viewer [empty-job-zip])
                                       (dosync
-                                       (ref-set job-to-edit-ref nil))))
+                                       (ref-set job-to-edit-ref nil)))
+                                    (do
+                                      ;; (let [new-job-zip (fformat/zip-from-job new-input)]
+                                      ;;     (.setInput viewer [new-job-zip]))
+                                      (println "new-input not nil, new-input = " new-input)
+                                      (println "class new-input = " (class new-input))
+                                      (when (vector? new-input)
+                                        (println "class first new-input = " (class (first new-input))))
+                                      ))
                                   (refresh-table-gui-fn ttv)))        
         label-provider (proxy [ITableLabelProvider]
                            []
@@ -231,11 +245,11 @@
                          (getColumnText [element column-index]
                            (let [elem-tag (zip-elem-tag-fn element)
                                  result
-                                 (if (or (not (vector? element)) (not (and (vector? element) (map? (first element)))))
+                                 (if-not (and (vector? element) (map? (first element)))
                                    (condp = column-index
                                      0 (ui-const/JOB-FIELD-FULL-NAMES (keyword element))
                                      1 (do
-                                         (println "getColumnText: nil val in col 1 for element = " element)
+                                         (println "getColumnText: nil val in col 1 for element (zip)'s node = " (zip/node element))
                                          ui-const/NIL-VAL-STR-REP))
                                    (condp = column-index
                                      0 (condp = elem-tag
@@ -246,7 +260,9 @@
                                          (str (get ui-const/JOB-FIELD-FULL-NAMES elem-tag)))
                                      1 (do
                                          (when (#{:arg :opt} elem-tag)
-                                           (println "getColumnText: normal text for col 1, element = " element))
+                                           (println "getColumnText: normal text for col 1, element(zip)'s node = " (zip/node element)))
+                                         (when (#{:prog-args :prog-opts} elem-tag)
+                                           (println "getColumnText: normal text for col 1, elem-tag = " elem-tag ", val = " (get @job-cache-ref elem-tag)))
                                          (condp = elem-tag
                                            :arg (-> element zfx/text)
                                            :opt (let [val (fformat/nil-pun-empty-str (zfx/xml1-> element :val zfx/text))]
@@ -255,6 +271,8 @@
                                              (str val)
                                              ui-const/NIL-VAL-STR-REP)))
                                      ui-const/NIL-VAL-STR-REP))]
+                             (when (and (#{:arg :opt :prog-args :prog-opts} elem-tag) (= 1 column-index))
+                               (println "LabelProvider, elem-tag= " elem-tag ", col=" column-index ", label=" result))
                              result))
                          (isLabelProperty [element property]
                            false)
@@ -290,7 +308,7 @@
                             (when-not (#{:id} key)
                               (let [alter-assoc-fn (fn [j k v] (when j (assoc j k v)))]
                                 (dosync
-                                 (alter gui-state/job-editor-cache alter-assoc-fn key val)
+                                 (alter job-cache-ref alter-assoc-fn key val)
                                  (let [old-job @job-to-edit-ref
                                        new-job @job-cache-ref
                                        wf (wflow/workflow)
@@ -322,17 +340,41 @@
 
     ;; add-watch
     (add-watch job-to-edit-ref :re-bind (fn [key r old new]
-                                                (when-not (= @job-cache-ref new)
-                                                  (dosync
-                                                   (ref-set job-cache-ref new)))
-                                                (refresh-table-gui-fn ttv)))
+                                          (println "_____")
+                                          (println "old job to edit = " old)
+                                          (println "new job to edit = " new)
+                                          
+                                          (when-not (= @job-cache-ref new)
+                                            (dosync
+                                             (ref-set job-cache-ref new))
+
+                                            ;; TODO: remove this
+                                            ;; when-not S-exp if
+                                            ;; necessary once
+                                            ;; cell-editors are added
+                                            ;; back in
+                                            
+                                            (if-not new
+                                              (let [empty-job (wflow/nil-job-fn)
+                                                    empty-job-zip (fformat/zip-from-job empty-job)]
+                                                (println "________")
+                                                (println "about to set TreeViewer input as vector of zip of nil-job")
+                                                (.setInput ttv [empty-job-zip]))
+                                              (let [new-job-zip (fformat/zip-from-job new)]
+                                                (println "________")
+                                                (println "about to set TreeViewer input as non-nil job")
+                                                (.setInput ttv [new-job-zip])))
+
+
+                                            )
+                                          (refresh-table-gui-fn ttv)))
     ;; basic display config
     (doto table-group
       (.setLayout (GridLayout. 1 false)))
     (doto ttv
       (.setContentProvider tree-content-provider)
       (.setLabelProvider label-provider)
-      (.setInput [@job-to-edit-ref])
+      (.setInput [(fformat/zip-from-job @job-to-edit-ref)])
 
       ;; TODO: uncomment, get to work with TableTreeViewer
       ;; (.setSorter view-sorter)
