@@ -235,7 +235,36 @@
                                       (when (vector? new-input)
                                         (println "class first new-input = " (class (first new-input))))
                                       ))
-                                  (refresh-table-gui-fn ttv)))        
+                                  (refresh-table-gui-fn ttv)))
+        arg-key-fn (fn [element]
+                     (let [idx (count (zip/lefts element))]
+                       (str (ui-const/JOB-FIELD-FULL-NAMES :arg) " " (inc idx))))
+        arg-val-fn (fn [element]
+                     (-> element zfx/text))
+        opt-key-fn (fn [element]
+                     (let [flag (zfx/xml1-> element :flag zfx/text)]
+                       flag))
+        opt-val-fn (fn [element]
+                     (let [val (fformat/nil-pun-empty-str (zfx/xml1-> element :val zfx/text))]
+                       (or val ui-const/NIL-VAL-STR-REP)))
+        elem-key-fn (fn [element]
+                      (let [elem-tag (zip-elem-tag-fn element)]
+                        (condp = elem-tag
+                          :arg (arg-key-fn element)
+                          :opt (opt-key-fn element)
+                          (str (get ui-const/JOB-FIELD-FULL-NAMES elem-tag)))))
+        elem-val-fn (fn [element]
+                      (let [elem-tag (zip-elem-tag-fn element)]
+                        (condp = elem-tag
+                          :arg (arg-val-fn element)
+                          :opt (opt-val-fn element)
+                          (if-let [val (and (not (has-children-fn element)) (get @job-cache-ref elem-tag))]
+                            (str val)
+                            ui-const/NIL-VAL-STR-REP))))
+        is-zipper-fn (fn [element]
+                       ;; this fn gives an crude approximation for
+                       ;; testing if a datum is a zipper or not
+                       (and (vector? element) (map? (first element))))
         label-provider (proxy [ITableLabelProvider]
                            []
                          (addListener [listener])
@@ -245,31 +274,20 @@
                          (getColumnText [element column-index]
                            (let [elem-tag (zip-elem-tag-fn element)
                                  result
-                                 (if-not (and (vector? element) (map? (first element)))
+                                 (if-not (is-zipper-fn element)
                                    (condp = column-index
                                      0 (ui-const/JOB-FIELD-FULL-NAMES (keyword element))
                                      1 (do
                                          (println "getColumnText: nil val in col 1 for element (zip)'s node = " (zip/node element))
                                          ui-const/NIL-VAL-STR-REP))
                                    (condp = column-index
-                                     0 (condp = elem-tag
-                                         :arg (let [idx (count (zip/lefts element))]
-                                                (str (ui-const/JOB-FIELD-FULL-NAMES :arg) " " (inc idx)))
-                                         :opt (let [flag (zfx/xml1-> element :flag zfx/text)]
-                                                flag)
-                                         (str (get ui-const/JOB-FIELD-FULL-NAMES elem-tag)))
+                                     0 (elem-key-fn element)
                                      1 (do
                                          (when (#{:arg :opt} elem-tag)
                                            (println "getColumnText: normal text for col 1, element(zip)'s node = " (zip/node element)))
                                          (when (#{:prog-args :prog-opts} elem-tag)
                                            (println "getColumnText: normal text for col 1, elem-tag = " elem-tag ", val = " (get @job-cache-ref elem-tag)))
-                                         (condp = elem-tag
-                                           :arg (-> element zfx/text)
-                                           :opt (let [val (fformat/nil-pun-empty-str (zfx/xml1-> element :val zfx/text))]
-                                                  (or val ui-const/NIL-VAL-STR-REP))
-                                           (if-let [val (and (not (has-children-fn element)) (get @job-cache-ref elem-tag))]
-                                             (str val)
-                                             ui-const/NIL-VAL-STR-REP)))
+                                         (elem-val-fn element))
                                      ui-const/NIL-VAL-STR-REP))]
                              (when (and (#{:arg :opt :prog-args :prog-opts} elem-tag) (= 1 column-index))
                                (println "LabelProvider, elem-tag= " elem-tag ", col=" column-index ", label=" result))
@@ -285,15 +303,17 @@
                                   (string? element)
                                   (and (= Job (class @job-cache-ref)) (:id @job-cache-ref)))
                             false
-                            (let [key (nth element 0)]
-                              (if (and (= "value" property) (not (#{:id :task-statuses :prog-args :prog-opts :array} key)))
-                                true
-                                false))))
+                            (let [key (nth element 0)
+                                  elem-tag (zip-elem-tag-fn element)]
+                              (cond
+                               (and (= "key" property) (#{:opt} elem-tag)) true
+                               (and (= "value" property) (not (#{:id :task-statuses :prog-args :prog-opts :array} key))) true
+                               :else false))))
                         (getValue [element property]
-                          (if (not (string? element))
+                          (if (is-zipper-fn element)
                             (condp = property
-                              "key" (name (nth element 0))
-                              "value" (or (get @job-cache-ref (nth element 0)) ui-const/NIL-VAL-STR-REP))
+                              "key" (zip-elem-tag-fn element)
+                              "value" (elem-val-fn element))
                             (condp = property
                               "key" element
                               "value" ui-const/NIL-VAL-STR-REP)))
@@ -301,14 +321,25 @@
                           (let [element (if (= TreeItem (class element))
                                           (.getData element)
                                           element)
-                                key (nth element 0)
+                                key (zip-elem-tag-fn element)
                                 val (if (= value ui-const/NIL-VAL-STR-REP)
                                       nil
                                       value)]
                             (when-not (#{:id} key)
-                              (let [alter-assoc-fn (fn [j k v] (when j (assoc j k v)))]
+                              (let [alter-assoc-fn (fn [j k v] (when j (assoc j k v)))
+                                    idx (count (zip/lefts element))
+                                    new-elem-fn (condp = key
+                                                  :arg (condp = property
+                                                         "value" (fn [elem] (zip/up (zip/edit (-> elem zip/down zip/right zip/down) assoc 0 val))))
+                                                  :opt (condp = property
+                                                         "key" (fn [elem] (zip/up (zip/edit (-> elem zip/down zip/down) assoc 0 val)))
+                                                         "value" (fn [elem] (zip/up (zip/edit (-> elem zip/down zip/right zip/down) assoc 0 val))))
+                                                  (fn [elem] (zip/up (zip/edit (-> elem zip/down) assoc 0 val))))
+                                    new-elem (new-elem-fn element)
+                                    job-from-any-zip-fn (fformat/job-from-zip (fformat/zip-from-job (zip/root new-elem)))
+                                    new-job (job-from-any-zip-fn new-elem)]
                                 (dosync
-                                 (alter job-cache-ref alter-assoc-fn key val)
+                                 (ref-set job-cache-ref new-job)
                                  (let [old-job @job-to-edit-ref
                                        new-job @job-cache-ref
                                        wf (wflow/workflow)
@@ -405,9 +436,9 @@
       ;; than to-array
       (.setColumnProperties (into-array col-props))
 
-      ;; TODO: uncomment, get to work with TableTreeViewer
-      ;; (.setCellModifier cell-modifier)
-      ;; (.setCellEditors (into-array cell-editors))
+      ;; TODO: get to work with TableTreeViewer
+      (.setCellModifier cell-modifier)
+      (.setCellEditors (into-array cell-editors))
 
       
       )

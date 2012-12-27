@@ -215,7 +215,7 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
                   parsed-val (if (#{:start :end :step} key) (Integer/parseInt val) val)]
               [key parsed-val])))))
 
-(defn- job-from-zip
+(defn job-from-zip
   "return a new Job instance when given a XML zipper that is currently at a job node"
   [z]
   (let [fields (format-hierarchy :job)
