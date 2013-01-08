@@ -197,8 +197,8 @@
                                         array-result (to-array result)]
                                     array-result))
                                 (getElements [zipper-vector]
-                                  (println "______")
-                                  (println "ContentProvider - getElements, input job = " (zip/root (first zipper-vector)))
+                                  ;; (println "______")
+                                  ;; (println "ContentProvider - getElements, input job = " (zip/root (first zipper-vector)))
                                   (let [z (first zipper-vector)
                                         elements (zip-children-fn z)]
                                     (to-array elements)))
@@ -216,22 +216,24 @@
                                       has-chil)))
                                 (dispose [])
                                 (inputChanged [viewer old-input new-input]
-                                  (println "_____")
-                                  (println "ContentProvider - inputChanged, new-input = " new-input)
-                                  (println "^^^^^")
+                                  ;; (println "_____")
+                                  ;; (println "ContentProvider - inputChanged, new-input = " new-input)
+                                  ;; (println "^^^^^")
                                   (if-not new-input
                                     (let [empty-job (wflow/nil-job-fn)
                                           empty-job-zip (fformat/zip-from-job empty-job)]
-                                      (println "  _____")
-                                      (println "  new-input is nil, setting vector zip of nil Job as input")
+                                      ;; (println "  _____")
+                                      ;; (println "  new-input is nil, setting vector zip of nil Job as input")
                                       (.setInput viewer [empty-job-zip])
                                       (dosync
                                        (ref-set job-to-edit-ref nil)))
                                     (do
-                                      ;; (let [new-job-zip (fformat/zip-from-job new-input)]
-                                      ;;     (.setInput viewer [new-job-zip]))
-                                      (println "new-input not nil, new-input = " new-input)
-                                      (println "class new-input = " (class new-input))
+                                      (let [;; new-job-zip (fformat/zip-from-job new-input)
+                                            new-job-zip (first new-input)]
+                                          ;; (.setInput viewer [new-job-zip])
+                                          )
+                                      ;; (println "new-input not nil, new-input = " new-input)
+                                      ;; (println "class new-input = " (class new-input))
                                       (when (vector? new-input)
                                         (println "class first new-input = " (class (first new-input))))
                                       ))
@@ -283,14 +285,15 @@
                                    (condp = column-index
                                      0 (elem-key-fn element)
                                      1 (do
-                                         (when (#{:arg :opt} elem-tag)
-                                           (println "getColumnText: normal text for col 1, element(zip)'s node = " (zip/node element)))
-                                         (when (#{:prog-args :prog-opts} elem-tag)
-                                           (println "getColumnText: normal text for col 1, elem-tag = " elem-tag ", val = " (get @job-cache-ref elem-tag)))
+                                         ;; (when (#{:arg :opt} elem-tag)
+                                         ;;   (println "getColumnText: normal text for col 1, element(zip)'s node = " (zip/node element)))
+                                         ;; (when (#{:prog-args :prog-opts} elem-tag)
+                                         ;;   (println "getColumnText: normal text for col 1, elem-tag = " elem-tag ", val = " (get @job-cache-ref elem-tag)))
                                          (elem-val-fn element))
                                      ui-const/NIL-VAL-STR-REP))]
                              (when (and (#{:arg :opt :prog-args :prog-opts} elem-tag) (= 1 column-index))
-                               (println "LabelProvider, elem-tag= " elem-tag ", col=" column-index ", label=" result))
+                               ;; (println "LabelProvider, elem-tag= " elem-tag ", col=" column-index ", label=" result)
+                               )
                              result))
                          (isLabelProperty [element property]
                            false)
@@ -299,32 +302,48 @@
         cell-modifier (proxy [ICellModifier]
                           []
                         (canModify [element property]
-                          (if (or (nil? @job-cache-ref)
-                                  (string? element)
-                                  (and (= Job (class @job-cache-ref)) (:id @job-cache-ref)))
-                            false
-                            (let [key (nth element 0)
-                                  elem-tag (zip-elem-tag-fn element)]
-                              (cond
-                               (and (= "key" property) (#{:opt} elem-tag)) true
-                               (and (= "value" property) (not (#{:id :task-statuses :prog-args :prog-opts :array} key))) true
-                               :else false))))
+                          (do
+                            (println "CellEditor : canModify , elemet = " (zip-elem-tag-fn element , "property = " property))
+                            (if (or (nil? @job-cache-ref)
+                                    (string? element)
+                                    (and (= Job (class @job-cache-ref)) (:id @job-cache-ref)))
+                              false
+                              (let [key (nth element 0)
+                                    elem-tag (zip-elem-tag-fn element)]
+                                (cond
+                                 (and (= "key" property) (#{:opt} elem-tag)) true
+                                 (and (= "value" property) (not (#{:id :task-statuses :prog-args :prog-opts :array} key))) true
+                                 :else false)))
+                            (let [elem-tag (zip-elem-tag-fn element)]
+                              (= elem-tag :name))
+                            )
+                          false
+                          )
                         (getValue [element property]
-                          (if (is-zipper-fn element)
-                            (condp = property
-                              "key" (zip-elem-tag-fn element)
-                              "value" (elem-val-fn element))
-                            (condp = property
-                              "key" element
-                              "value" ui-const/NIL-VAL-STR-REP)))
+                          (println "getValue - begin")
+                          (let [result
+                                (if (is-zipper-fn element)
+                                  (condp = property
+                                    "key" (zip-elem-tag-fn element)
+                                    "value" (elem-val-fn element))
+                                  (condp = property
+                                    "key" element
+                                    "value" ui-const/NIL-VAL-STR-REP))]
+                            (println "getValue, elem-tag = " (zip-elem-tag-fn element) ", property = " property " , result = " result)
+                            result))
                         (modify [element property value]
+                          (println "CellEditor : modify")
                           (let [element (if (= TreeItem (class element))
                                           (.getData element)
                                           element)
                                 key (zip-elem-tag-fn element)
                                 val (if (= value ui-const/NIL-VAL-STR-REP)
                                       nil
-                                      value)]
+                                      value)
+                                _ (println "___________")
+                                _ (println "CellEditor : modify")
+                                _ (println "key = " key)
+                                _ (println "val = " val)]
                             (when-not (#{:id} key)
                               (let [alter-assoc-fn (fn [j k v] (when j (assoc j k v)))
                                     idx (count (zip/lefts element))
@@ -346,7 +365,8 @@
                                        new-wf (wflow/replace-job wf old-job new-job)]
                                    (wflow/set-workflow new-wf))
                                  (ref-set job-to-edit-ref @job-cache-ref)))
-                              (.refresh ttv)))))
+                              ;; (.refresh ttv)
+                              ))))
         cell-editors (for [col col-props]
                        (TextCellEditor. (.. ttv getTree)))
         view-sorter (proxy [ViewerSorter]
@@ -436,9 +456,13 @@
       ;; than to-array
       (.setColumnProperties (into-array col-props))
 
-      ;; TODO: get to work with TableTreeViewer
-      (.setCellModifier cell-modifier)
-      (.setCellEditors (into-array cell-editors))
+      ;; TODO: uncomment, get to work with TableTreeViewer
+      ;; TODO: rework CellEditor code to use the SWT example snippet
+      ;; code that uses TreeViewerEditor and ColumnEditors:
+      ;; http://wiki.eclipse.org/JFaceSnippets
+      ;; http://git.eclipse.org/c/platform/eclipse.platform.ui.git/tree/examples/org.eclipse.jface.snippets/Eclipse%20JFace%20Snippets/org/eclipse/jface/snippets/viewers/Snippet026TreeViewerTabEditing.java
+      ;; (.setCellModifier cell-modifier)
+      ;; (.setCellEditors (into-array cell-editors))
 
       
       )
