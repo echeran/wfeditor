@@ -213,6 +213,7 @@
                                         elem-tag (zip-elem-tag-fn zc)]
                                     (condp = elem-tag
                                       :opt false
+                                      :task-statuses false
                                       has-chil)))
                                 (dispose [])
                                 (inputChanged [viewer old-input new-input]
@@ -260,6 +261,9 @@
                         (condp = elem-tag
                           :arg (arg-val-fn element)
                           :opt (opt-val-fn element)
+                          :task-statuses (let [statuses-map (fformat/task-statuses-from-zip element)
+                                               _ (println "parsed task statuses = " statuses-map)]
+                                           statuses-map)                          
                           (if-let [val (and (not (has-children-fn element)) (get @job-cache-ref elem-tag))]
                             (str val)
                             ui-const/NIL-VAL-STR-REP))))
