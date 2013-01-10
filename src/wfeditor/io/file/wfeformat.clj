@@ -166,22 +166,25 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
      (let [last-fn (comp last list)]
        (map-from-zip z tag last-fn identity)))
   ([z tag merge-fn val-func]
-     (let [keyval-tag (format-hierarchy tag)
-           keyval-zip-seq (zfx/xml-> z tag keyval-tag)
-           [key-tag val-tag] (format-hierarchy keyval-tag)
-           
-           _ (println "keyval-tag = " keyval-tag)
-           _ (println "key-tag = " key-tag)
-           _ (println "val-tag = " val-tag)
-           _ (println "map zip's node = " (zip/node z))
-           _ (println "# of keyvals = " (count keyval-zip-seq))]
-       (apply merge-with merge-fn
-              (for [keyval keyval-zip-seq]
-                (let [key (first (zfx/xml-> keyval key-tag zfx/text))
-                      val (nil-pun-empty-str (first (zfx/xml-> keyval val-tag zfx/text)))
-                      _ (println "key = " key)
-                      _ (println "val = " val)]
-                  {key (val-func val)}))))))
+     (when z
+       (let [keyval-tag (format-hierarchy tag)
+             _ (println "tag = " tag)
+             _ (println "keyval-tag = " keyval-tag)
+             _ (println "map zip's node = " (if z (zip/node z) "zip is nil"))
+             _ (println "tag of map zip's node = " (if z (:tag (zip/node z)) "zip is nil"))
+             keyval-zip-seq (zfx/xml-> z keyval-tag)
+             [key-tag val-tag] (format-hierarchy keyval-tag)
+             
+             _ (println "key-tag = " key-tag)
+             _ (println "val-tag = " val-tag)
+             _ (println "# of keyvals = " (count keyval-zip-seq))]
+         (apply merge-with merge-fn
+                (for [keyval keyval-zip-seq]
+                  (let [key (first (zfx/xml-> keyval key-tag zfx/text))
+                        val (nil-pun-empty-str (first (zfx/xml-> keyval val-tag zfx/text)))
+                        _ (println "key = " key)
+                        _ (println "val = " val)]
+                    {key (val-func val)})))))))
 
 (defn- map-of-coll-vals-from-zip
   "similar to map-from-zip, but the vals of the map are collections.  this made for data strucutres like program options, where one option flag might occur with multiple values."
@@ -258,13 +261,13 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
                                    (condp = field
                                      :id (when-let [id-str (scalar-from-zip z field)] (Integer/parseInt id-str))
                                      :prog-args (vector-from-zip z field)
-                                     :prog-opts (map-of-coll-vals-from-zip z field)
+                                     :prog-opts (map-of-coll-vals-from-zip (zfx/xml1-> z field) field)
                                      ;; TODO: generalize parsing of
                                      ;; task-statuses (and even the
                                      ;; scalar-from-zip that other
                                      ;; fn's call) by storing type of
                                      ;; each element of format hierarchy
-                                     :task-statuses (task-statuses-from-zip z field)
+                                     :task-statuses (task-statuses-from-zip (zfx/xml1-> z field) field)
                                      :array (job-array-from-zip z)
                                      (scalar-from-zip z field)))]
                            (for [f fields :when (not (#{:deps} f))]
