@@ -27,7 +27,7 @@
 ;; int: id
 ;; vector: prog-args
 ;; map: prog-opts (string->vector of strings), task-statuses
-;; (int->keyword), array (the keys and vals are not explicity named in
+;; (int->keyword), array (keys include: start, end, step, index-var; the keys and vals are not explicity named in
 ;; the XML format as with the other fields of Job)
 (defrecord Job [name prog-exec-loc prog-args prog-opts id task-statuses prog-name desc std-out-file std-err-file array prog-ver prog-exec-ver])
 
@@ -85,7 +85,7 @@ id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file deps"
 (defn nil-job-fn
   "creates a job with nil'ed required fields"
   []
-  (new-job-fn nil nil nil nil))
+  (new-job-fn nil nil nil nil :array {:start nil :end nil :step nil :index-var nil}))
 
 ;;
 ;; workflow utility functions

@@ -15,6 +15,6 @@
 
 (def NIL-VAL-STR-REP "")
 
-(def JOB-FIELD-FULL-NAMES {:id "Job ID" :name "Job Name" :desc "Program Description" :prog-name "Program Name" :prog-ver "Program Version" :prog-exec-loc "Executable Location" :prog-exec-ver "Executable Version" :prog-args "Arguments" :prog-opts "Options" :std-out-file "Std. Out. File" :std-err-file "Std. Err. File" :task-statuses "Job/Task Status(es)" :array "Array Task IDs" :arg "Arg." :opt "Opt."})
+(def JOB-FIELD-FULL-NAMES {:id "Job ID" :name "Job Name" :desc "Program Description" :prog-name "Program Name" :prog-ver "Program Version" :prog-exec-loc "Executable Location" :prog-exec-ver "Executable Version" :prog-args "Arguments" :prog-opts "Options" :std-out-file "Std. Out. File" :std-err-file "Std. Err. File" :task-statuses "Job/Task Status(es)" :array "Array Task IDs" :arg "Arg." :opt "Opt." :start "Start Task ID" :end "End Task ID" :step "Task ID Step Size" :index-var "Task ID Variable"})
 
 (def PREDEFINED-WF-FIELD-FULL-NAMES {:name "WF Name" :url "URL" :version "WF Version" :desc "Description" :citation "Publication" :institution "Institution" :author "Author" :contact "Contact" :website "Website"})

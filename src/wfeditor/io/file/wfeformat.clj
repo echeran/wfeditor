@@ -75,12 +75,21 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
 (defn- job-array-xml-tree
   "return the xml subtree for the array map (that is, a map under the field named 'array' in the Job object that represents a job array)"
   [array-map & [{:keys [prune-empty] :or {prune-empty true}}]]
-  (when (seq (remove remove-fn (vals array-map)))
-    (let [array-keys (:array format-hierarchy)]
-      {:tag :array :attrs nil :content
-       (into [] (remove nil? (for [k array-keys]
-                               (let [val (get array-map k)]
-                                 (xml-subtree k val {:prune-empty prune-empty})))))})))
+  (when (or (not prune-empty) (seq (remove remove-fn (vals array-map))))
+    (let [array-keys (:array format-hierarchy)
+          result
+          {:tag :array :attrs nil :content
+           (into [] (remove nil? (for [k array-keys]
+                                   (let [val (get array-map k)]
+                                     (xml-subtree k val {:prune-empty prune-empty})))))}]
+
+      (println "___***")
+      (println "xml-tree of array field of Job  = " result)
+      (println "^^^***")
+      
+      result
+
+      )))
 
 (defn- job-xml-tree
   "implementation of defmethod for xml-tree multimethod for the Job record class"

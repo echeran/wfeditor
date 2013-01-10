@@ -250,6 +250,9 @@
         opt-val-fn (fn [element]
                      (let [val (fformat/nil-pun-empty-str (zfx/xml1-> element :val zfx/text))]
                        (or val ui-const/NIL-VAL-STR-REP)))
+        array-map-val-fn (fn [element elem-tag]
+                           (when-let [array-map (get @job-cache-ref :array)]
+                             (str (get array-map elem-tag))))
         elem-key-fn (fn [element]
                       (let [elem-tag (zip-elem-tag-fn element)]
                         (condp = elem-tag
@@ -263,6 +266,10 @@
                           :opt (opt-val-fn element)
                           :task-statuses (let [statuses-map (fformat/task-statuses-from-zip element)]
                                            (task-status/status-field statuses-map))
+                          :start (array-map-val-fn element elem-tag)
+                          :end (array-map-val-fn element elem-tag)
+                          :step (array-map-val-fn element elem-tag)
+                          :index-var (array-map-val-fn element elem-tag)
                           (if-let [val (and (not (has-children-fn element)) (get @job-cache-ref elem-tag))]
                             (str val)
                             ui-const/NIL-VAL-STR-REP))))
@@ -413,6 +420,10 @@
                                                     empty-job-zip (fformat/zip-from-job empty-job)]
                                                 (println "________")
                                                 (println "about to set TreeViewer input as vector of zip of nil-job")
+                                                (println "   ______")
+                                                (println " empty-job = " empty-job)
+                                                (println "empty-job-zip = " empty-job-zip)
+                                                (println "   ^^^^^^")
                                                 (.setInput ttv [empty-job-zip]))
                                               (let [new-job-zip (fformat/zip-from-job new)]
                                                 (println "________")
