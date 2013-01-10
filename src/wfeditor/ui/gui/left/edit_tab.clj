@@ -261,8 +261,7 @@
                         (condp = elem-tag
                           :arg (arg-val-fn element)
                           :opt (opt-val-fn element)
-                          :task-statuses (let [statuses-map (fformat/task-statuses-from-zip element)
-                                               _ (println "parsed task statuses = " statuses-map)]
+                          :task-statuses (let [statuses-map (fformat/task-statuses-from-zip element)]
                                            (str statuses-map))                          
                           (if-let [val (and (not (has-children-fn element)) (get @job-cache-ref elem-tag))]
                             (str val)

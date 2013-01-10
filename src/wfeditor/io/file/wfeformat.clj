@@ -168,22 +168,12 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
   ([z tag merge-fn val-func]
      (when z
        (let [keyval-tag (format-hierarchy tag)
-             _ (println "tag = " tag)
-             _ (println "keyval-tag = " keyval-tag)
-             _ (println "map zip's node = " (if z (zip/node z) "zip is nil"))
-             _ (println "tag of map zip's node = " (if z (:tag (zip/node z)) "zip is nil"))
              keyval-zip-seq (zfx/xml-> z keyval-tag)
-             [key-tag val-tag] (format-hierarchy keyval-tag)
-             
-             _ (println "key-tag = " key-tag)
-             _ (println "val-tag = " val-tag)
-             _ (println "# of keyvals = " (count keyval-zip-seq))]
+             [key-tag val-tag] (format-hierarchy keyval-tag)]
          (apply merge-with merge-fn
                 (for [keyval keyval-zip-seq]
                   (let [key (first (zfx/xml-> keyval key-tag zfx/text))
-                        val (nil-pun-empty-str (first (zfx/xml-> keyval val-tag zfx/text)))
-                        _ (println "key = " key)
-                        _ (println "val = " val)]
+                        val (nil-pun-empty-str (first (zfx/xml-> keyval val-tag zfx/text)))]
                     {key (val-func val)})))))))
 
 (defn- map-of-coll-vals-from-zip
@@ -236,21 +226,13 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
      ;; each element of format hierarchy
      (task-statuses-from-zip z :task-statuses))
   ([z field]
-     (println "______")
-     (if-let [task-statuses-map (map-from-zip z field)]
-       (do
-         (println "task-statuses-map = " task-statuses-map)
-         (println "^^^^^^")
-         (into {} (map
-                   (fn [[k v]]
-                     (let [k (if (string? k) (Integer/parseInt k) k)
-                           v (if (string? v) (keyword v) v)]
-                       [k v]))
-                   task-statuses-map)))
-       (do
-         (println "task-statuses-map is nil")
-         (println "^^^^^^"))))
-  )
+     (when-let [task-statuses-map (map-from-zip z field)]
+       (into {} (map
+                 (fn [[k v]]
+                   (let [k (if (string? k) (Integer/parseInt k) k)
+                         v (if (string? v) (keyword v) v)]
+                     [k v]))
+                 task-statuses-map)))))
 
 (defn job-from-zip
   "return a new Job instance when given a XML zipper that is currently at a job node"
