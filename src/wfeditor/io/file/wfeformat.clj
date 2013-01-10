@@ -185,7 +185,8 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
 (defn- vector-from-zip
   "return a vector of string values created from an XML zip (z) using a tag (tag), representing the vector, that has 0+ children of leaf tags, representing the values"
   [z tag]
-  (into [] (zfx/xml-> z tag (format-hierarchy tag) zfx/text)))
+  (when z
+    (into [] (zfx/xml-> z (format-hierarchy tag) zfx/text))))
 
 (defn- scalar-from-zip
   "return a scalar, of type string, created from an XML zip (z) within a child tag (tag)"
@@ -195,7 +196,7 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
 (defn- deps-from-zip
   "returns the dependencies of job given a job zipper as a vector of job names"
   [z]
-  (vector-from-zip z :deps))
+  (vector-from-zip (zfx/xml1-> z :deps) :deps))
 
 (defn- map-to-flat-vector
   "return a vector where each key in the map is followed by its value. if function fn is provided, then it will be applied to every vector of key-val pairs"
@@ -242,7 +243,7 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
                          (letfn [(field-val [field]
                                    (condp = field
                                      :id (when-let [id-str (scalar-from-zip z field)] (Integer/parseInt id-str))
-                                     :prog-args (vector-from-zip z field)
+                                     :prog-args (vector-from-zip (zfx/xml1-> z field) field)
                                      :prog-opts (map-of-coll-vals-from-zip (zfx/xml1-> z field) field)
                                      ;; TODO: generalize parsing of
                                      ;; task-statuses (and even the
