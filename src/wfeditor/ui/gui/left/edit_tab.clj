@@ -18,7 +18,15 @@
    (org.eclipse.swt.layout FillLayout RowLayout GridLayout GridData FormLayout FormData FormAttachment)
    (org.eclipse.swt.widgets Button FileDialog Group Text Combo Composite Display TableColumn Table TableItem Label TreeItem TreeColumn)
    (org.eclipse.swt.events SelectionEvent SelectionAdapter ModifyListener ModifyEvent)
-   (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener TableViewer IStructuredContentProvider ITableLabelProvider ListViewer ICellModifier TextCellEditor ViewerSorter ColumnLabelProvider ColumnViewerToolTipSupport)
+   (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener TableViewer IStructuredContentProvider ITableLabelProvider ListViewer ICellModifier TextCellEditor ViewerSorter ColumnLabelProvider ColumnViewerToolTipSupport
+                              FocusCellOwnerDrawHighlighter
+                              ColumnViewerEditorActivationStrategy
+                              ColumnViewerEditorActivationEvent
+                              TreeViewerFocusCellManager
+                              TreeViewerEditor
+                              ColumnViewerEditor
+                              TreeViewerColumn
+                              EditingSupport)
    java.net.URL
    (org.eclipse.swt.custom CTabFolder CTabItem)
    (org.eclipse.jface.layout TableColumnLayout)
@@ -139,10 +147,6 @@
         job-fields (type-util/class-fields wfeditor.model.workflow.Job)
         job-to-edit-ref gui-state/job-to-edit
         job-cache-ref gui-state/job-editor-cache
-        column-headings ["Job field" "Value"]
-        columns (doall
-                 (for [ch column-headings]
-                   (new-widget {:keyname (keyword (str "col-" ch)) :widget-class TreeColumn :parent (.. ttv getTree) :styles [SWT/LEFT] :text ch})))
 
         ;; TODO: refactor is-branch-fn and simple-zip-fn into a
         ;; separate ns
@@ -230,7 +234,7 @@
                         (condp = elem-tag
                           :arg (arg-key-fn element)
                           :opt (opt-key-fn element)
-                          (str (get ui-const/JOB-FIELD-FULL-NAMES elem-tag)))))
+                          (str (get ui-const/JOB-FIELD-FULL-NAMES elem-tag ui-const/NIL-VAL-STR-REP)))))
         elem-val-fn (fn [element]
                       (let [elem-tag (zip-elem-tag-fn element)]
                         (condp = elem-tag
@@ -268,83 +272,148 @@
                          (isLabelProperty [element property]
                            false)
                          (removeListener [listener]))
+        ;; cell-modifier (proxy [ICellModifier]
+        ;;                   []
+        ;;                 (canModify [element property]
+        ;;                   (do
+        ;;                     (println "CellEditor : canModify , elemet = " (zip-elem-tag-fn element , "property = " property))
+        ;;                     (if (or (nil? @job-cache-ref)
+        ;;                             (string? element)
+        ;;                             (and (= Job (class @job-cache-ref)) (:id @job-cache-ref)))
+        ;;                       false
+        ;;                       (let [key (nth element 0)
+        ;;                             elem-tag (zip-elem-tag-fn element)]
+        ;;                         (cond
+        ;;                          (and (= "key" property) (#{:opt} elem-tag)) true
+        ;;                          (and (= "value" property) (not (#{:id :task-statuses :prog-args :prog-opts :array} key))) true
+        ;;                          :else false)))
+        ;;                     (let [elem-tag (zip-elem-tag-fn element)]
+        ;;                       (= elem-tag :name))
+        ;;                     )
+        ;;                   false
+        ;;                   )
+        ;;                 (getValue [element property]
+        ;;                   (println "getValue - begin")
+        ;;                   (let [result
+        ;;                         (if (is-zipper-fn element)
+        ;;                           (condp = property
+        ;;                             "key" (zip-elem-tag-fn element)
+        ;;                             "value" (elem-val-fn element))
+        ;;                           (condp = property
+        ;;                             "key" element
+        ;;                             "value" ui-const/NIL-VAL-STR-REP))]
+        ;;                     (println "getValue, elem-tag = " (zip-elem-tag-fn element) ", property = " property " , result = " result)
+        ;;                     result))
+        ;;                 (modify [element property value]
+        ;;                   (println "CellEditor : modify")
+        ;;                   (let [element (if (= TreeItem (class element))
+        ;;                                   (.getData element)
+        ;;                                   element)
+        ;;                         key (zip-elem-tag-fn element)
+        ;;                         val (if (= value ui-const/NIL-VAL-STR-REP)
+        ;;                               nil
+        ;;                               value)
+        ;;                         _ (println "___________")
+        ;;                         _ (println "CellEditor : modify")
+        ;;                         _ (println "key = " key)
+        ;;                         _ (println "val = " val)]
+        ;;                     (when-not (#{:id} key)
+        ;;                       (let [alter-assoc-fn (fn [j k v] (when j (assoc j k v)))
+        ;;                             idx (count (zip/lefts element))
+        ;;                             new-elem-fn (condp = key
+        ;;                                           :arg (condp = property
+        ;;                                                  "value" (fn [elem] (zip/up (zip/edit (-> elem zip/down zip/right zip/down) assoc 0 val))))
+        ;;                                           :opt (condp = property
+        ;;                                                  "key" (fn [elem] (zip/up (zip/edit (-> elem zip/down zip/down) assoc 0 val)))
+        ;;                                                  "value" (fn [elem] (zip/up (zip/edit (-> elem zip/down zip/right zip/down) assoc 0 val))))
+        ;;                                           (fn [elem] (zip/up (zip/edit (-> elem zip/down) assoc 0 val))))
+        ;;                             new-elem (new-elem-fn element)
+        ;;                             job-from-any-zip-fn (fformat/job-from-zip (fformat/zip-from-job (zip/root new-elem)))
+        ;;                             new-job (job-from-any-zip-fn new-elem)]
+        ;;                         (dosync
+        ;;                          (ref-set job-cache-ref new-job)
+        ;;                          (let [old-job @job-to-edit-ref
+        ;;                                new-job @job-cache-ref
+        ;;                                wf (wflow/workflow)
+        ;;                                new-wf (wflow/replace-job wf old-job new-job)]
+        ;;                            (wflow/set-workflow new-wf))
+        ;;                          (ref-set job-to-edit-ref @job-cache-ref)))
+        ;;                       ;; (.refresh ttv)
+        ;;                       ))))
         col-props ["key" "value"]
-        cell-modifier (proxy [ICellModifier]
-                          []
-                        (canModify [element property]
-                          (do
-                            (println "CellEditor : canModify , elemet = " (zip-elem-tag-fn element , "property = " property))
-                            (if (or (nil? @job-cache-ref)
-                                    (string? element)
-                                    (and (= Job (class @job-cache-ref)) (:id @job-cache-ref)))
-                              false
-                              (let [key (nth element 0)
-                                    elem-tag (zip-elem-tag-fn element)]
-                                (cond
-                                 (and (= "key" property) (#{:opt} elem-tag)) true
-                                 (and (= "value" property) (not (#{:id :task-statuses :prog-args :prog-opts :array} key))) true
-                                 :else false)))
-                            (let [elem-tag (zip-elem-tag-fn element)]
-                              (= elem-tag :name))
-                            )
-                          false
-                          )
-                        (getValue [element property]
-                          (println "getValue - begin")
-                          (let [result
-                                (if (is-zipper-fn element)
-                                  (condp = property
-                                    "key" (zip-elem-tag-fn element)
-                                    "value" (elem-val-fn element))
-                                  (condp = property
-                                    "key" element
-                                    "value" ui-const/NIL-VAL-STR-REP))]
-                            (println "getValue, elem-tag = " (zip-elem-tag-fn element) ", property = " property " , result = " result)
-                            result))
-                        (modify [element property value]
-                          (println "CellEditor : modify")
-                          (let [element (if (= TreeItem (class element))
-                                          (.getData element)
-                                          element)
-                                key (zip-elem-tag-fn element)
-                                val (if (= value ui-const/NIL-VAL-STR-REP)
-                                      nil
-                                      value)
-                                _ (println "___________")
-                                _ (println "CellEditor : modify")
-                                _ (println "key = " key)
-                                _ (println "val = " val)]
-                            (when-not (#{:id} key)
-                              (let [alter-assoc-fn (fn [j k v] (when j (assoc j k v)))
-                                    idx (count (zip/lefts element))
-                                    new-elem-fn (condp = key
-                                                  :arg (condp = property
-                                                         "value" (fn [elem] (zip/up (zip/edit (-> elem zip/down zip/right zip/down) assoc 0 val))))
-                                                  :opt (condp = property
-                                                         "key" (fn [elem] (zip/up (zip/edit (-> elem zip/down zip/down) assoc 0 val)))
-                                                         "value" (fn [elem] (zip/up (zip/edit (-> elem zip/down zip/right zip/down) assoc 0 val))))
-                                                  (fn [elem] (zip/up (zip/edit (-> elem zip/down) assoc 0 val))))
-                                    new-elem (new-elem-fn element)
-                                    job-from-any-zip-fn (fformat/job-from-zip (fformat/zip-from-job (zip/root new-elem)))
-                                    new-job (job-from-any-zip-fn new-elem)]
-                                (dosync
-                                 (ref-set job-cache-ref new-job)
-                                 (let [old-job @job-to-edit-ref
-                                       new-job @job-cache-ref
-                                       wf (wflow/workflow)
-                                       new-wf (wflow/replace-job wf old-job new-job)]
-                                   (wflow/set-workflow new-wf))
-                                 (ref-set job-to-edit-ref @job-cache-ref)))
-                              ;; (.refresh ttv)
-                              ))))
         cell-editors (for [col col-props]
                        (TextCellEditor. (.. ttv getTree)))
-        view-sorter (proxy [ViewerSorter]
-                        []
-                      (compare [viewer e1 e2]
-                        (if (string? e1)
-                          (compare (.indexOf job-fields e1) (.indexOf job-fields e2))
-                          (compare (.indexOf job-fields (name (nth e1 0))) (.indexOf job-fields (name (nth e2 0)))))))]
+        cell-editor (TextCellEditor. (.. ttv getTree))
+        ;; text-cell-editor (TextCellEditor. (.getTree ttv))
+        column-headings ["Job field" "Value"]
+        columns (doall
+                 (for [ch column-headings]
+                   (new-widget {:keyname (keyword (str "col-" ch)) :widget-class TreeViewerColumn :parent ttv :styles [SWT/LEFT]})))
+        col1-edit-support (proxy [EditingSupport]
+                              [ttv]
+                            (canEdit [element]
+                              (let [elem-tag (zip-elem-tag-fn element)]
+                                (= :opt elem-tag)))
+                            (getCellEditor [element]
+                              cell-editor)
+                            (getValue [element]
+                              (println "_____")
+                              (println "col 1")
+                              (println "element = ")
+                              (when (is-zipper-fn element)
+                                (println "(zip/node element) = " (zip/node element)))
+                              (println "^^^^^^")
+                              (elem-key-fn element))
+                            (setValue [element value]))
+        col2-edit-support (proxy [EditingSupport]
+                              [ttv]
+                            (canEdit [element]
+                              (if (or (nil? @job-cache-ref)
+                                      (and (= Job (class @job-cache-ref)) (:id @job-cache-ref)))
+                                false
+                                (let [elem-tag (zip-elem-tag-fn element)]
+                                  (boolean (not (#{:id :task-statuses :prog-args :prog-opts :array} elem-tag))))))
+                            (getCellEditor [element]
+                              cell-editor)
+                            (getValue [element]
+                              (println "_____")
+                              (println "col 2")
+                              (println "element = ")
+                              (when (is-zipper-fn element)
+                                (println "(zip/node element) = " (zip/node element)))
+                              (println "^^^^^^")
+                              (elem-val-fn element))
+                            (setValue [element value]))
+        col-edit-supports [col1-edit-support col2-edit-support]
+        ;; view-sorter (proxy [ViewerSorter]
+        ;;                 []
+        ;;               (compare [viewer e1 e2]
+        ;;                 (if (string? e1)
+        ;;                   (compare (.indexOf job-fields e1) (.indexOf job-fields e2))
+        ;;                   (compare (.indexOf job-fields (name (nth e1 0))) (.indexOf job-fields (name (nth e2 0)))))))
+
+        ;; draw-highlighter (FocusCellOwnerDrawHighlighter. ttv)
+        ;; focus-cell-manager (TreeViewerFocusCellManager. ttv draw-highlighter)
+        ;; act-support (proxy [ColumnViewerEditorActivationStrategy]
+        ;;                 [ttv]
+        ;;               (isEditorActivationEvent [event]
+        ;;                 (boolean
+        ;;                  (or (= ColumnViewerEditorActivationEvent/TRAVERSAL (. event eventType))
+        ;;                      (= ColumnViewerEditorActivationEvent/MOUSE_DOUBLE_CLICK_SELECTION (. event eventType))
+        ;;                      (and (= ColumnViewerEditorActivationEvent/KEY_PRESSED  (. event eventType)) (= SWT/CR (. event keyCode)))
+        ;;                      (= ColumnViewerEditorActivationEvent/PROGRAMMATIC (. event eventType))))))
+        ;; editor-features [ColumnViewerEditor/TABBING_HORIZONTAL ColumnViewerEditor/TABBING_MOVE_TO_ROW_NEIGHBOR ColumnViewerEditor/TABBING_VERTICAL ColumnViewerEditor/KEYBOARD_ACTIVATION]
+        ;; feature (apply bit-or editor-features)
+
+        ]
+    (doall
+     (map (fn [col ch edit-supp]
+            (.. col getColumn (setText ch))
+            (.setEditingSupport col edit-supp))
+          columns column-headings col-edit-supports))
+    ;; (do
+    ;;   (TreeViewerEditor/create ttv focus-cell-manager act-support feature))
+    
     ;; TODO: fix extra column to the right using TableColumnLayout and
     ;; setting ColumnWeightData using proportions and minimum widths
     ;; http://javafact.com/2010/07/26/working-with-jface-tableviewer/
