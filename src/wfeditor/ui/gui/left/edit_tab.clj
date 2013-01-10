@@ -256,27 +256,15 @@
                          (getColumnImage [element column-index]
                            nil)
                          (getColumnText [element column-index]
-                           (let [elem-tag (zip-elem-tag-fn element)
-                                 result
-                                 (if-not (is-zipper-fn element)
-                                   (condp = column-index
-                                     0 (ui-const/JOB-FIELD-FULL-NAMES (keyword element))
-                                     1 (do
-                                         (println "getColumnText: nil val in col 1 for element (zip)'s node = " (zip/node element))
-                                         ui-const/NIL-VAL-STR-REP))
-                                   (condp = column-index
-                                     0 (elem-key-fn element)
-                                     1 (do
-                                         ;; (when (#{:arg :opt} elem-tag)
-                                         ;;   (println "getColumnText: normal text for col 1, element(zip)'s node = " (zip/node element)))
-                                         ;; (when (#{:prog-args :prog-opts} elem-tag)
-                                         ;;   (println "getColumnText: normal text for col 1, elem-tag = " elem-tag ", val = " (get @job-cache-ref elem-tag)))
-                                         (elem-val-fn element))
-                                     ui-const/NIL-VAL-STR-REP))]
-                             (when (and (#{:arg :opt :prog-args :prog-opts} elem-tag) (= 1 column-index))
-                               ;; (println "LabelProvider, elem-tag= " elem-tag ", col=" column-index ", label=" result)
-                               )
-                             result))
+                           (let [elem-tag (zip-elem-tag-fn element)] 
+                             (if (is-zipper-fn element)
+                               (condp = column-index
+                                 0 (elem-key-fn element)
+                                 1 (elem-val-fn element)
+                                 ui-const/NIL-VAL-STR-REP)
+                               (condp = column-index
+                                 0 (ui-const/JOB-FIELD-FULL-NAMES (keyword element))
+                                 1 ui-const/NIL-VAL-STR-REP))))
                          (isLabelProperty [element property]
                            false)
                          (removeListener [listener]))
@@ -381,12 +369,16 @@
                                             ;; necessary once
                                             ;; cell-editors are added
                                             ;; back in
-                                            (if-not new
-                                              (let [empty-job (wflow/nil-job-fn)
-                                                    empty-job-zip (fformat/zip-from-job empty-job)]
-                                                (.setInput ttv [empty-job-zip]))
-                                              (let [new-job-zip (fformat/zip-from-job new)]
-                                                (.setInput ttv [new-job-zip]))))
+                                            (let [new-job (or new (wflow/nil-job-fn))
+                                                  new-job-zip (fformat/zip-from-job new-job)]
+                                              (.setInput ttv [new-job-zip]))
+                                            ;; (if-not new
+                                            ;;   (let [empty-job (wflow/nil-job-fn)
+                                            ;;         empty-job-zip (fformat/zip-from-job empty-job)]
+                                            ;;     (.setInput ttv [empty-job-zip]))
+                                            ;;   (let [new-job-zip (fformat/zip-from-job new)]
+                                            ;;     (.setInput ttv [new-job-zip])))
+                                            )
                                           (refresh-table-gui-fn ttv)))
     ;; basic display config
     (doto table-group
