@@ -161,17 +161,6 @@
                                (.showColumn (.. ttv getTree) (first (.. ttv getTree getColumns)))
                                (.redraw (.. ttv getTree))
                                (.update (.. ttv getTree)))
-        ;; content-provider (proxy [IStructuredContentProvider]
-        ;;                      []
-        ;;                    (getElements [input-data]
-        ;;                      (to-array input-data))
-        ;;                    (inputChanged [viewer old-input new-input]
-        ;;                      (when-not new-input
-        ;;                        (.setInput viewer job-fields)
-        ;;                        (dosync
-        ;;                         (ref-set job-to-edit-ref nil)))
-        ;;                      (refresh-table-gui-fn ttv))
-        ;;                    (dispose []))
         zip-children-fn (fn [zc]
                           ;; need to return a coll of the locs of
                           ;; children nodes, not the children nodes themselves
@@ -197,8 +186,6 @@
                                         array-result (to-array result)]
                                     array-result))
                                 (getElements [zipper-vector]
-                                  ;; (println "______")
-                                  ;; (println "ContentProvider - getElements, input job = " (zip/root (first zipper-vector)))
                                   (let [z (first zipper-vector)
                                         elements (zip-children-fn z)]
                                     (to-array elements)))
@@ -217,27 +204,12 @@
                                       has-chil)))
                                 (dispose [])
                                 (inputChanged [viewer old-input new-input]
-                                  ;; (println "_____")
-                                  ;; (println "ContentProvider - inputChanged, new-input = " new-input)
-                                  ;; (println "^^^^^")
-                                  (if-not new-input
+                                  (when-not new-input
                                     (let [empty-job (wflow/nil-job-fn)
-                                          empty-job-zip (fformat/zip-from-job empty-job)]
-                                      ;; (println "  _____")
-                                      ;; (println "  new-input is nil, setting vector zip of nil Job as input")
+                                          empty-job-zip (fformat/zip-from-job empty-job)] 
                                       (.setInput viewer [empty-job-zip])
                                       (dosync
-                                       (ref-set job-to-edit-ref nil)))
-                                    (do
-                                      (let [;; new-job-zip (fformat/zip-from-job new-input)
-                                            new-job-zip (first new-input)]
-                                          ;; (.setInput viewer [new-job-zip])
-                                          )
-                                      ;; (println "new-input not nil, new-input = " new-input)
-                                      ;; (println "class new-input = " (class new-input))
-                                      (when (vector? new-input)
-                                        (println "class first new-input = " (class (first new-input))))
-                                      ))
+                                       (ref-set job-to-edit-ref nil))))
                                   (refresh-table-gui-fn ttv)))
         arg-key-fn (fn [element]
                      (let [idx (count (zip/lefts element))]
@@ -401,37 +373,20 @@
 
     ;; add-watch
     (add-watch job-to-edit-ref :re-bind (fn [key r old new]
-                                          (println "_____")
-                                          (println "old job to edit = " old)
-                                          (println "new job to edit = " new)
-                                          
                                           (when-not (= @job-cache-ref new)
                                             (dosync
                                              (ref-set job-cache-ref new))
-
                                             ;; TODO: remove this
                                             ;; when-not S-exp if
                                             ;; necessary once
                                             ;; cell-editors are added
                                             ;; back in
-                                            
                                             (if-not new
                                               (let [empty-job (wflow/nil-job-fn)
                                                     empty-job-zip (fformat/zip-from-job empty-job)]
-                                                (println "________")
-                                                (println "about to set TreeViewer input as vector of zip of nil-job")
-                                                (println "   ______")
-                                                (println " empty-job = " empty-job)
-                                                (println "empty-job-zip = " empty-job-zip)
-                                                (println "   ^^^^^^")
                                                 (.setInput ttv [empty-job-zip]))
                                               (let [new-job-zip (fformat/zip-from-job new)]
-                                                (println "________")
-                                                (println "about to set TreeViewer input as non-nil job")
-                                                (.setInput ttv [new-job-zip])))
-
-
-                                            )
+                                                (.setInput ttv [new-job-zip]))))
                                           (refresh-table-gui-fn ttv)))
     ;; basic display config
     (doto table-group
