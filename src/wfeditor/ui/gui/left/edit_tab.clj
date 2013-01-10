@@ -262,7 +262,7 @@
                           :arg (arg-val-fn element)
                           :opt (opt-val-fn element)
                           :task-statuses (let [statuses-map (fformat/task-statuses-from-zip element)]
-                                           (str statuses-map))                          
+                                           (task-status/status-field statuses-map))
                           (if-let [val (and (not (has-children-fn element)) (get @job-cache-ref elem-tag))]
                             (str val)
                             ui-const/NIL-VAL-STR-REP))))
