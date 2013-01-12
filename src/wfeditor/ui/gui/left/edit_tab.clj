@@ -349,7 +349,7 @@
         columns (doall
                  (for [ch column-headings]
                    (new-widget {:keyname (keyword (str "col-" ch)) :widget-class TreeViewerColumn :parent ttv :styles [SWT/LEFT]})))
-        val-edit-fn (fn [element value]
+        edit-val-fn (fn [element value]
                       (let [elem-tag (zip-elem-tag-fn element)]
                         (when (not (#{:arg :opt} elem-tag))
                           (println "before: job cache val for " elem-tag " = " (elem-tag @job-cache-ref))
@@ -394,7 +394,7 @@
                               (println "^^^^^^")
                               (elem-val-fn element))
                             (setValue [element value]
-                              (val-edit-fn element value)))
+                              (edit-val-fn element value)))
         col-edit-supports [col1-edit-support col2-edit-support]
         ;; view-sorter (proxy [ViewerSorter]
         ;;                 []
@@ -442,28 +442,22 @@
     ;; add-watch
     (add-watch job-to-edit-ref :re-bind (fn [key r old new]
                                           (when-not (= @job-cache-ref new)
-                                            (when (and old new)
-                                              (let [wf (wflow/workflow)
-                                                    new-wf (wflow/replace-job wf old new)]
-                                                (wflow/set-workflow new-wf)))
+                                            
                                             (dosync
                                              (ref-set job-cache-ref new)))))
 
     (add-watch job-cache-ref :re-bind (fn [key r old new]
-                                        ;; TODO: remove this
-                                        ;; when-not S-exp if
-                                        ;; necessary once
-                                        ;; cell-editors are added
-                                        ;; back in
+                                        (when (and
+                                               (and old new)
+                                               (not= new @job-to-edit-ref))
+                                              (let [wf (wflow/workflow)
+                                                    new-wf (wflow/replace-job wf old new)]
+                                                (wflow/set-workflow new-wf)
+                                                (dosync
+                                                 (ref-set job-to-edit-ref new))))
                                         (let [new-job (or new (wflow/nil-job-fn))
                                               new-job-zip (fformat/zip-from-job new-job)]
                                           (.setInput ttv [new-job-zip]))
-                                        ;; (if-not new
-                                        ;;   (let [empty-job (wflow/nil-job-fn)
-                                        ;;         empty-job-zip (fformat/zip-from-job empty-job)]
-                                        ;;     (.setInput ttv [empty-job-zip]))
-                                        ;;   (let [new-job-zip (fformat/zip-from-job new)]
-                                        ;;     (.setInput ttv [new-job-zip]))) 
                                         (refresh-table-gui-fn ttv)))
     
     ;; basic display config
