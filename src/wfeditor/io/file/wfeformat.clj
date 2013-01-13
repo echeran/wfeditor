@@ -158,29 +158,49 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
     nil
     s))
 
+(defn map-keyval-seq-from-zip
+  "return a Clojure sequence of keyval pairs from a zipper of an XML tree that represents a map, where the zipper is set to a loc of the XML element representing the map, the children elements represent each key-val pair, and each key-val pair's element has 2 children elements for the key and value"
+  ([z tag]
+     (map-keyval-seq-from-zip z tag identity))
+  ([z tag val-func]
+     (when z
+       (let [keyval-tag (format-hierarchy tag)
+             keyval-zip-seq (zfx/xml-> z keyval-tag)
+             [key-tag val-tag] (format-hierarchy keyval-tag)]
+         (for [keyval keyval-zip-seq]
+           (let [key (first (zfx/xml-> keyval key-tag zfx/text))
+                 val (nil-pun-empty-str (first (zfx/xml-> keyval val-tag zfx/text)))]
+             {key (val-func val)}))))))
+
+(def merge-with-fn
+  ;; the merge fn for the merge-with fn to be used for maps that may or may not have multiple vals. this fn will be applied to the respective vals of the 2 maps being merged
+
+  ;; the default implementation of a map-from-zip is to assume that
+  ;; each key maps to a scalar (i.e., single val), and if there are
+  ;; repeat keys, then only take the last val 
+  (comp last list))
+
 (defn- map-from-zip
   "return a map of string keys -> string values created from an XML zip (z) using a tag (tag), representing the map, that has children which contain pairs of leaf tags representing the key-value pairs of the map"
   ([z tag]
      ;; the default implementation of a map-from-zip is to assume that
      ;; each key maps to a scalar (i.e., single val), and if there are
-     ;; repeat keys, then only take the last val
-     (let [last-fn (comp last list)]
-       (map-from-zip z tag last-fn identity)))
+     ;; repeat keys, then only take the last val 
+     (map-from-zip z tag merge-with-fn identity))
   ([z tag merge-fn val-func]
-     (when z
-       (let [keyval-tag (format-hierarchy tag)
-             keyval-zip-seq (zfx/xml-> z keyval-tag)
-             [key-tag val-tag] (format-hierarchy keyval-tag)]
-         (apply merge-with merge-fn
-                (for [keyval keyval-zip-seq]
-                  (let [key (first (zfx/xml-> keyval key-tag zfx/text))
-                        val (nil-pun-empty-str (first (zfx/xml-> keyval val-tag zfx/text)))]
-                    {key (val-func val)})))))))
+     (when z 
+       (apply merge-with merge-fn (map-keyval-seq-from-zip z tag val-func)))))
 
-(defn- map-of-coll-vals-from-zip
+(def map-of-coll-vals-list-fn
+  ;; this is the fn applied to the vals of the map that is culled by
+  ;; map-from-zip for the purpose of maps like prog-opts where the
+  ;; vals are sequential collections
+  (fn [x] (if (nil? x) nil (list x))))
+
+(defn map-of-coll-vals-from-zip
   "similar to map-from-zip, but the vals of the map are collections.  this made for data strucutres like program options, where one option flag might occur with multiple values."
   [z tag]
-  (let [list-fn (fn [x] (if (nil? x) nil (list x)))]
+  (let [list-fn map-of-coll-vals-list-fn]
     (map-from-zip z tag concat list-fn)))
 
 (defn- vector-from-zip
