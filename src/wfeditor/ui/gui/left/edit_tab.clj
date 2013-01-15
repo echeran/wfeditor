@@ -16,11 +16,13 @@
         [clojure.contrib.core :only (-?>)])
   (:import
    org.eclipse.swt.SWT
+   org.eclipse.swt.SWTException
+   org.eclipse.core.runtime.AssertionFailedException
    (org.eclipse.swt.layout FillLayout RowLayout GridLayout GridData FormLayout FormData FormAttachment)
    (org.eclipse.swt.widgets Button FileDialog Group Text Combo Composite Display TableColumn Table TableItem Label TreeItem TreeColumn)
    (org.eclipse.swt.events SelectionEvent SelectionAdapter ModifyListener ModifyEvent)
    (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener TableViewer IStructuredContentProvider ITableLabelProvider ListViewer ICellModifier TextCellEditor ViewerSorter ColumnLabelProvider ColumnViewerToolTipSupport
-                              FocusCellOwnerDrawHighlighter ColumnViewerEditorActivationStrategy ColumnViewerEditorActivationEvent TreeViewerFocusCellManager TreeViewerEditor ColumnViewerEditor TreeViewerColumn EditingSupport
+                              FocusCellOwnerDrawHighlighter ColumnViewerEditorActivationStrategy ColumnViewerEditorActivationEvent TreeViewerFocusCellManager TreeViewerEditor ColumnViewerEditor TreeViewerColumn EditingSupport ITreeViewerListener
                               )
    java.net.URL
    (org.eclipse.swt.custom CTabFolder CTabItem)
@@ -59,7 +61,7 @@
                                 ;; viewer will be entirely closures of zippers
                                 ;; located at nodes, not the actual
                                 ;; node-data themselves
-                                (getChildren [zc] 
+                                (getChildren [zc]
                                   (let [first-child (zip/down zc)
                                         rest-children (loop [rcs []
                                                              czc (zip/right first-child)]
@@ -149,17 +151,7 @@
         simple-zip-fn (fn [simple-zip-tree] (zip/zipper is-branch-fn (comp seq second first) (fn [n cs] (let [map (if (seq n) n {n []}) k (first (first map)) vals (second (first map))] (assoc map k (concat vals (seq cs))))) simple-zip-tree))       
         
         ttv-table-fn (fn [ttv] (.getTree ttv))
-        refresh-table-gui-fn (fn [ttv]
-                               (.refresh ttv)
-                               (dorun
-                                (doseq [column (.. ttv getTree getColumns)]
-                                  (.pack column)))
-                               (dorun
-                                (doseq [column (.. ttv getTree getColumns)]
-                                  (.showColumn (.. ttv getTree) column)))
-                               (.showColumn (.. ttv getTree) (first (.. ttv getTree getColumns)))
-                               (.redraw (.. ttv getTree))
-                               (.update (.. ttv getTree)))
+        zip-elem-tag-fn (fn [zc] (:tag (zip/node zc)))
         zip-children-fn (fn [zc]
                           ;; need to return a coll of the locs of
                           ;; children nodes, not the children nodes themselves
@@ -172,7 +164,38 @@
                                 result (concat [first-child] rest-children)]
                             result))
         has-children-fn (fn [zc] (if (-?> zc zip/down zip/branch?) true false))
-        zip-elem-tag-fn (fn [zc] (:tag (zip/node zc)))
+        expand-table-fn (fn [ttv]
+                          (let [input-zip-vector (.getInput ttv)
+                                z (first input-zip-vector)]
+                            (when z
+                              (let [elems-to-expand (loop [loc z
+                                                           exp-elems []]
+                                                      (if (zip/end? loc)
+                                                        exp-elems
+                                                        (let [elem-tag (zip-elem-tag-fn loc)
+                                                              show-expanded (boolean (@gui-state/job-editor-expanded-fields elem-tag))
+                                                              new-exp-elems (if show-expanded
+                                                                              (conj exp-elems loc)
+                                                                              exp-elems)]
+                                                          (recur (zip/next loc) new-exp-elems))))]
+                                ;; have to put in this try-catch form
+                                ;; in order to catch Exception thrown
+                                ;; only when window is closed through
+                                ;; the close button
+                                (try
+                                  (.setExpandedElements ttv (to-array elems-to-expand))
+                                  (catch AssertionFailedException afe))))))
+        refresh-table-gui-fn (fn [ttv]
+                               (.refresh ttv)
+                               (dorun
+                                (doseq [column (.. ttv getTree getColumns)]
+                                  (.pack column)))
+                               (dorun
+                                (doseq [column (.. ttv getTree getColumns)]
+                                  (.showColumn (.. ttv getTree) column)))
+                               (.showColumn (.. ttv getTree) (first (.. ttv getTree getColumns)))
+                               (.redraw (.. ttv getTree))
+                               (.update (.. ttv getTree)))
         tree-content-provider (proxy [ITreeContentProvider]
                                   []
                                 ;; the "content" that will be
@@ -180,7 +203,7 @@
                                 ;; viewer will be entirely closures of zippers
                                 ;; located at nodes, not the actual
                                 ;; node-data themselves
-                                (getChildren [zc] 
+                                (getChildren [zc]
                                   (let [result (zip-children-fn zc)
                                         array-result (to-array result)]
                                     array-result))
@@ -293,15 +316,25 @@
                                     new-prog-opts (apply merge-with fformat/merge-with-fn new-keyval-seq)]
                                 (dosync
                                  (alter job-cache-ref assoc :prog-opts new-prog-opts))))))
+        edit-array-val-fn (fn [element value]
+                            (let [elem-tag (zip-elem-tag-fn element)]
+                              (cond
+                               (#{:start :end :step} elem-tag) (try
+                                                                 (let [val-int (Integer/parseInt value)]
+                                                                   (dosync
+                                                                    (alter job-cache-ref assoc-in [:array elem-tag] val-int)))
+                                                                 (catch NumberFormatException e))
+                               :default (dosync
+                                         (alter job-cache-ref assoc-in [:array elem-tag] value)))))
         edit-val-fn (fn [element value]
                       (let [elem-tag (zip-elem-tag-fn element)]
                         (cond
                          (= :opt elem-tag) (edit-opt-val-fn element value)
                          (= :arg elem-tag) (edit-arg-val-fn element value)
+                         (#{:start :end :step :index-var} elem-tag) (edit-array-val-fn element value)
                          :default (do
                                     (dosync
-                                     (alter job-cache-ref assoc elem-tag value))
-                                    (refresh-table-gui-fn ttv)))))
+                                     (alter job-cache-ref assoc elem-tag value))))))
         col1-edit-support (proxy [EditingSupport]
                               [ttv]
                             (canEdit [element]
@@ -319,7 +352,7 @@
                                       (and (= Job (class @job-cache-ref)) (:id @job-cache-ref)))
                                 false
                                 (let [elem-tag (zip-elem-tag-fn element)]
-                                  (boolean (not (#{:id :task-statuses :prog-args :prog-opts :array :start :end :step :index-var} elem-tag))))))
+                                  (boolean (not (#{:id :task-statuses :prog-args :prog-opts :array} elem-tag))))))
                             (getCellEditor [element]
                               cell-editor)
                             (getValue [element]
@@ -327,12 +360,23 @@
                             (setValue [element value]
                               (edit-val-fn element value)))
         col-edit-supports [col1-edit-support col2-edit-support]
-        ;; view-sorter (proxy [ViewerSorter]
-        ;;                 []
-        ;;               (compare [viewer e1 e2]
-        ;;                 (if (string? e1)
-        ;;                   (compare (.indexOf job-fields e1) (.indexOf job-fields e2))
-        ;;                   (compare (.indexOf job-fields (name (nth e1 0))) (.indexOf job-fields (name (nth e2 0)))))))
+        tree-viewer-listener (proxy [ITreeViewerListener]
+                                 []
+                               (treeCollapsed [event]
+                                 (println "tree collapsed")
+                                 (let [element (.getElement event)
+                                       elem-tag (zip-elem-tag-fn element)]
+                                   (println "collapsed elem-tag = " elem-tag)
+                                   (dosync
+                                    (alter gui-state/job-editor-expanded-fields disj elem-tag)))
+                                 )
+                               (treeExpanded [event]
+                                 (println "tree expanded")
+                                 (let [element (.getElement event)
+                                       elem-tag (zip-elem-tag-fn element)]
+                                   (println "expanded elem-tag = " elem-tag)
+                                   (dosync
+                                    (alter gui-state/job-editor-expanded-fields conj elem-tag)))))
 
         ;; draw-highlighter (FocusCellOwnerDrawHighlighter. ttv)
         ;; focus-cell-manager (TreeViewerFocusCellManager. ttv draw-highlighter)
@@ -378,18 +422,25 @@
                                              (ref-set job-cache-ref new)))))
 
     (add-watch job-cache-ref :re-bind (fn [key r old new]
-                                        (when (and
-                                               (and old new)
-                                               (not= new @job-to-edit-ref))
-                                              (let [wf (wflow/workflow)
-                                                    new-wf (wflow/replace-job wf old new)]
-                                                (wflow/set-workflow new-wf)
-                                                (dosync
-                                                 (ref-set job-to-edit-ref new))))
-                                        (let [new-job (or new (wflow/nil-job-fn))
-                                              new-job-zip (fformat/zip-from-job new-job)]
-                                          (.setInput ttv [new-job-zip]))
-                                        (.refresh ttv)))
+                                        ;; testing that old != new
+                                        ;; prevents problems when
+                                        ;; focus is lost from
+                                        ;; textcelleditor to another
+                                        ;; widget which may be stale/disposed
+                                        (when (not= old new)
+                                          (when (and
+                                                 (and old new)
+                                                 (not= new @job-to-edit-ref))
+                                            (let [wf (wflow/workflow)
+                                                  new-wf (wflow/replace-job wf old new)]
+                                              (wflow/set-workflow new-wf)
+                                              (dosync
+                                               (ref-set job-to-edit-ref new))))
+                                          (let [new-job (or new (wflow/nil-job-fn))
+                                                new-job-zip (fformat/zip-from-job new-job)]
+                                            (.setInput ttv [new-job-zip]))
+                                          (.refresh ttv)
+                                          (expand-table-fn ttv))))
     
     ;; basic display config
     (doto table-group
@@ -431,7 +482,7 @@
       ;; (.setCellModifier cell-modifier)
       ;; (.setCellEditors (into-array cell-editors))
 
-      
+      (.addTreeListener tree-viewer-listener)
       )
     ;; return value
     table-group))
