@@ -22,7 +22,8 @@
    (org.eclipse.swt.layout FillLayout RowLayout GridLayout GridData FormLayout FormData FormAttachment)
    (org.eclipse.swt.widgets Button FileDialog Group Text Combo Composite Display TableColumn Table TableItem Label TreeItem TreeColumn)
    (org.eclipse.swt.events SelectionEvent SelectionAdapter ModifyListener ModifyEvent)
-   (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener TableViewer IStructuredContentProvider ITableLabelProvider ListViewer ICellModifier TextCellEditor ViewerSorter ColumnLabelProvider ColumnViewerToolTipSupport ColumnViewerEditor TreeViewerColumn EditingSupport ITreeViewerListener)
+   (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener TableViewer IStructuredContentProvider ITableLabelProvider ListViewer ICellModifier TextCellEditor ViewerSorter ColumnLabelProvider ColumnViewerToolTipSupport ColumnViewerEditor TreeViewerColumn EditingSupport ITreeViewerListener
+                              StyledCellLabelProvider)
    java.net.URL
    (org.eclipse.swt.custom CTabFolder CTabItem)
    (org.eclipse.jface.layout TableColumnLayout)
@@ -270,25 +271,46 @@
                        ;; this fn gives an crude approximation for
                        ;; testing if a datum is a zipper or not
                        (and (vector? element) (map? (first element))))
-        label-provider (proxy [ITableLabelProvider]
-                           []
-                         (addListener [listener])
-                         (dispose [])
-                         (getColumnImage [element column-index]
-                           nil)
-                         (getColumnText [element column-index]
-                           (let [elem-tag (zip-elem-tag-fn element)] 
-                             (if (is-zipper-fn element)
-                               (condp = column-index
-                                 0 (elem-key-fn element)
-                                 1 (elem-val-fn element)
-                                 ui-const/NIL-VAL-STR-REP)
-                               (condp = column-index
-                                 0 (ui-const/JOB-FIELD-FULL-NAMES (keyword element))
-                                 1 ui-const/NIL-VAL-STR-REP))))
-                         (isLabelProperty [element property]
-                           false)
-                         (removeListener [listener]))
+        ;; label-provider (proxy [ITableLabelProvider]
+        ;;                    []
+        ;;                  (addListener [listener])
+        ;;                  (dispose [])
+        ;;                  (getColumnImage [element column-index]
+        ;;                    nil)
+        ;;                  (getColumnText [element column-index]
+        ;;                    (let [elem-tag (zip-elem-tag-fn element)] 
+        ;;                      (if (is-zipper-fn element)
+        ;;                        (condp = column-index
+        ;;                          0 (elem-key-fn element)
+        ;;                          1 (elem-val-fn element)
+        ;;                          ui-const/NIL-VAL-STR-REP)
+        ;;                        (condp = column-index
+        ;;                          0 (ui-const/JOB-FIELD-FULL-NAMES (keyword element))
+        ;;                          1 ui-const/NIL-VAL-STR-REP))))
+        ;;                  (isLabelProperty [element property]
+        ;;                    false)
+        ;;                  (removeListener [listener]))
+        col-1-label-provider (proxy [StyledCellLabelProvider]
+                                 []
+                               (update [cell]
+                                 (let [element (.getElement cell)
+                                       elem-tag (zip-elem-tag-fn element)
+                                       text (if (is-zipper-fn element)
+                                              (elem-key-fn element)
+                                              (ui-const/JOB-FIELD-FULL-NAMES (keyword element)))]
+                                   (.setText cell text)
+                                   (proxy-super update cell))))
+        col-2-label-provider (proxy [StyledCellLabelProvider]
+                                 []
+                               (update [cell]
+                                 (let [element (.getElement cell)
+                                       elem-tag (zip-elem-tag-fn element)
+                                       text (if (is-zipper-fn element)
+                                              (elem-val-fn element)
+                                              ui-const/NIL-VAL-STR-REP)]
+                                   (.setText cell text)
+                                   (proxy-super update cell))))
+        col-lbl-providers [col-1-label-provider col-2-label-provider]
         col-props ["key" "value"]
         cell-editors (for [col col-props]
                        (TextCellEditor. (.. ttv getTree)))
@@ -350,15 +372,12 @@
                               (let [elem-tag (and (not (nil? @job-cache-ref)) (zip-elem-tag-fn element))]
                                 (if (or (nil? @job-cache-ref)
                                         (and (= Job (class @job-cache-ref)) (:id @job-cache-ref))
-                                        (and (= :prog-args elem-tag) (not (@gui-state/job-editor-expanded-fields :prog-args)))
+                                        ;; (and (= :prog-args elem-tag) (not (@gui-state/job-editor-expanded-fields :prog-args)))
                                         )
                                   false
-                                  (boolean (not (#{:id :task-statuses :prog-opts :array} elem-tag))))))
-                            (getCellEditor [element]
-                              (let [elem-tag (zip-elem-tag-fn element)]
-                                (if (and (= :prog-args elem-tag) (not (@gui-state/job-editor-expanded-fields :prog-args)))
-                                  button-editor
-                                  cell-editor)))
+                                  (boolean (not (#{:id :task-statuses :prog-args :prog-opts :array} elem-tag))))))
+                            (getCellEditor [element] 
+                              cell-editor)
                             (getValue [element]
                               (elem-val-fn element))
                             (setValue [element value]
@@ -382,10 +401,11 @@
                                    (dosync
                                     (alter gui-state/job-editor-expanded-fields conj elem-tag)))))]
     (doall
-     (map (fn [col ch edit-supp]
+     (map (fn [col ch edit-supp lbl-prov]
             (.. col getColumn (setText ch))
-            (.setEditingSupport col edit-supp))
-          columns column-headings col-edit-supports))
+            (.setEditingSupport col edit-supp)
+            (.setLabelProvider col lbl-prov))
+          columns column-headings col-edit-supports col-lbl-providers))
     ;; (do
     ;;   (TreeViewerEditor/create ttv focus-cell-manager act-support feature))
     
@@ -436,7 +456,7 @@
       (.setLayout (GridLayout. 1 false)))
     (doto ttv
       (.setContentProvider tree-content-provider)
-      (.setLabelProvider label-provider)
+      ;; (.setLabelProvider label-provider)
       (.setInput [(fformat/zip-from-job @job-to-edit-ref)]))
     
     ;; configs to format table display and align cols properly
