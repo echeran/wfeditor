@@ -271,27 +271,11 @@
                        ;; this fn gives an crude approximation for
                        ;; testing if a datum is a zipper or not
                        (and (vector? element) (map? (first element))))
-        ;; label-provider (proxy [ITableLabelProvider]
-        ;;                    []
-        ;;                  (addListener [listener])
-        ;;                  (dispose [])
-        ;;                  (getColumnImage [element column-index]
-        ;;                    nil)
-        ;;                  (getColumnText [element column-index]
-        ;;                    (let [elem-tag (zip-elem-tag-fn element)] 
-        ;;                      (if (is-zipper-fn element)
-        ;;                        (condp = column-index
-        ;;                          0 (elem-key-fn element)
-        ;;                          1 (elem-val-fn element)
-        ;;                          ui-const/NIL-VAL-STR-REP)
-        ;;                        (condp = column-index
-        ;;                          0 (ui-const/JOB-FIELD-FULL-NAMES (keyword element))
-        ;;                          1 ui-const/NIL-VAL-STR-REP))))
-        ;;                  (isLabelProperty [element property]
-        ;;                    false)
-        ;;                  (removeListener [listener]))
         col-1-label-provider (proxy [StyledCellLabelProvider]
                                  []
+                               ;; change of label provider from TreeViewer-wide subclass of
+                               ;; ITableLabelProvider to per-TreeViewerColumn sublcass of
+                               ;; StyledCellLabelProvider is explained here: http://stackoverflow.com/questions/9172543/how-to-create-a-jfacetreeviewer-with-multi-column
                                (update [cell]
                                  (let [element (.getElement cell)
                                        elem-tag (zip-elem-tag-fn element)
@@ -371,9 +355,7 @@
                             (canEdit [element]
                               (let [elem-tag (and (not (nil? @job-cache-ref)) (zip-elem-tag-fn element))]
                                 (if (or (nil? @job-cache-ref)
-                                        (and (= Job (class @job-cache-ref)) (:id @job-cache-ref))
-                                        ;; (and (= :prog-args elem-tag) (not (@gui-state/job-editor-expanded-fields :prog-args)))
-                                        )
+                                        (and (= Job (class @job-cache-ref)) (:id @job-cache-ref)))
                                   false
                                   (boolean (not (#{:id :task-statuses :prog-args :prog-opts :array} elem-tag))))))
                             (getCellEditor [element] 
@@ -406,9 +388,6 @@
             (.setEditingSupport col edit-supp)
             (.setLabelProvider col lbl-prov))
           columns column-headings col-edit-supports col-lbl-providers))
-    ;; (do
-    ;;   (TreeViewerEditor/create ttv focus-cell-manager act-support feature))
-    
     ;; TODO: fix extra column to the right using TableColumnLayout and
     ;; setting ColumnWeightData using proportions and minimum widths
     ;; http://javafact.com/2010/07/26/working-with-jface-tableviewer/
