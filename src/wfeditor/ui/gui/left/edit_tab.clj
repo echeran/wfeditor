@@ -17,13 +17,12 @@
   (:import
    org.eclipse.swt.SWT
    org.eclipse.swt.SWTException
+   org.eclipse.swt.graphics.GC
    org.eclipse.core.runtime.AssertionFailedException
    (org.eclipse.swt.layout FillLayout RowLayout GridLayout GridData FormLayout FormData FormAttachment)
    (org.eclipse.swt.widgets Button FileDialog Group Text Combo Composite Display TableColumn Table TableItem Label TreeItem TreeColumn)
    (org.eclipse.swt.events SelectionEvent SelectionAdapter ModifyListener ModifyEvent)
-   (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener TableViewer IStructuredContentProvider ITableLabelProvider ListViewer ICellModifier TextCellEditor ViewerSorter ColumnLabelProvider ColumnViewerToolTipSupport
-                              FocusCellOwnerDrawHighlighter ColumnViewerEditorActivationStrategy ColumnViewerEditorActivationEvent TreeViewerFocusCellManager TreeViewerEditor ColumnViewerEditor TreeViewerColumn EditingSupport ITreeViewerListener
-                              )
+   (org.eclipse.jface.viewers TreeViewer ITreeContentProvider ILabelProvider IDoubleClickListener TableViewer IStructuredContentProvider ITableLabelProvider ListViewer ICellModifier TextCellEditor ViewerSorter ColumnLabelProvider ColumnViewerToolTipSupport ColumnViewerEditor TreeViewerColumn EditingSupport ITreeViewerListener)
    java.net.URL
    (org.eclipse.swt.custom CTabFolder CTabItem)
    (org.eclipse.jface.layout TableColumnLayout)
@@ -348,13 +347,18 @@
         col2-edit-support (proxy [EditingSupport]
                               [ttv]
                             (canEdit [element]
-                              (if (or (nil? @job-cache-ref)
-                                      (and (= Job (class @job-cache-ref)) (:id @job-cache-ref)))
-                                false
-                                (let [elem-tag (zip-elem-tag-fn element)]
-                                  (boolean (not (#{:id :task-statuses :prog-args :prog-opts :array} elem-tag))))))
+                              (let [elem-tag (and (not (nil? @job-cache-ref)) (zip-elem-tag-fn element))]
+                                (if (or (nil? @job-cache-ref)
+                                        (and (= Job (class @job-cache-ref)) (:id @job-cache-ref))
+                                        (and (= :prog-args elem-tag) (not (@gui-state/job-editor-expanded-fields :prog-args)))
+                                        )
+                                  false
+                                  (boolean (not (#{:id :task-statuses :prog-opts :array} elem-tag))))))
                             (getCellEditor [element]
-                              cell-editor)
+                              (let [elem-tag (zip-elem-tag-fn element)]
+                                (if (and (= :prog-args elem-tag) (not (@gui-state/job-editor-expanded-fields :prog-args)))
+                                  button-editor
+                                  cell-editor)))
                             (getValue [element]
                               (elem-val-fn element))
                             (setValue [element value]
@@ -376,22 +380,7 @@
                                        elem-tag (zip-elem-tag-fn element)]
                                    (println "expanded elem-tag = " elem-tag)
                                    (dosync
-                                    (alter gui-state/job-editor-expanded-fields conj elem-tag)))))
-
-        ;; draw-highlighter (FocusCellOwnerDrawHighlighter. ttv)
-        ;; focus-cell-manager (TreeViewerFocusCellManager. ttv draw-highlighter)
-        ;; act-support (proxy [ColumnViewerEditorActivationStrategy]
-        ;;                 [ttv]
-        ;;               (isEditorActivationEvent [event]
-        ;;                 (boolean
-        ;;                  (or (= ColumnViewerEditorActivationEvent/TRAVERSAL (. event eventType))
-        ;;                      (= ColumnViewerEditorActivationEvent/MOUSE_DOUBLE_CLICK_SELECTION (. event eventType))
-        ;;                      (and (= ColumnViewerEditorActivationEvent/KEY_PRESSED  (. event eventType)) (= SWT/CR (. event keyCode)))
-        ;;                      (= ColumnViewerEditorActivationEvent/PROGRAMMATIC (. event eventType))))))
-        ;; editor-features [ColumnViewerEditor/TABBING_HORIZONTAL ColumnViewerEditor/TABBING_MOVE_TO_ROW_NEIGHBOR ColumnViewerEditor/TABBING_VERTICAL ColumnViewerEditor/KEYBOARD_ACTIVATION]
-        ;; feature (apply bit-or editor-features)
-
-        ]
+                                    (alter gui-state/job-editor-expanded-fields conj elem-tag)))))]
     (doall
      (map (fn [col ch edit-supp]
             (.. col getColumn (setText ch))
