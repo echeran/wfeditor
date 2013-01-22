@@ -203,7 +203,7 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
   (let [list-fn map-of-coll-vals-list-fn]
     (map-from-zip z tag concat list-fn)))
 
-(defn- vector-from-zip
+(defn vector-from-zip
   "return a vector of string values created from an XML zip (z) using a tag (tag), representing the vector, that has 0+ children of leaf tags, representing the values"
   [z tag]
   (when z

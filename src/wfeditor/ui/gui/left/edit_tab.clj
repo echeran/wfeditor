@@ -264,7 +264,8 @@
                           :end (array-map-val-fn element elem-tag)
                           :step (array-map-val-fn element elem-tag)
                           :index-var (array-map-val-fn element elem-tag)
-                          (if-let [val (and (not (has-children-fn element)) (get @job-cache-ref elem-tag))]
+                          (if-let [val (or (and (#{:prog-args :prog-opts} elem-tag) (@gui-state/job-editor-expanded-fields elem-tag) (get @job-cache-ref elem-tag))
+                                           (and (not (has-children-fn element)) (get @job-cache-ref elem-tag)))]
                             (str val)
                             ui-const/NIL-VAL-STR-REP))))
         is-zipper-fn (fn [element]
@@ -286,6 +287,15 @@
                                    (proxy-super update cell))))
         col-2-label-provider (proxy [StyledCellLabelProvider]
                                  []
+                               ;; TODO: use info in following links to
+                               ;; figure out how to make adding args
+                               ;; and opts localized and easy
+                               ;; http://www.vogella.com/articles/EclipseJFaceTableAdvanced/article.html
+                               ;; http://llqc.wordpress.com/2010/03/20/painting-table-items-in-swtjface/
+                               ;; directly set the TextStyle's font
+                               ;; field as described and shown in:
+                               ;; http://stackoverflow.com/questions/10430976/trying-to-add-basic-rich-text-support-via-html-to-a-jface-tableviewer
+                               ;; http://bingjava.appspot.com/snippet.jsp?id=2211
                                (update [cell]
                                  (let [element (.getElement cell)
                                        elem-tag (zip-elem-tag-fn element)
@@ -303,20 +313,58 @@
         columns (doall
                  (for [ch column-headings]
                    (new-widget {:keyname (keyword (str "col-" ch)) :widget-class TreeViewerColumn :parent ttv :styles [SWT/LEFT]})))
+        edit-opt-key-fn (fn [element value]
+                          (let [up-zip (zip/up element)
+                                up-elem-tag (zip-elem-tag-fn up-zip)
+                                key (zfx/xml1-> element :flag zfx/text)
+                                keyval-seq (fformat/map-keyval-seq-from-zip up-zip up-elem-tag fformat/map-of-coll-vals-list-fn)
+                                idx (count (zip/lefts element))
+                                keyval (nth keyval-seq idx)
+                                val-vec (get keyval key)
+                                new-key (fformat/nil-pun-empty-str value)]
+                            (when idx
+                              (let [new-keyval (cond
+                                                (and (not new-key) val-vec) keyval
+                                                new-key {new-key val-vec}
+                                                :default nil)
+                                    new-keyval-seq (if new-keyval
+                                                     (concat
+                                                      (take idx keyval-seq)
+                                                      [{new-key val-vec}]
+                                                      (drop (inc idx) keyval-seq))
+                                                     (concat
+                                                      (take idx keyval-seq)
+                                                      (drop (inc idx) keyval-seq)))
+                                    new-prog-opts (apply merge-with fformat/merge-with-fn new-keyval-seq)]
+                                (dosync
+                                 (alter job-cache-ref assoc :prog-opts new-prog-opts))))))
         edit-arg-val-fn (fn [element value]
-                          (let [idx (count (zip/lefts element))] 
-                            (dosync
-                             (alter job-cache-ref assoc-in [:prog-args idx] value))))
+                          (let [idx (count (zip/lefts element))
+                                val (fformat/nil-pun-empty-str value)]
+                            (if val
+                              (dosync
+                               (alter job-cache-ref assoc-in [:prog-args idx] val))
+                              (let [up-zip (zip/up element)
+                                    up-elem-tag (zip-elem-tag-fn up-zip)
+                                    args (fformat/vector-from-zip up-zip up-elem-tag)
+                                    new-args (concat (subvec args 0 idx) (subvec args (inc idx)))]
+                                (dosync
+                                 (alter job-cache-ref assoc :prog-args new-args))))))
         edit-opt-val-fn (fn [element value]
                           (let [up-zip (zip/up element)
                                 up-elem-tag (zip-elem-tag-fn up-zip)
                                 key (zfx/xml1-> element :flag zfx/text)
                                 keyval-seq (fformat/map-keyval-seq-from-zip up-zip up-elem-tag fformat/map-of-coll-vals-list-fn)
-                                idx (count (zip/lefts element))]
+                                idx (count (zip/lefts element))
+                                val (fformat/nil-pun-empty-str value)
+                                ;; TODO: make this code handle vectors
+                                ;; of more than one val (would require
+                                ;; rework in other places as well, undoubtedly)
+                                new-val-vec (if val [val] nil)]
                             (when idx
                               (let [new-keyval-seq (concat
                                                     (take idx keyval-seq)
-                                                    [{key [value]}]
+                                                    [{key new-val-vec}]
                                                     (drop (inc idx) keyval-seq))
                                     new-prog-opts (apply merge-with fformat/merge-with-fn new-keyval-seq)]
                                 (dosync
@@ -331,6 +379,10 @@
                                                                  (catch NumberFormatException e))
                                :default (dosync
                                          (alter job-cache-ref assoc-in [:array elem-tag] value)))))
+        edit-key-fn (fn [element value]
+                      (let [elem-tag (zip-elem-tag-fn element)]
+                        (cond
+                         (= :opt elem-tag) (edit-opt-key-fn element value))))
         edit-val-fn (fn [element value]
                       (let [elem-tag (zip-elem-tag-fn element)]
                         (cond
@@ -349,7 +401,8 @@
                               cell-editor)
                             (getValue [element]
                               (elem-key-fn element))
-                            (setValue [element value]))
+                            (setValue [element value]
+                              (edit-key-fn element value)))
         col2-edit-support (proxy [EditingSupport]
                               [ttv]
                             (canEdit [element]
