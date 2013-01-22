@@ -269,7 +269,12 @@
                           (if-let [val (or
                                         (and (#{:prog-args :prog-opts} elem-tag)
                                              (not (get @gui-state/job-editor-expanded-fields elem-tag))
-                                             (seq (get @job-cache-ref elem-tag)))
+                                             (let [coll (seq (get @job-cache-ref elem-tag))]
+                                               (condp = elem-tag
+                                                 :prog-args (exec/args-str coll)
+                                                 :prog-opts (exec/opts-str coll)
+                                                 nil))
+                                             )
                                         (and (not (has-children-fn element))
                                              (get @job-cache-ref elem-tag)))]
                             (str val)

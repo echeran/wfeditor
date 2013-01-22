@@ -92,9 +92,14 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
            (string/join opt-val-sep [opt val])))))))
 
 (defn opts-str
-  "generate a string for a program's command-line options and/or flags, given the options list, as given by opts-list. "
+  "generate a string for a program's command-line options and/or flags, given the options map"
   [opts]
   (string/join sep (opts-list opts)))
+
+(defn args-str
+  "generate a string for a program's args, given a vector of the args"
+  [args]
+  (string/join sep args))
 
 (defn job-command
   "generate a string (or some other output?) representing the command(s) to run the graph."
@@ -102,7 +107,7 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
   (let [exec (:prog-exec-loc job)
         args (:prog-args job)
         opts (:prog-opts job)
-        args-str (string/join sep args)
+        args-str (args-str args)
         opts-str (opts-str opts)]
     (string/join sep [exec args-str opts-str])))
 
