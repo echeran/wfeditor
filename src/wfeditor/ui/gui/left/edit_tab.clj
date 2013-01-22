@@ -174,7 +174,7 @@
                                                         exp-elems
                                                         (let [elem-tag (zip-elem-tag-fn loc)
                                                               show-expanded (boolean (@gui-state/job-editor-expanded-fields elem-tag))
-                                                              new-exp-elems (if show-expanded
+                                                              new-exp-elems (if (and show-expanded (has-children-fn loc))
                                                                               (conj exp-elems loc)
                                                                               exp-elems)]
                                                           (recur (zip/next loc) new-exp-elems))))]
@@ -183,8 +183,10 @@
                                 ;; only when window is closed through
                                 ;; the close button
                                 (try
-                                  (.setExpandedElements ttv (to-array elems-to-expand))
-                                  (catch AssertionFailedException afe))))))
+                                  (do
+                                    (.setExpandedElements ttv (to-array elems-to-expand)))
+                                  (catch AssertionFailedException afe
+                                    (.printStackTrace afe)))))))
         refresh-table-gui-fn (fn [ttv]
                                (.refresh ttv)
                                (dorun
@@ -264,8 +266,12 @@
                           :end (array-map-val-fn element elem-tag)
                           :step (array-map-val-fn element elem-tag)
                           :index-var (array-map-val-fn element elem-tag)
-                          (if-let [val (or (and (#{:prog-args :prog-opts} elem-tag) (@gui-state/job-editor-expanded-fields elem-tag) (get @job-cache-ref elem-tag))
-                                           (and (not (has-children-fn element)) (get @job-cache-ref elem-tag)))]
+                          (if-let [val (or
+                                        (and (#{:prog-args :prog-opts} elem-tag)
+                                             (not (get @gui-state/job-editor-expanded-fields elem-tag))
+                                             (seq (get @job-cache-ref elem-tag)))
+                                        (and (not (has-children-fn element))
+                                             (get @job-cache-ref elem-tag)))]
                             (str val)
                             ui-const/NIL-VAL-STR-REP))))
         is-zipper-fn (fn [element]
@@ -276,7 +282,7 @@
                                  []
                                ;; change of label provider from TreeViewer-wide subclass of
                                ;; ITableLabelProvider to per-TreeViewerColumn sublcass of
-                               ;; StyledCellLabelProvider is explained here: http://stackoverflow.com/questions/9172543/how-to-create-a-jfacetreeviewer-with-multi-column
+                               ;; StyledCellLabelProvider is explained here: http://stackoverflow.com/questions/9172543/how-to-Create-a-jfacetreeviewer-with-multi-column
                                (update [cell]
                                  (let [element (.getElement cell)
                                        elem-tag (zip-elem-tag-fn element)
@@ -421,20 +427,19 @@
         tree-viewer-listener (proxy [ITreeViewerListener]
                                  []
                                (treeCollapsed [event]
-                                 (println "tree collapsed")
                                  (let [element (.getElement event)
                                        elem-tag (zip-elem-tag-fn element)]
-                                   (println "collapsed elem-tag = " elem-tag)
                                    (dosync
-                                    (alter gui-state/job-editor-expanded-fields disj elem-tag)))
-                                 )
+                                    (alter gui-state/job-editor-expanded-fields disj elem-tag))
+                                   ;; TODO: optimize this, perhaps by
+                                   ;; using the 
+                                   (.. Display getCurrent (asyncExec (fn [] (.refresh ttv))))))
                                (treeExpanded [event]
-                                 (println "tree expanded")
                                  (let [element (.getElement event)
                                        elem-tag (zip-elem-tag-fn element)]
-                                   (println "expanded elem-tag = " elem-tag)
                                    (dosync
-                                    (alter gui-state/job-editor-expanded-fields conj elem-tag)))))]
+                                    (alter gui-state/job-editor-expanded-fields conj elem-tag))
+                                   (.. Display getCurrent (asyncExec (fn [] (.refresh ttv)))))))]
     (doall
      (map (fn [col ch edit-supp lbl-prov]
             (.. col getColumn (setText ch))
@@ -482,7 +487,7 @@
                                             (.setInput ttv [new-job-zip]))
                                           (.refresh ttv)
                                           (expand-table-fn ttv))))
-    
+
     ;; basic display config
     (doto table-group
       (.setLayout (GridLayout. 1 false)))
