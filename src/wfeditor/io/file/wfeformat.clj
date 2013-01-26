@@ -96,9 +96,9 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
                                             :prog-opts (map-coll-vals-xml-subtree key val {:prune-empty prune-empty})
                                             :array (job-array-xml-tree val {:prune-empty prune-empty})
                                             (xml-subtree key val {:prune-empty prune-empty}))))
-                                      (into [] (when wf
-                                                 (let [job-deps (map #(get % :name) ((:neighbors (wf/dep-graph wf)) job))]
-                                                   (xml-subtree :deps job-deps {:prune-empty prune-empty})))))))})))
+                                      (remove nil? [ (when wf
+                                                       (let [job-deps (map #(get % :name) ((:neighbors (wf/dep-graph wf)) job))]
+                                                         (xml-subtree :deps job-deps {:prune-empty prune-empty})))]))))})))
 
 (defn- wf-meta-xml-tree
   "helper method for wf-xml-tree"
