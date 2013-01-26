@@ -35,7 +35,7 @@
 ;; statuses in format-reqd-states match with new-job-fn and/or
 ;; pre-post condition checks
 
-(defn- xml-subtree
+(defn xml-subtree
   "helper method for creating XML trees to represent values stored in WFE types.
 assumes that no attributes are present in any of the tags. (this is acceptable for WFE since attributes are eschewed and substituted by representing them as child elements.)"
   [tag val & [{:keys [prune-empty] :or {prune-empty true}}]]
@@ -180,6 +180,17 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
   ;; repeat keys, then only take the last val 
   (comp last list))
 
+(defn map-keyval-seq-to-map
+  "turn a keyval seq for constructing a map into the final map"
+  ([keyval-seq]
+     (map-keyval-seq-to-map keyval-seq merge-with-fn))
+  ([keyval-seq merge-fn & [{:keys [prune-empty] :or {prune-empty true}}]]
+     (let [remove-fn (if prune-empty (fn [[k v]] (not (or (nil-pun-empty-str k) (nil-pun-empty-str v)))) (fn [_] false))]
+       ;; make sure that maps are all sorted, as described here http://tech.puredanger.com/2010/02/09/clojure-3-sorted-maps/
+       ;; keep the merge-with command for the time when multiple vals
+       ;; per opt is supported
+       (into (sorted-map) (remove remove-fn (apply merge-with merge-fn keyval-seq))))))
+
 (defn- map-from-zip
   "return a map of string keys -> string values created from an XML zip (z) using a tag (tag), representing the map, that has children which contain pairs of leaf tags representing the key-value pairs of the map"
   ([z tag]
@@ -187,9 +198,9 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
      ;; each key maps to a scalar (i.e., single val), and if there are
      ;; repeat keys, then only take the last val 
      (map-from-zip z tag merge-with-fn identity))
-  ([z tag merge-fn val-func]
-     (when z 
-       (apply merge-with merge-fn (map-keyval-seq-from-zip z tag val-func)))))
+  ([z tag merge-fn val-func & [{:keys [prune-empty] :or {prune-empty true}}]]
+     (when z
+       (map-keyval-seq-to-map (map-keyval-seq-from-zip z tag val-func) merge-fn {:prune-empty prune-empty}))))
 
 (def map-of-coll-vals-list-fn
   ;; this is the fn applied to the vals of the map that is culled by
@@ -205,9 +216,10 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
 
 (defn vector-from-zip
   "return a vector of string values created from an XML zip (z) using a tag (tag), representing the vector, that has 0+ children of leaf tags, representing the values"
-  [z tag]
+  [z tag & [{:keys [prune-empty] :or {prune-empty true}}]]
   (when z
-    (into [] (zfx/xml-> z (format-hierarchy tag) zfx/text))))
+    (let [remove-fn (if prune-empty remove-fn (fn [_] false))]
+      (into [] (remove remove-fn (map nil-pun-empty-str (zfx/xml-> z (format-hierarchy tag) zfx/text)))))))
 
 (defn- scalar-from-zip
   "return a scalar, of type string, created from an XML zip (z) within a child tag (tag)"

@@ -155,7 +155,20 @@
         zip-children-fn (fn [zc]
                           ;; need to return a coll of the locs of
                           ;; children nodes, not the children nodes themselves
-                          (let [first-child (zip/down zc)
+                          (let [elem-tag (zip-elem-tag-fn zc)
+                                new-zc (condp = elem-tag
+                                         :prog-args (-> zc
+                                                        zip/down
+                                                        zip/rightmost
+                                                        (zip/insert-right  (fformat/xml-subtree :arg ui-const/NIL-VAL-STR-REP {:prune-empty false}))
+                                                        zip/up)
+                                         :prog-opts (-> zc
+                                                        zip/down
+                                                        zip/rightmost
+                                                        (zip/insert-right {:tag :opt :attrs nil :content [(fformat/xml-subtree :flag ui-const/NIL-VAL-STR-REP {:prune-empty false}) (fformat/xml-subtree :val ui-const/NIL-VAL-STR-REP {:prune-empty false})]})
+                                                        zip/up)
+                                         zc)
+                                first-child (zip/down new-zc)
                                 rest-children (loop [rcs []
                                                      czc (zip/right first-child)]
                                                 (if-not czc
@@ -182,6 +195,9 @@
                                 ;; in order to catch Exception thrown
                                 ;; only when window is closed through
                                 ;; the close button
+                                ;; can improve performance / reduce
+                                ;; flicker of Tree expansion through
+                                ;; http://stackoverflow.com/questions/1595788/jface-treeviewer-flickering
                                 (try
                                   (do
                                     (.setExpandedElements ttv (to-array elems-to-expand)))
@@ -236,8 +252,11 @@
                                        (ref-set job-to-edit-ref nil))))
                                   (refresh-table-gui-fn ttv)))
         arg-key-fn (fn [element]
-                     (let [idx (count (zip/lefts element))]
-                       (str (ui-const/JOB-FIELD-FULL-NAMES :arg) " " (inc idx))))
+                     (let [idx (count (zip/lefts element))
+                           num-rights (count (zip/rights element))]
+                       (if (= 0 num-rights)
+                         (str "New " (ui-const/JOB-FIELD-FULL-NAMES :arg))
+                         (str (ui-const/JOB-FIELD-FULL-NAMES :arg) " " (inc idx)))))
         arg-val-fn (fn [element]
                      (-> element zfx/text))
         opt-key-fn (fn [element]
@@ -346,21 +365,24 @@
                                                      (concat
                                                       (take idx keyval-seq)
                                                       (drop (inc idx) keyval-seq)))
-                                    new-prog-opts (apply merge-with fformat/merge-with-fn new-keyval-seq)]
+                                    new-prog-opts (fformat/map-keyval-seq-to-map new-keyval-seq)]
                                 (dosync
                                  (alter job-cache-ref assoc :prog-opts new-prog-opts))))))
         edit-arg-val-fn (fn [element value]
                           (let [idx (count (zip/lefts element))
-                                val (fformat/nil-pun-empty-str value)]
-                            (if val
-                              (dosync
-                               (alter job-cache-ref assoc-in [:prog-args idx] val))
-                              (let [up-zip (zip/up element)
-                                    up-elem-tag (zip-elem-tag-fn up-zip)
-                                    args (fformat/vector-from-zip up-zip up-elem-tag)
-                                    new-args (concat (subvec args 0 idx) (subvec args (inc idx)))]
-                                (dosync
-                                 (alter job-cache-ref assoc :prog-args new-args))))))
+                                val (fformat/nil-pun-empty-str value)
+                                alter-fn (fn [job val]
+                                           (let [args (:prog-args job)
+                                                 num-args (count args)
+                                                 new-args (if val
+                                                            (if (< idx num-args)
+                                                              (concat (take idx args) [val] (drop (inc idx) args)) 
+                                                              (conj args val))
+                                                            (concat (take idx args) (drop (inc idx) args)))]
+                                             (assoc job :prog-args new-args)))]
+                            (dosync
+                             (alter job-cache-ref alter-fn val))
+                            ))
         edit-opt-val-fn (fn [element value]
                           (let [up-zip (zip/up element)
                                 up-elem-tag (zip-elem-tag-fn up-zip)
@@ -377,7 +399,9 @@
                                                     (take idx keyval-seq)
                                                     [{key new-val-vec}]
                                                     (drop (inc idx) keyval-seq))
-                                    new-prog-opts (apply merge-with fformat/merge-with-fn new-keyval-seq)]
+                                    new-prog-opts (fformat/map-keyval-seq-to-map new-keyval-seq)
+                                    ;; new-prog-opts (into (sorted-map) (apply merge-with fformat/merge-with-fn new-keyval-seq))
+                                    ]
                                 (dosync
                                  (alter job-cache-ref assoc :prog-opts new-prog-opts))))))
         edit-array-val-fn (fn [element value]
