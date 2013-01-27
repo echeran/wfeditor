@@ -45,10 +45,12 @@ opts map keys and values:
   ([widget-class parent opts]
       (let [{:keys [styles text]} opts]
         `(let [style# (condp = (count ~styles)
-                        0 SWT/NONE
+                        0 nil
                         1 (first ~styles)
                         (apply bit-or ~styles))
-               widget# (new ~widget-class ~parent style#)]
+               widget# (if style#
+                         (new ~widget-class ~parent style#)
+                         (new ~widget-class ~parent))]
            (when ~text (.setText widget# ~text))
            widget#)))
   ([opts]

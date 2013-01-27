@@ -139,9 +139,11 @@
   [parent]
   (let [table-group (new-widget {:keyname :table-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "Edit Workflow Job"})
         ;; job (atom (wflow/new-job-fn "Job Name" "Prog. Exec. Loc." "Prog. Args." "Prog. Opts."))
-        ttv (TreeViewer. table-group)
+        ttv (new-widget {:keyname :ttv :widget-class TreeViewer :parent table-group :styles []})
         ;; job (atom @gui-state/job-to-edit)
         job-fields (type-util/class-fields wfeditor.model.workflow.Job)
+        ;; TODO: turn job-to-edit-ref and job-cache-ref from external ref's
+        ;; into local atom's
         job-to-edit-ref gui-state/job-to-edit
         job-cache-ref gui-state/job-editor-cache
 
