@@ -152,21 +152,31 @@
         
         ttv-table-fn (fn [ttv] (.getTree ttv))
         zip-elem-tag-fn (fn [zc] (:tag (zip/node zc)))
+        xml-tree-zip-has-children-fn (fn [zc] (if (-?> zc zip/down zip/branch?) true false))
+        tv-has-children-fn (fn [zc] (if (or (xml-tree-zip-has-children-fn zc) (and (not (nil? @job-cache-ref)) (#{:prog-args :prog-opts} (zip-elem-tag-fn zc)))) true false))
         zip-children-fn (fn [zc]
                           ;; need to return a coll of the locs of
                           ;; children nodes, not the children nodes themselves
                           (let [elem-tag (zip-elem-tag-fn zc)
                                 new-zc (condp = elem-tag
-                                         :prog-args (-> zc
-                                                        zip/down
-                                                        zip/rightmost
-                                                        (zip/insert-right  (fformat/xml-subtree :arg ui-const/NIL-VAL-STR-REP {:prune-empty false}))
-                                                        zip/up)
-                                         :prog-opts (-> zc
-                                                        zip/down
-                                                        zip/rightmost
-                                                        (zip/insert-right {:tag :opt :attrs nil :content [(fformat/xml-subtree :flag ui-const/NIL-VAL-STR-REP {:prune-empty false}) (fformat/xml-subtree :val ui-const/NIL-VAL-STR-REP {:prune-empty false})]})
-                                                        zip/up)
+                                         :prog-args (let [new-node (fformat/xml-subtree :arg ui-const/NIL-VAL-STR-REP {:prune-empty false})]
+                                                      (if (xml-tree-zip-has-children-fn zc)
+                                                        (-> zc
+                                                            zip/down
+                                                            zip/rightmost
+                                                            (zip/insert-right new-node)
+                                                            zip/up)
+                                                        (-> zc
+                                                            (zip/insert-child new-node))))
+                                         :prog-opts (let [new-node {:tag :opt :attrs nil :content [(fformat/xml-subtree :flag ui-const/NIL-VAL-STR-REP {:prune-empty false}) (fformat/xml-subtree :val ui-const/NIL-VAL-STR-REP {:prune-empty false})]}]
+                                                      (if (xml-tree-zip-has-children-fn zc)
+                                                        (-> zc
+                                                            zip/down
+                                                            zip/rightmost
+                                                            (zip/insert-right new-node)
+                                                            zip/up)
+                                                        (-> zc
+                                                            (zip/insert-child new-node))))
                                          zc)
                                 first-child (zip/down new-zc)
                                 rest-children (loop [rcs []
@@ -176,7 +186,6 @@
                                                   (recur (conj rcs czc) (zip/right czc))))
                                 result (concat [first-child] rest-children)]
                             result))
-        has-children-fn (fn [zc] (if (-?> zc zip/down zip/branch?) true false))
         expand-table-fn (fn [ttv]
                           (let [input-zip-vector (.getInput ttv)
                                 z (first input-zip-vector)]
@@ -187,7 +196,7 @@
                                                         exp-elems
                                                         (let [elem-tag (zip-elem-tag-fn loc)
                                                               show-expanded (boolean (@gui-state/job-editor-expanded-fields elem-tag))
-                                                              new-exp-elems (if (and show-expanded (has-children-fn loc))
+                                                              new-exp-elems (if (and show-expanded (tv-has-children-fn loc))
                                                                               (conj exp-elems loc)
                                                                               exp-elems)]
                                                           (recur (zip/next loc) new-exp-elems))))]
@@ -236,7 +245,7 @@
                                       nil 
                                       (zip/up zc))))
                                 (hasChildren [zc]
-                                  (let [has-chil (has-children-fn zc)
+                                  (let [has-chil (tv-has-children-fn zc)
                                         elem-tag (zip-elem-tag-fn zc)]
                                     (condp = elem-tag
                                       :opt false
@@ -294,7 +303,7 @@
                                                  :prog-opts (exec/opts-str coll)
                                                  nil))
                                              )
-                                        (and (not (has-children-fn element))
+                                        (and (not (tv-has-children-fn element))
                                              (get @job-cache-ref elem-tag)))]
                             (str val)
                             ui-const/NIL-VAL-STR-REP))))
@@ -372,12 +381,12 @@
                           (let [idx (count (zip/lefts element))
                                 val (fformat/nil-pun-empty-str value)
                                 alter-fn (fn [job val]
-                                           (let [args (:prog-args job)
+                                           (let [args (or (:prog-args job) [])
                                                  num-args (count args)
                                                  new-args (if val
                                                             (if (< idx num-args)
                                                               (concat (take idx args) [val] (drop (inc idx) args)) 
-                                                              (conj args val))
+                                                              (concat args [val]))
                                                             (concat (take idx args) (drop (inc idx) args)))]
                                              (assoc job :prog-args new-args)))]
                             (dosync
@@ -431,7 +440,7 @@
                               [ttv]
                             (canEdit [element]
                               (let [elem-tag (zip-elem-tag-fn element)]
-                                (boolean (and (= :opt elem-tag) (nil? (fformat/nil-pun-empty-str (zfx/xml1-> element :val zfx/text)))))))
+                                (boolean (and (not (nil? @job-cache-ref)) (= :opt elem-tag) (nil? (fformat/nil-pun-empty-str (zfx/xml1-> element :val zfx/text)))))))
                             (getCellEditor [element]
                               cell-editor)
                             (getValue [element]
@@ -443,7 +452,8 @@
                             (canEdit [element]
                               (let [elem-tag (and (not (nil? @job-cache-ref)) (zip-elem-tag-fn element))]
                                 (if (or (nil? @job-cache-ref)
-                                        (and (= Job (class @job-cache-ref)) (:id @job-cache-ref)))
+                                        (and (= Job (class @job-cache-ref)) (:id @job-cache-ref))
+                                        (and (= :opt elem-tag) (= 0 (count (zip/rights element)))))
                                   false
                                   (boolean (not (#{:id :task-statuses :prog-args :prog-opts :array} elem-tag))))))
                             (getCellEditor [element] 
