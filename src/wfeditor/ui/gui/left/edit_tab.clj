@@ -314,18 +314,10 @@ The two job refs are necessary to prevent conflict & distinguish between the edi
 Return the JFace TreeViewer in a map along with other fns for the purposes of creating custom add-watch's.
 This fn is meant to be used internally by other public-facing fns for users"
   [parent job-ref local-cache-ref & [{:keys [with-fns] :or {with-fns true}}]]
-  (let [
-        ;; ttv (new-widget {:keyname :ttv :widget-class TreeViewer :parent table-group :styles []})
-        ttv (TreeViewer. parent)
+  (let [ttv (TreeViewer. parent)
         job-fields (type-util/class-fields wfeditor.model.workflow.Job)
         job-to-edit-ref job-ref
         job-cache-ref local-cache-ref
-
-
-        _ (println "@job-to-edit-ref = " @job-to-edit-ref)
-        _ (println "@job-cache-ref = " @job-cache-ref)
-        _ (println "with-fns = " with-fns)
-        
         ;; TODO: refactor is-branch-fn and simple-zip-fn into a
         ;; separate ns
         is-branch-fn (every-pred map? (complement (partial instance? clojure.lang.IRecord)))
@@ -687,12 +679,10 @@ This fn is meant to be used internally by other public-facing fns for users"
     ;; basic display config
     (doto ttv
       (.setContentProvider tree-content-provider)
-      ;; (.setLabelProvider label-provider)
       (.setInput [(fformat/zip-from-job @job-to-edit-ref)]))
     
     ;; configs to format table display and align cols properly
     (doto (.. ttv getTree)
-      ;; (.setLayoutData (GridData. GridData/FILL_BOTH))
       (.setHeaderVisible true)
       (.setLinesVisible true)
       (.setRedraw true)
@@ -737,9 +727,6 @@ This fn is meant to be used internally by other public-facing fns for users"
         table-group (new-widget {:keyname :table-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "Edit Workflow Job"})
         {:keys [ttv expand-table-fn]} (create-job-editor-tree-viewer table-group job-to-edit-ref job-cache-ref)]
 
-    (println "ttv = " ttv)
-    (println "expand-table-fn = " expand-table-fn)
-    
     ;; add-watch
     (add-watch job-to-edit-ref :re-bind (fn [key r old new]
                                           (when-not (= @job-cache-ref new)
@@ -777,31 +764,10 @@ This fn is meant to be used internally by other public-facing fns for users"
 (defn- new-job-tree-viewer
   "a fn that encapsulates the job editor for creating a new job"
   [parent job-ref job-cache-ref]
-  (let [
-        ;; tv-group (create-job-editor-tree-viewer parent job-ref
-        ;; job-cache-ref)
-        table-group (new-widget {:keyname :table-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "Edit Workflow Job"})
-        {:keys [ttv expand-table-fn]} (create-job-editor-tree-viewer table-group job-ref job-cache-ref)
-        ]
+  (let [table-group (new-widget {:keyname :table-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "Edit Workflow Job"})
+        {:keys [ttv expand-table-fn]} (create-job-editor-tree-viewer table-group job-ref job-cache-ref)]
 
-    (let [gui-lookup-map (gui-state/lookup-map)
-          parent-addr (gui-lookup-map parent)]
-      (println "for parent of TreeViewer group, gui state map addr = " parent-addr))
-    
-    (println "job-ref = " @job-ref)
-    (println "job-cache-ref = " @job-cache-ref)
-    
     (add-watch job-ref :re-bind (fn [key r old new]
-                                          
-                                          (println "old job to edit = " old)
-                                          (println "new job to edit = " new)
-                                          ;; (when-not new
-                                          ;;   (println "resetting nil job-to-edit")
-                                          ;;   (dosync
-                                          ;;    (ref-set r (wflow/nil-job-fn))
-                                          ;;    ;; (ref-set job-cache-ref (wflow/nil-job-fn))
-                                          ;;    ))
-
                                           ;; have to fix the problem
                                           ;; for dialog/modal windows
                                           ;; where we need the value
@@ -812,7 +778,16 @@ This fn is meant to be used internally by other public-facing fns for users"
                                           ;; percolates to the ref
                                           (when (and (not (nil? new)) (not= @job-cache-ref new))
                                             (dosync
-                                             (ref-set job-cache-ref new)))))
+                                             (ref-set job-cache-ref new)))
+                                          ;; this form is necessary
+                                          ;; for when clicking Add
+                                          ;; Job more than once, b/c
+                                          ;; when window closes,
+                                          ;; treeviewer input is set
+                                          ;; to nil
+                                          (when (and (nil? new) (not (nil? @job-cache-ref)))
+                                            (dosync
+                                             (ref-set r @job-cache-ref)))))
 
     (add-watch job-cache-ref :re-bind (fn [key r old new]
                                         ;; testing that old != new
@@ -844,9 +819,6 @@ This fn is meant to be used internally by other public-facing fns for users"
     
     ;; override the add-watch bindings created automatically with the
     ;; TreeViewer
-
-    (println "job-ref = " @job-ref)
-    (println "job-cache-ref = " @job-cache-ref)
     
     (doto table-group
       (.setLayout (GridLayout. 1 false)))
@@ -857,65 +829,9 @@ This fn is meant to be used internally by other public-facing fns for users"
 (defn- gui-add-job
   "create a new job, add it to the current wf, using a dialog (requires SWT ancestor shell widget)"
   [parent]
-  (let [
-        job-name (atom "")
-        prog-exec-loc (atom "")
-        prog-args (atom [])
-        prog-opts (atom {})
-        ;; TODO: create custom modal
-        dlg (proxy [org.eclipse.jface.dialogs.TitleAreaDialog]
-                [parent]
-              (createContents [parent]
-                (let [contents (proxy-super createContents parent)]
-                  (do
-                    (. this setMessage "Set properties of the new job")
-                    (. this setTitle "Add new job"))
-                  contents))
-              (createDialogArea [parent]
-                (let [comp (proxy-super createDialogArea parent)
-                      ;; grid-comp (Composite. comp SWT/NONE)
-                      comp2 (Composite. comp SWT/NONE)
-                      ;; text2 (Text. comp2 SWT/BORDER)
-                      ;; label2 (doto (Label. comp2 SWT/LEFT) (.setText "hello"))
-                      job-name-label (doto (Label. comp2 SWT/LEFT) (.setText (str (ui-const/JOB-FIELD-FULL-NAMES :name) ":")))
-                      job-name-text (Text. comp2 SWT/BORDER)
-                      prog-exec-loc-label (doto (Label. comp2 SWT/LEFT) (.setText (str (ui-const/JOB-FIELD-FULL-NAMES :prog-exec-loc) ":")))
-                      prog-exec-loc-text (Text. comp2 SWT/BORDER)
-                      job-args-label (doto (Label. comp2 SWT/LEFT) (.setText (str (ui-const/JOB-FIELD-FULL-NAMES :prog-args) ":")))
-                      job-args-text (Text. comp2 SWT/BORDER)
-                      job-opts-label (doto (Label. comp2 SWT/LEFT) (.setText (str (ui-const/JOB-FIELD-FULL-NAMES :prog-opts) ":")))
-                      job-opts-text (Text. comp2 SWT/BORDER)
-                      grid-layout (GridLayout.)
-                      ]
-                  ;; do not set a layout for the composite given to
-                  ;; createDialogArea by the super class because SWT
-                  ;; seems to get confused
-                  (.setLayout comp2 (FillLayout. SWT/VERTICAL))
-                  (.setLayout comp2 grid-layout)
-                  (set! (. grid-layout numColumns) 2)
-                  (dorun (map #(.setLayoutData % (GridData. GridData/HORIZONTAL_ALIGN_BEGINNING)) [job-name-label prog-exec-loc-label job-args-label job-opts-label]))
-                  (dorun (map #(.setLayoutData % (GridData. GridData/FILL_HORIZONTAL)) [job-name-text prog-exec-loc-text job-args-text job-opts-text]))
-                  comp)))]
-    (when (= (.open dlg) Window/OK)
-      (let [new-job (wflow/nil-job-fn)]
-        
-        (dosync
-         (alter wflow/wf wflow/add-job new-job))))))
-
-
-(defn- gui-add-job-2
-  "create a new job, add it to the current wf, using a dialog (requires SWT ancestor shell widget)"
-  [parent]
-  (let [
-        ;; job-name (atom "")
-        ;; prog-exec-loc (atom "")
-        ;; prog-args (atom [])
-        ;; prog-opts (atom {})
-
-        job-ref gui-state/creator-job
+  (let [job-ref gui-state/creator-job
         job-cache-ref gui-state/creator-job-cache 
-        
-        ;; TODO: create custom modal
+        ;; create custom modal
         dlg (proxy [org.eclipse.jface.dialogs.TitleAreaDialog]
                 [parent]
               (createContents [parent]
@@ -927,10 +843,7 @@ This fn is meant to be used internally by other public-facing fns for users"
               (createDialogArea [parent]
                 (let [comp (proxy-super createDialogArea parent)
                       comp2 (Composite. comp SWT/NONE)
-
-                      ;; tv-group (create-job-editor-tree-viewer comp2 job-ref job-cache-ref)
-                      tv-group (new-job-tree-viewer comp2 job-ref job-cache-ref)
-                      ]
+                      tv-group (new-job-tree-viewer comp2 job-ref job-cache-ref)]
                   ;; do not set a layout for the composite given to
                   ;; createDialogArea by the super class because SWT
                   ;; seems to get confused                  
@@ -944,51 +857,8 @@ This fn is meant to be used internally by other public-facing fns for users"
                     (.setLayout (GridLayout. 1 false)))
                   (doto comp2
                     (.setLayoutData (GridData. GridData/FILL_BOTH)))
-                  
-                  comp)))]
-    (println "@job-ref = " @job-ref)
-    (println "@job-cache-ref = " @job-cache-ref)
-
-
-
-
-    ;; (add-watch job-cache-ref :re-bind (fn [key r old new]
-    ;;                                     ;; testing that old != new
-    ;;                                     ;; prevents problems when
-    ;;                                     ;; focus is lost from
-    ;;                                     ;; textcelleditor to another
-    ;;                                     ;; widget which may be stale/disposed
-
-
-    ;;                                     (println "old job-cache-ref = " old)
-    ;;                                     (println "new job-cache-ref = " new)
-    ;;                                     (when-not new
-    ;;                                       (println "resetting nil job-cache")
-    ;;                                       (dosync
-    ;;                                        (ref-set r (wflow/nil-job-fn))))
-
-                                        
-    ;;                                     (when (not= old new)
-    ;;                                       (when (and
-    ;;                                              (and old new)
-    ;;                                              (not= new @job-ref))
-    ;;                                         (let [wf (wflow/workflow)
-    ;;                                               new-wf (wflow/replace-job wf old new)]
-    ;;                                           (wflow/set-workflow new-wf)
-    ;;                                           (dosync
-    ;;                                            (ref-set job-ref new))))
-    ;;                                       (let [new-job (or new (wflow/nil-job-fn))
-    ;;                                             new-job-zip (fformat/zip-from-job new-job)]
-    ;;                                         (.setInput ttv [new-job-zip]))
-    ;;                                       (.refresh ttv)
-    ;;                                       (expand-table-fn ttv))))
-    
-
-    (println "@job-ref = " @job-ref)
-    (println "@job-cache-ref = " @job-cache-ref)
+                  comp)))] 
     (when (= (.open dlg) Window/OK) 
-      (println "@job-ref = " @job-ref)
-      (println "@job-cache-ref = " @job-cache-ref)
       (when @job-cache-ref
         (dosync
          (alter wflow/wf wflow/add-job @job-cache-ref))))))
@@ -1005,7 +875,7 @@ This fn is meant to be used internally by other public-facing fns for users"
       (.setLayout (RowLayout. SWT/VERTICAL)))
     (update-button add-button
                    {:widget-select-fn (fn [event]
-                                        (gui-add-job-2 (get-ancestor-shell group)))})
+                                        (gui-add-job (get-ancestor-shell group)))})
     group))
 
 (defn edit-wf-ctab-content
