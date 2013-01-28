@@ -36,7 +36,11 @@
 ;; Edit WF tab functions
 ;;
 
-;; (defrecord ZipperVector [zippers])
+
+
+;;
+;; testing functions and/or old/deprecated/out-of-use functions
+;;
 
 (defn- tree-viewer-test
   "create a test zip to create a TreeViewer"
@@ -134,19 +138,194 @@
       (ColumnViewerToolTipSupport/enableFor tree-viewer))
     tree-group))
 
-(defn- edit-job-table-tree-viewer
+(defn- edit-job-table-viewer
   "create a JFace TreeTable viewer for editing a job in the WF"
   [parent]
   (let [table-group (new-widget {:keyname :table-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "Edit Workflow Job"})
         ;; job (atom (wflow/new-job-fn "Job Name" "Prog. Exec. Loc." "Prog. Args." "Prog. Opts."))
-        ttv (new-widget {:keyname :ttv :widget-class TreeViewer :parent table-group :styles []})
-        ;; job (atom @gui-state/job-to-edit)
+        ttv (TableViewer. table-group)
+        ;; job (atom @job-to-edit-ref)
         job-fields (type-util/class-fields wfeditor.model.workflow.Job)
-        ;; TODO: turn job-to-edit-ref and job-cache-ref from external ref's
-        ;; into local atom's
-        job-to-edit-ref gui-state/job-to-edit
-        job-cache-ref gui-state/job-editor-cache
+        column-headings ["Job field" "Value"]
+        columns (doall
+                 (for [ch column-headings]
+                   (new-widget {:keyname (keyword (str "col-" ch)) :widget-class TableColumn :parent (.getTable ttv) :styles [SWT/LEFT] :text ch})))
+        refresh-table-gui-fn (fn [ttv]
+                               (.refresh ttv)
+                               (dorun
+                                (doseq [column (.. ttv getTable getColumns)]
+                                  (.pack column)))
+                               (dorun
+                                (doseq [column (.. ttv getTable getColumns)]
+                                  (.showColumn (.getTable ttv) column)))
+                               (.showColumn (.getTable ttv) (first (.. ttv getTable getColumns)))
+                               (.redraw (.getTable ttv))
+                               (.update (.getTable ttv)))
+        content-provider (proxy [IStructuredContentProvider]
+                             []
+                           (getElements [input-data]
+                             (to-array input-data))
+                           (inputChanged [viewer old-input new-input]
+                             (when-not new-input
+                               (.setInput viewer job-fields)
+                               (dosync
+                                (ref-set gui-state/job-to-edit nil)))
+                             (refresh-table-gui-fn ttv))
+                           (dispose []))
+        label-provider (proxy [ITableLabelProvider]
+                           []
+                         (addListener [listener])
+                         (dispose [])
+                         (getColumnImage [element column-index]
+                           nil)
+                         (getColumnText [element column-index]
+                           (let [result
+                                 (if (string? element)
+                                   (condp = column-index
+                                     0 (ui-const/JOB-FIELD-FULL-NAMES (keyword element))
+                                     1 ui-const/NIL-VAL-STR-REP)
+                                   (condp = column-index
+                                     0 (str (ui-const/JOB-FIELD-FULL-NAMES (nth element column-index)))
+                                     1 (let [key (nth element 0)]
+                                         (str (or (get @gui-state/job-editor-cache key) ui-const/NIL-VAL-STR-REP))
+                                         (if-let [val (get @gui-state/job-editor-cache key)]
+                                           (condp = key
+                                             :task-statuses (if val (task-status/status-field val) ui-const/NIL-VAL-STR-REP)
+                                             (str val))
+                                           ui-const/NIL-VAL-STR-REP))))]
+                             result))
+                         (isLabelProperty [element property]
+                           false)
+                         (removeListener [listener]))
+        col-props ["key" "value"]
+        cell-modifier (proxy [ICellModifier]
+                          []
+                        (canModify [element property]
+                          (if (or (nil? @gui-state/job-editor-cache)
+                                  (string? element)
+                                  (and (= Job (class @gui-state/job-editor-cache)) (:id @gui-state/job-editor-cache)))
+                            false
+                            (let [key (nth element 0)]
+                              (if (and (= "value" property) (not (#{:id :task-statuses :prog-args :prog-opts :array} key)))
+                                true
+                                false))))
+                        (getValue [element property]
+                          (if (not (string? element))
+                            (condp = property
+                              "key" (name (nth element 0))
+                              "value" (or (get @gui-state/job-editor-cache (nth element 0)) ui-const/NIL-VAL-STR-REP))
+                            (condp = property
+                              "key" element
+                              "value" ui-const/NIL-VAL-STR-REP)))
+                        (modify [element property value]
+                          (let [element (if (= TableItem (class element))
+                                          (.getData element)
+                                          element)
+                                key (nth element 0)
+                                val (if (= value ui-const/NIL-VAL-STR-REP)
+                                      nil
+                                      value)]
+                            (when-not (#{:id} key)
+                              (let [alter-assoc-fn (fn [j k v] (when j (assoc j k v)))]
+                                (dosync
+                                 (alter gui-state/job-editor-cache alter-assoc-fn key val)
+                                 (let [old-job @gui-state/job-to-edit
+                                       new-job @gui-state/job-editor-cache
+                                       wf (wflow/workflow)
+                                       new-wf (wflow/replace-job wf old-job new-job)]
+                                   (wflow/set-workflow new-wf))
+                                 (ref-set gui-state/job-to-edit @gui-state/job-editor-cache)))
+                              (.refresh ttv)))))
+        cell-editors (for [col col-props]
+                       (TextCellEditor. (.getTable ttv)))
+        view-sorter (proxy [ViewerSorter]
+                        []
+                      (compare [viewer e1 e2]
+                        (if (string? e1)
+                          (compare (.indexOf job-fields e1) (.indexOf job-fields e2))
+                          (compare (.indexOf job-fields (name (nth e1 0))) (.indexOf job-fields (name (nth e2 0)))))))]
+    ;; TODO: fix extra column to the right using TableColumnLayout and
+    ;; setting ColumnWeightData using proportions and minimum widths
+    ;; http://javafact.com/2010/07/26/working-with-jface-tableviewer/
+    ;; http://stackoverflow.com/questions/9211106/swt-table-layout-resize-the-column-of-a-table-to-fill-all-the-available-spac
+    ;; TODO: figure out how to get the initial input to the tableviewer
+    ;; to be nil and yet have all the job's keys appear as rows and
+    ;; the table show all those rows.  somehow helpful related links:
+    ;; http://www.eclipse.org/forums/index.php/t/158152/
+    ;; http://stackoverflow.com/questions/4508564/make-a-jface-tableviewer-resize-with-its-surrounding-composite
+    ;; http://www.eclipse.org/nebula/widgets/xviewer/xviewer.php
+    ;; http://www.eclipse.org/forums/index.php/m/635630/
+    ;; http://www.eclipsezone.com/eclipse/forums/t76524.html
 
+
+    ;; add-watch
+    (add-watch gui-state/job-to-edit :re-bind (fn [key r old new]
+                                                (when-not (= @gui-state/job-editor-cache new)
+                                                  (dosync
+                                                   (ref-set gui-state/job-editor-cache new)))
+                                                (refresh-table-gui-fn ttv)))
+    ;; basic display config
+    (doto table-group
+      (.setLayout (GridLayout. 1 false)))
+    (doto ttv
+      (.setContentProvider content-provider)
+      (.setLabelProvider label-provider)
+      (.setInput @gui-state/job-to-edit)
+      (.setSorter view-sorter)) 
+    ;; configs to format table display and align cols properly
+    (doto (.getTable ttv)
+      (.setLayoutData (GridData. GridData/FILL_BOTH))
+      (.setHeaderVisible true)
+      (.setLinesVisible true)
+      (.setRedraw true)
+      ;; don't pack table - shrinks the right margin if not needed,
+      ;; looks weird
+      ;; (.pack)
+      )
+    (dorun
+     (map #(.showColumn (.getTable ttv) %) (.. ttv getTable getColumns)))
+    (dorun
+     (map (memfn pack) (.. ttv getTable getColumns)))
+    (dosync
+     (ref-set gui-state/job-to-edit nil))
+    (refresh-table-gui-fn ttv)
+    ;; configs for control editors
+    (doto ttv
+      ;; into-array preserves the object type in a Java array better
+      ;; than to-array
+      (.setColumnProperties (into-array col-props))
+      (.setCellModifier cell-modifier)
+      (.setCellEditors (into-array cell-editors)))
+    ;; return value
+    table-group))
+
+
+
+;;
+;; Actual functions being actively used
+;;
+
+
+
+
+(defn- create-job-editor-tree-viewer
+  "Dynamically generate a JFace Tree (aka TableTree) viewer for editing a WF Job. takes two refs: the job to edit, and another job to be used as a local cache for the viewer.
+The two job refs are necessary to prevent conflict & distinguish between the editor widget manipulation and externally switching the job to edit. Requiring two job refs also forces the user to know those refs externally for the purpose of things like add-watch calls that would be useful to user. Regarding add-watch, remember that the add-watch created locally can be overridden elsewhere at any time with another add-watch form that uses the same add-watch key
+Return the JFace TreeViewer in a map along with other fns for the purposes of creating custom add-watch's.
+This fn is meant to be used internally by other public-facing fns for users"
+  [parent job-ref local-cache-ref & [{:keys [with-fns] :or {with-fns true}}]]
+  (let [
+        ;; ttv (new-widget {:keyname :ttv :widget-class TreeViewer :parent table-group :styles []})
+        ttv (TreeViewer. parent)
+        job-fields (type-util/class-fields wfeditor.model.workflow.Job)
+        job-to-edit-ref job-ref
+        job-cache-ref local-cache-ref
+
+
+        _ (println "@job-to-edit-ref = " @job-to-edit-ref)
+        _ (println "@job-cache-ref = " @job-cache-ref)
+        _ (println "with-fns = " with-fns)
+        
         ;; TODO: refactor is-branch-fn and simple-zip-fn into a
         ;; separate ns
         is-branch-fn (every-pred map? (complement (partial instance? clojure.lang.IRecord)))
@@ -156,6 +335,34 @@
         zip-elem-tag-fn (fn [zc] (:tag (zip/node zc)))
         xml-tree-zip-has-children-fn (fn [zc] (if (-?> zc zip/down zip/branch?) true false))
         tv-has-children-fn (fn [zc] (if (or (xml-tree-zip-has-children-fn zc) (and (not (nil? @job-cache-ref)) (#{:prog-args :prog-opts} (zip-elem-tag-fn zc)))) true false))
+
+        expand-table-fn (fn [ttv]
+                          (let [input-zip-vector (.getInput ttv)
+                                z (first input-zip-vector)]
+                            (when z
+                              (let [elems-to-expand (loop [loc z
+                                                           exp-elems []]
+                                                      (if (zip/end? loc)
+                                                        exp-elems
+                                                        (let [elem-tag (zip-elem-tag-fn loc)
+                                                              show-expanded (boolean (@gui-state/job-editor-expanded-fields elem-tag))
+                                                              new-exp-elems (if (and show-expanded (tv-has-children-fn loc))
+                                                                              (conj exp-elems loc)
+                                                                              exp-elems)]
+                                                          (recur (zip/next loc) new-exp-elems))))]
+                                ;; have to put in this try-catch form
+                                ;; in order to catch Exception thrown
+                                ;; only when window is closed through
+                                ;; the close button
+                                ;; can improve performance / reduce
+                                ;; flicker of Tree expansion through
+                                ;; http://stackoverflow.com/questions/1595788/jface-treeviewer-flickering
+                                (try
+                                  (do
+                                    (.setExpandedElements ttv (to-array elems-to-expand)))
+                                  (catch AssertionFailedException afe
+                                    (.printStackTrace afe)))))))
+        
         zip-children-fn (fn [zc]
                           ;; need to return a coll of the locs of
                           ;; children nodes, not the children nodes themselves
@@ -188,32 +395,6 @@
                                                   (recur (conj rcs czc) (zip/right czc))))
                                 result (concat [first-child] rest-children)]
                             result))
-        expand-table-fn (fn [ttv]
-                          (let [input-zip-vector (.getInput ttv)
-                                z (first input-zip-vector)]
-                            (when z
-                              (let [elems-to-expand (loop [loc z
-                                                           exp-elems []]
-                                                      (if (zip/end? loc)
-                                                        exp-elems
-                                                        (let [elem-tag (zip-elem-tag-fn loc)
-                                                              show-expanded (boolean (@gui-state/job-editor-expanded-fields elem-tag))
-                                                              new-exp-elems (if (and show-expanded (tv-has-children-fn loc))
-                                                                              (conj exp-elems loc)
-                                                                              exp-elems)]
-                                                          (recur (zip/next loc) new-exp-elems))))]
-                                ;; have to put in this try-catch form
-                                ;; in order to catch Exception thrown
-                                ;; only when window is closed through
-                                ;; the close button
-                                ;; can improve performance / reduce
-                                ;; flicker of Tree expansion through
-                                ;; http://stackoverflow.com/questions/1595788/jface-treeviewer-flickering
-                                (try
-                                  (do
-                                    (.setExpandedElements ttv (to-array elems-to-expand)))
-                                  (catch AssertionFailedException afe
-                                    (.printStackTrace afe)))))))
         refresh-table-gui-fn (fn [ttv]
                                (.refresh ttv)
                                (dorun
@@ -501,37 +682,9 @@
     ;; http://www.eclipsezone.com/eclipse/forums/t76524.html
 
 
-    ;; add-watch
-    (add-watch job-to-edit-ref :re-bind (fn [key r old new]
-                                          (when-not (= @job-cache-ref new)
-                                            
-                                            (dosync
-                                             (ref-set job-cache-ref new)))))
 
-    (add-watch job-cache-ref :re-bind (fn [key r old new]
-                                        ;; testing that old != new
-                                        ;; prevents problems when
-                                        ;; focus is lost from
-                                        ;; textcelleditor to another
-                                        ;; widget which may be stale/disposed
-                                        (when (not= old new)
-                                          (when (and
-                                                 (and old new)
-                                                 (not= new @job-to-edit-ref))
-                                            (let [wf (wflow/workflow)
-                                                  new-wf (wflow/replace-job wf old new)]
-                                              (wflow/set-workflow new-wf)
-                                              (dosync
-                                               (ref-set job-to-edit-ref new))))
-                                          (let [new-job (or new (wflow/nil-job-fn))
-                                                new-job-zip (fformat/zip-from-job new-job)]
-                                            (.setInput ttv [new-job-zip]))
-                                          (.refresh ttv)
-                                          (expand-table-fn ttv))))
 
     ;; basic display config
-    (doto table-group
-      (.setLayout (GridLayout. 1 false)))
     (doto ttv
       (.setContentProvider tree-content-provider)
       ;; (.setLabelProvider label-provider)
@@ -542,7 +695,6 @@
       ;; (.setLayoutData (GridData. GridData/FILL_BOTH))
       (.setHeaderVisible true)
       (.setLinesVisible true)
-      (.setLayoutData (GridData. GridData/FILL_BOTH))
       (.setRedraw true)
       ;; don't pack table - shrinks the right margin if not needed,
       ;; looks weird
@@ -572,167 +724,126 @@
       (.addTreeListener tree-viewer-listener)
       )
     ;; return value
-    table-group))
+    ;; table-group
+    (if with-fns
+      {:ttv ttv :expand-table-fn expand-table-fn}
+      ttv)))
 
-(defn- edit-job-table-viewer
-  "create a JFace TreeTable viewer for editing a job in the WF"
+(defn- edit-job-table-tree-viewer
+  "create a SWT group for a JFace TreeTable viewer for editing a job in the WF"
   [parent]
-  (let [table-group (new-widget {:keyname :table-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "Edit Workflow Job"})
-        ;; job (atom (wflow/new-job-fn "Job Name" "Prog. Exec. Loc." "Prog. Args." "Prog. Opts."))
-        ttv (TableViewer. table-group)
-        ;; job (atom @job-to-edit-ref)
-        job-fields (type-util/class-fields wfeditor.model.workflow.Job)
-        column-headings ["Job field" "Value"]
-        columns (doall
-                 (for [ch column-headings]
-                   (new-widget {:keyname (keyword (str "col-" ch)) :widget-class TableColumn :parent (.getTable ttv) :styles [SWT/LEFT] :text ch})))
-        refresh-table-gui-fn (fn [ttv]
-                               (.refresh ttv)
-                               (dorun
-                                (doseq [column (.. ttv getTable getColumns)]
-                                  (.pack column)))
-                               (dorun
-                                (doseq [column (.. ttv getTable getColumns)]
-                                  (.showColumn (.getTable ttv) column)))
-                               (.showColumn (.getTable ttv) (first (.. ttv getTable getColumns)))
-                               (.redraw (.getTable ttv))
-                               (.update (.getTable ttv)))
-        content-provider (proxy [IStructuredContentProvider]
-                             []
-                           (getElements [input-data]
-                             (to-array input-data))
-                           (inputChanged [viewer old-input new-input]
-                             (when-not new-input
-                               (.setInput viewer job-fields)
-                               (dosync
-                                (ref-set gui-state/job-to-edit nil)))
-                             (refresh-table-gui-fn ttv))
-                           (dispose []))
-        label-provider (proxy [ITableLabelProvider]
-                           []
-                         (addListener [listener])
-                         (dispose [])
-                         (getColumnImage [element column-index]
-                           nil)
-                         (getColumnText [element column-index]
-                           (let [result
-                                 (if (string? element)
-                                   (condp = column-index
-                                     0 (ui-const/JOB-FIELD-FULL-NAMES (keyword element))
-                                     1 ui-const/NIL-VAL-STR-REP)
-                                   (condp = column-index
-                                     0 (str (ui-const/JOB-FIELD-FULL-NAMES (nth element column-index)))
-                                     1 (let [key (nth element 0)]
-                                         (str (or (get @gui-state/job-editor-cache key) ui-const/NIL-VAL-STR-REP))
-                                         (if-let [val (get @gui-state/job-editor-cache key)]
-                                           (condp = key
-                                             :task-statuses (if val (task-status/status-field val) ui-const/NIL-VAL-STR-REP)
-                                             (str val))
-                                           ui-const/NIL-VAL-STR-REP))))]
-                             result))
-                         (isLabelProperty [element property]
-                           false)
-                         (removeListener [listener]))
-        col-props ["key" "value"]
-        cell-modifier (proxy [ICellModifier]
-                          []
-                        (canModify [element property]
-                          (if (or (nil? @gui-state/job-editor-cache)
-                                  (string? element)
-                                  (and (= Job (class @gui-state/job-editor-cache)) (:id @gui-state/job-editor-cache)))
-                            false
-                            (let [key (nth element 0)]
-                              (if (and (= "value" property) (not (#{:id :task-statuses :prog-args :prog-opts :array} key)))
-                                true
-                                false))))
-                        (getValue [element property]
-                          (if (not (string? element))
-                            (condp = property
-                              "key" (name (nth element 0))
-                              "value" (or (get @gui-state/job-editor-cache (nth element 0)) ui-const/NIL-VAL-STR-REP))
-                            (condp = property
-                              "key" element
-                              "value" ui-const/NIL-VAL-STR-REP)))
-                        (modify [element property value]
-                          (let [element (if (= TableItem (class element))
-                                          (.getData element)
-                                          element)
-                                key (nth element 0)
-                                val (if (= value ui-const/NIL-VAL-STR-REP)
-                                      nil
-                                      value)]
-                            (when-not (#{:id} key)
-                              (let [alter-assoc-fn (fn [j k v] (when j (assoc j k v)))]
-                                (dosync
-                                 (alter gui-state/job-editor-cache alter-assoc-fn key val)
-                                 (let [old-job @gui-state/job-to-edit
-                                       new-job @gui-state/job-editor-cache
-                                       wf (wflow/workflow)
-                                       new-wf (wflow/replace-job wf old-job new-job)]
-                                   (wflow/set-workflow new-wf))
-                                 (ref-set gui-state/job-to-edit @gui-state/job-editor-cache)))
-                              (.refresh ttv)))))
-        cell-editors (for [col col-props]
-                       (TextCellEditor. (.getTable ttv)))
-        view-sorter (proxy [ViewerSorter]
-                        []
-                      (compare [viewer e1 e2]
-                        (if (string? e1)
-                          (compare (.indexOf job-fields e1) (.indexOf job-fields e2))
-                          (compare (.indexOf job-fields (name (nth e1 0))) (.indexOf job-fields (name (nth e2 0)))))))]
-    ;; TODO: fix extra column to the right using TableColumnLayout and
-    ;; setting ColumnWeightData using proportions and minimum widths
-    ;; http://javafact.com/2010/07/26/working-with-jface-tableviewer/
-    ;; http://stackoverflow.com/questions/9211106/swt-table-layout-resize-the-column-of-a-table-to-fill-all-the-available-spac
-    ;; TODO: figure out how to get the initial input to the tableviewer
-    ;; to be nil and yet have all the job's keys appear as rows and
-    ;; the table show all those rows.  somehow helpful related links:
-    ;; http://www.eclipse.org/forums/index.php/t/158152/
-    ;; http://stackoverflow.com/questions/4508564/make-a-jface-tableviewer-resize-with-its-surrounding-composite
-    ;; http://www.eclipse.org/nebula/widgets/xviewer/xviewer.php
-    ;; http://www.eclipse.org/forums/index.php/m/635630/
-    ;; http://www.eclipsezone.com/eclipse/forums/t76524.html
+  (let [job-to-edit-ref gui-state/job-to-edit
+        job-cache-ref gui-state/job-editor-cache
+        table-group (new-widget {:keyname :table-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "Edit Workflow Job"})
+        {:keys [ttv expand-table-fn]} (create-job-editor-tree-viewer table-group job-to-edit-ref job-cache-ref)]
 
-
+    (println "ttv = " ttv)
+    (println "expand-table-fn = " expand-table-fn)
+    
     ;; add-watch
-    (add-watch gui-state/job-to-edit :re-bind (fn [key r old new]
-                                                (when-not (= @gui-state/job-editor-cache new)
-                                                  (dosync
-                                                   (ref-set gui-state/job-editor-cache new)))
-                                                (refresh-table-gui-fn ttv)))
-    ;; basic display config
+    (add-watch job-to-edit-ref :re-bind (fn [key r old new]
+                                          (when-not (= @job-cache-ref new)
+                                            (dosync
+                                             (ref-set job-cache-ref new)))))
+
+    (add-watch job-cache-ref :re-bind (fn [key r old new]
+                                        ;; testing that old != new
+                                        ;; prevents problems when
+                                        ;; focus is lost from
+                                        ;; textcelleditor to another
+                                        ;; widget which may be stale/disposed
+                                        (when (not= old new)
+                                          (when (and
+                                                 (and old new)
+                                                 (not= new @job-to-edit-ref))
+                                            (let [wf (wflow/workflow)
+                                                  new-wf (wflow/replace-job wf old new)]
+                                              (wflow/set-workflow new-wf)
+                                              (dosync
+                                               (ref-set job-to-edit-ref new))))
+                                          (let [new-job (or new (wflow/nil-job-fn))
+                                                new-job-zip (fformat/zip-from-job new-job)]
+                                            (.setInput ttv [new-job-zip]))
+                                          (.refresh ttv)
+                                          (expand-table-fn ttv))))
+    (dosync
+     (ref-set job-to-edit-ref nil))
     (doto table-group
       (.setLayout (GridLayout. 1 false)))
-    (doto ttv
-      (.setContentProvider content-provider)
-      (.setLabelProvider label-provider)
-      (.setInput @gui-state/job-to-edit)
-      (.setSorter view-sorter)) 
-    ;; configs to format table display and align cols properly
-    (doto (.getTable ttv)
-      (.setLayoutData (GridData. GridData/FILL_BOTH))
-      (.setHeaderVisible true)
-      (.setLinesVisible true)
-      (.setRedraw true)
-      ;; don't pack table - shrinks the right margin if not needed,
-      ;; looks weird
-      ;; (.pack)
-      )
-    (dorun
-     (map #(.showColumn (.getTable ttv) %) (.. ttv getTable getColumns)))
-    (dorun
-     (map (memfn pack) (.. ttv getTable getColumns)))
-    (dosync
-     (ref-set gui-state/job-to-edit nil))
-    (refresh-table-gui-fn ttv)
-    ;; configs for control editors
-    (doto ttv
-      ;; into-array preserves the object type in a Java array better
-      ;; than to-array
-      (.setColumnProperties (into-array col-props))
-      (.setCellModifier cell-modifier)
-      (.setCellEditors (into-array cell-editors)))
-    ;; return value
+    (doto (.. ttv getTree)
+      (.setLayoutData (GridData. GridData/FILL_BOTH)))
+    table-group))
+
+(defn- new-job-tree-viewer
+  "a fn that encapsulates the job editor for creating a new job"
+  [parent job-ref job-cache-ref]
+  (let [
+        ;; tv-group (create-job-editor-tree-viewer parent job-ref
+        ;; job-cache-ref)
+        table-group (new-widget {:keyname :table-group :widget-class Group :parent parent :styles [SWT/SHADOW_ETCHED_OUT] :text "Edit Workflow Job"})
+        {:keys [ttv expand-table-fn]} (create-job-editor-tree-viewer table-group job-ref job-cache-ref)
+        ]
+
+    (let [gui-lookup-map (gui-state/lookup-map)
+          parent-addr (gui-lookup-map parent)]
+      (println "for parent of TreeViewer group, gui state map addr = " parent-addr))
+    
+    (println "job-ref = " @job-ref)
+    (println "job-cache-ref = " @job-cache-ref)
+    
+    (add-watch job-ref :re-bind (fn [key r old new]
+                                          
+                                          (println "old job to edit = " old)
+                                          (println "new job to edit = " new)
+                                          (when-not new
+                                            (println "resetting nil job-to-edit")
+                                            (dosync
+                                             (ref-set r (wflow/nil-job-fn))
+                                             (ref-set job-cache-ref (wflow/nil-job-fn))))
+
+                                          
+                                          (when-not (= @job-cache-ref new)
+                                            (dosync
+                                             (ref-set job-cache-ref new)))))
+
+    (add-watch job-cache-ref :re-bind (fn [key r old new]
+                                        ;; testing that old != new
+                                        ;; prevents problems when
+                                        ;; focus is lost from
+                                        ;; textcelleditor to another
+                                        ;; widget which may be stale/disposed
+                                        (when (not= old new)
+                                          (when (and
+                                                 (and old new)
+                                                 (not= new @job-ref))
+                                            (let [wf (wflow/workflow)
+                                                  new-wf (wflow/replace-job wf old new)]
+                                              ;; (wflow/set-workflow new-wf)
+                                              (dosync
+                                               (ref-set job-ref new))))
+                                          (let [new-job (or new (wflow/nil-job-fn))
+                                                new-job-zip (fformat/zip-from-job new-job)]
+                                            (.setInput ttv [new-job-zip]))
+                                          (.refresh ttv)
+                                          (expand-table-fn ttv))))
+    (when-not @job-ref
+      (dosync
+       (ref-set job-ref (wflow/nil-job-fn))))
+    (when-not @job-cache-ref
+      (dosync
+       (ref-set job-cache-ref (wflow/nil-job-fn))))
+
+    
+    ;; override the add-watch bindings created automatically with the
+    ;; TreeViewer
+
+    (println "job-ref = " @job-ref)
+    (println "job-cache-ref = " @job-cache-ref)
+    
+    (doto table-group
+      (.setLayout (GridLayout. 1 false)))
+    (doto (.. ttv getTree)
+      (.setLayoutData (GridData. GridData/FILL_BOTH)))
     table-group))
 
 (defn- gui-add-job
@@ -783,6 +894,97 @@
         (dosync
          (alter wflow/wf wflow/add-job new-job))))))
 
+
+(defn- gui-add-job-2
+  "create a new job, add it to the current wf, using a dialog (requires SWT ancestor shell widget)"
+  [parent]
+  (let [
+        ;; job-name (atom "")
+        ;; prog-exec-loc (atom "")
+        ;; prog-args (atom [])
+        ;; prog-opts (atom {})
+
+        job-ref gui-state/creator-job
+        job-cache-ref gui-state/creator-job-cache 
+        
+        ;; TODO: create custom modal
+        dlg (proxy [org.eclipse.jface.dialogs.TitleAreaDialog]
+                [parent]
+              (createContents [parent]
+                (let [contents (proxy-super createContents parent)]
+                  (do
+                    (. this setMessage "Set properties of the new job")
+                    (. this setTitle "Add new job"))
+                  contents))
+              (createDialogArea [parent]
+                (let [comp (proxy-super createDialogArea parent)
+                      comp2 (Composite. comp SWT/NONE)
+
+                      ;; tv-group (create-job-editor-tree-viewer comp2 job-ref job-cache-ref)
+                      tv-group (new-job-tree-viewer comp2 job-ref job-cache-ref)
+                      ]
+                  ;; do not set a layout for the composite given to
+                  ;; createDialogArea by the super class because SWT
+                  ;; seems to get confused                  
+                  ;; (.setLayout comp2 (FillLayout. SWT/VERTICAL))
+                  (doto comp2
+                    (.setLayout (GridLayout. 1 false)))
+                  (doto tv-group
+                    (.setLayoutData (GridData. GridData/FILL_BOTH)))
+
+                  (doto comp
+                    (.setLayout (GridLayout. 1 false)))
+                  (doto comp2
+                    (.setLayoutData (GridData. GridData/FILL_BOTH)))
+                  
+                  comp)))]
+    (println "@job-ref = " @job-ref)
+    (println "@job-cache-ref = " @job-cache-ref)
+
+
+
+
+    ;; (add-watch job-cache-ref :re-bind (fn [key r old new]
+    ;;                                     ;; testing that old != new
+    ;;                                     ;; prevents problems when
+    ;;                                     ;; focus is lost from
+    ;;                                     ;; textcelleditor to another
+    ;;                                     ;; widget which may be stale/disposed
+
+
+    ;;                                     (println "old job-cache-ref = " old)
+    ;;                                     (println "new job-cache-ref = " new)
+    ;;                                     (when-not new
+    ;;                                       (println "resetting nil job-cache")
+    ;;                                       (dosync
+    ;;                                        (ref-set r (wflow/nil-job-fn))))
+
+                                        
+    ;;                                     (when (not= old new)
+    ;;                                       (when (and
+    ;;                                              (and old new)
+    ;;                                              (not= new @job-ref))
+    ;;                                         (let [wf (wflow/workflow)
+    ;;                                               new-wf (wflow/replace-job wf old new)]
+    ;;                                           (wflow/set-workflow new-wf)
+    ;;                                           (dosync
+    ;;                                            (ref-set job-ref new))))
+    ;;                                       (let [new-job (or new (wflow/nil-job-fn))
+    ;;                                             new-job-zip (fformat/zip-from-job new-job)]
+    ;;                                         (.setInput ttv [new-job-zip]))
+    ;;                                       (.refresh ttv)
+    ;;                                       (expand-table-fn ttv))))
+    
+
+    (println "@job-ref = " @job-ref)
+    (println "@job-cache-ref = " @job-cache-ref)
+    (when (= (.open dlg) Window/OK) 
+      (println "@job-ref = " @job-ref)
+      (println "@job-cache-ref = " @job-cache-ref)
+      (when @job-ref
+        (dosync
+         (alter wflow/wf wflow/add-job @job-ref))))))
+
 (defn- mod-buttons-group
   "a set of buttons (and widgets) to modify (add/delete/etc.) the WF"
   [parent]
@@ -795,7 +997,7 @@
       (.setLayout (RowLayout. SWT/VERTICAL)))
     (update-button add-button
                    {:widget-select-fn (fn [event]
-                                        (gui-add-job (get-ancestor-shell group)))})
+                                        (gui-add-job-2 (get-ancestor-shell group)))})
     group))
 
 (defn edit-wf-ctab-content
