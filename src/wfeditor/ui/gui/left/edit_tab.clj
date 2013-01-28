@@ -6,6 +6,7 @@
             [wfeditor.io.status.task-run :as task-status]
             [wfeditor.io.file.wfeformat :as fformat]
             [wfeditor.ui.gui.left.general-tab :as general-tab]
+            [wfeditor.ui.gui.zest.canvas :as canvas]
             [wfeditor.ui.state.gui :as gui-state]
             [wfeditor.ui.util.const :as ui-const]
             [clojure.contrib.seq :as seq]
@@ -869,13 +870,19 @@ This fn is meant to be used internally by other public-facing fns for users"
   (let [group (new-widget {:keyname :group :widget-class Group :parent parent :style [SWT/SHADOW_NONE] :text "Add/Delete Jobs"})
         bounding-comp (new-widget {:keyname :bounding-comp :widget-class Composite :parent group :style [SWT/NONE]})
         add-button (new-widget {:keyname :add-button :widget-class Button :parent bounding-comp :style [SWT/PUSH] :text "Add a Job"})
-        del-button (new-widget {:keyname :del-button :widget-class Button :parent bounding-comp :style [SWT/PUSH] :text "Delete a Single Job"})]
+        del-button (new-widget {:keyname :del-button :widget-class Button :parent bounding-comp :style [SWT/PUSH] :text "Delete Selected Job(s)"})]
     (swt-util/stack-full-width bounding-comp {:margin 10} [add-button del-button])
     (doto group
       (.setLayout (RowLayout. SWT/VERTICAL)))
     (update-button add-button
                    {:widget-select-fn (fn [event]
                                         (gui-add-job (get-ancestor-shell group)))})
+    (update-button del-button
+                   {:widget-select-fn (fn [event]
+                                        (let [sel-jobs (canvas/selected-jobs)
+                                              wf (wflow/workflow)
+                                              new-wf (reduce wflow/delete-job wf sel-jobs)]
+                                          (wflow/set-workflow new-wf)))})
     group))
 
 (defn edit-wf-ctab-content

@@ -30,6 +30,8 @@
 
 (declare all-wf-swt-colors)
 
+(declare canvas-selection)
+
 ;;
 ;; functions
 ;;
@@ -225,16 +227,13 @@
                             (selectionChanged [event]
                               (let [source (.getSource event)
                                     selection ^StructuredSelection (.getSelection event)
-                                    selected-widgets (.toList selection)
-                                    job-to-edit (if (and (not (.isEmpty selection)) (= 1 (count (.toList selection))) (= (class (.getFirstElement selection)) wfeditor.model.workflow.Job))
-                                                  (.getFirstElement selection)
-                                                  nil)]
+]
                                 ;; (println "source = " source)
                                 ;; (println "selection = " selection)
                                 ;; (println "selection isEmpty? = " (.isEmpty selection))
                                 ;; (println "job to edit = " job-to-edit)
                                 (dosync
-                                 (ref-set gui-state/job-to-edit job-to-edit)))))]
+                                 (ref-set canvas-selection selection)))))]
     (.setLayoutData (.getControl viewer) parent-grid-data)
     (doto viewer
       (.setContentProvider content-provider)
@@ -261,8 +260,18 @@
    (ref-set all-wf-swt-colors {})
    (zproviders/dispose-job-swt-colors)))
 
+(defn selected-jobs
+  "get a sequential of the jobs that are currently selected in the canvas, if any"
+  []
+  (let [sel @canvas-selection]
+    (when sel
+      (let [sel-iter (.iterator sel)
+            sel-seq (iterator-seq sel-iter)
+            job-pred (fn [elem] (= (class elem) wfeditor.model.workflow.Job))]
+        (filter job-pred sel-seq)))))
+
 ;;
-;; ref initial bindings
+;; ref initial bindings & add-watch forms
 ;;
 
 ;; a ref to hold the GraphViewer object that maintains the state of
@@ -282,3 +291,20 @@
 ;; key 1: a Workflow object (record)
 ;; values returned by key 1 will be entries in wfeditor.ui.gui.zest.providers/job-swt-colors
 (def all-wf-swt-colors (ref {}))
+
+
+;; a ref to hold a ^StruturedSelection object whenever the selection
+;; changes in the canvas
+(def canvas-selection (ref nil))
+
+(add-watch canvas-selection :re-bind (fn [key r old new]
+                                       (let [selection ^StructuredSelection new
+                                             selected-widgets (.toList selection)
+                                             job-to-edit (if (and
+                                                              (not (.isEmpty selection))
+                                                              (= 1 (count (.toList selection)))
+                                                              (= (class (.getFirstElement selection)) wfeditor.model.workflow.Job))
+                                                           (.getFirstElement selection)
+                                                           nil)]
+                                         (dosync
+                                          (ref-set gui-state/job-to-edit job-to-edit)))))
