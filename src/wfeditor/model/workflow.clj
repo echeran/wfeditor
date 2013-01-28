@@ -175,7 +175,7 @@ note: this is the reverse of the dep-graph"
     new-wf))
 
 (defn delete-job
-  "(untested) return a new wf by deleting a job from the old wf"
+  "return a new wf by deleting a job from the old wf"
   [wf job]
   (let [dep-graph (dep-graph wf)
         job-set (:nodes dep-graph)]
@@ -189,6 +189,25 @@ note: this is the reverse of the dep-graph"
             new-dep-graph (-> dep-graph
                               (assoc :nodes new-job-set)
                               (assoc :neighbors new-neighbors-map))
+            new-wf (assoc wf :graph new-dep-graph)]
+        new-wf)
+      wf)))
+
+(defn delete-dep
+  "return a new wf by deleting a dep from the old wf.
+source and dest are named according to the default graph = dependency graph (not flow graph), so source depends on dest"
+  [wf source-job dest-job]
+  (let [dep-graph (dep-graph wf)
+        job-set (:nodes dep-graph)]
+    (if (and (get job-set source-job)
+             (get job-set dest-job))
+      (let [neighbors-map (:neighbors dep-graph)
+            new-neighbors-map (into {} (for [[j deps] neighbors-map]
+                                         (if (= j source-job)
+                                           (let [new-deps (remove #{dest-job} deps)]
+                                             [j new-deps])
+                                           [j deps])))
+            new-dep-graph (assoc dep-graph :neighbors new-neighbors-map)
             new-wf (assoc wf :graph new-dep-graph)]
         new-wf)
       wf)))

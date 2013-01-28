@@ -255,6 +255,10 @@
    (ref-set all-wf-swt-colors {})
    (zproviders/dispose-job-swt-colors)))
 
+;;
+;; canvas selection functions
+;;
+
 (defn selected-jobs
   "get a sequential of the jobs that are currently selected in the canvas, if any"
   []
@@ -264,6 +268,18 @@
             sel-seq (iterator-seq sel-iter)
             job-pred (fn [elem] (= (class elem) wfeditor.model.workflow.Job))]
         (filter job-pred sel-seq)))))
+
+(defn selected-dep
+  "if a single dependency in the graph is selected, then return a map of the source and dest Jobs in that dependency, where source and dest are defined by the canvas graph = flow graph"
+  []
+  (let [sel @canvas-selection]
+    (when sel
+      (let [sel-seq (iterator-seq (.iterator sel))]
+        (when (and (= 1 (count sel-seq))
+                   (= (class (first sel-seq)) org.eclipse.zest.core.viewers.EntityConnectionData))
+          (let [dep (first sel-seq)]
+            {:source (. dep source)
+             :dest (. dep dest)}))))))
 
 ;;
 ;; ref initial bindings & add-watch forms
