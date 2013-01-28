@@ -226,12 +226,7 @@
                               []
                             (selectionChanged [event]
                               (let [source (.getSource event)
-                                    selection ^StructuredSelection (.getSelection event)
-]
-                                ;; (println "source = " source)
-                                ;; (println "selection = " selection)
-                                ;; (println "selection isEmpty? = " (.isEmpty selection))
-                                ;; (println "job to edit = " job-to-edit)
+                                    selection ^StructuredSelection (.getSelection event)]
                                 (dosync
                                  (ref-set canvas-selection selection)))))]
     (.setLayoutData (.getControl viewer) parent-grid-data)
