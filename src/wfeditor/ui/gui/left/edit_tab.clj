@@ -795,14 +795,22 @@ This fn is meant to be used internally by other public-facing fns for users"
                                           
                                           (println "old job to edit = " old)
                                           (println "new job to edit = " new)
-                                          (when-not new
-                                            (println "resetting nil job-to-edit")
-                                            (dosync
-                                             (ref-set r (wflow/nil-job-fn))
-                                             (ref-set job-cache-ref (wflow/nil-job-fn))))
+                                          ;; (when-not new
+                                          ;;   (println "resetting nil job-to-edit")
+                                          ;;   (dosync
+                                          ;;    (ref-set r (wflow/nil-job-fn))
+                                          ;;    ;; (ref-set job-cache-ref (wflow/nil-job-fn))
+                                          ;;    ))
 
-                                          
-                                          (when-not (= @job-cache-ref new)
+                                          ;; have to fix the problem
+                                          ;; for dialog/modal windows
+                                          ;; where we need the value
+                                          ;; of the ref after the
+                                          ;; widget is disposed, but
+                                          ;; disposing seems to set
+                                          ;; the input to nil which
+                                          ;; percolates to the ref
+                                          (when (and (not (nil? new)) (not= @job-cache-ref new))
                                             (dosync
                                              (ref-set job-cache-ref new)))))
 
@@ -981,9 +989,9 @@ This fn is meant to be used internally by other public-facing fns for users"
     (when (= (.open dlg) Window/OK) 
       (println "@job-ref = " @job-ref)
       (println "@job-cache-ref = " @job-cache-ref)
-      (when @job-ref
+      (when @job-cache-ref
         (dosync
-         (alter wflow/wf wflow/add-job @job-ref))))))
+         (alter wflow/wf wflow/add-job @job-cache-ref))))))
 
 (defn- mod-buttons-group
   "a set of buttons (and widgets) to modify (add/delete/etc.) the WF"
