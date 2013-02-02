@@ -870,8 +870,8 @@ This fn is meant to be used internally by other public-facing fns for users"
   (let [group (new-widget {:keyname :group :widget-class Group :parent parent :style [SWT/SHADOW_NONE] :text "Add/Delete Jobs"})
         bounding-comp (new-widget {:keyname :bounding-comp :widget-class Composite :parent group :style [SWT/NONE]})
         add-button (new-widget {:keyname :add-button :widget-class Button :parent bounding-comp :style [SWT/PUSH] :text "Add a Job"})
-        del-button (new-widget {:keyname :del-button :widget-class Button :parent bounding-comp :style [SWT/PUSH] :text "Delete Job(s)"})
-        del-dep-button (new-widget {:keyname :del-dep-button :widget-class Button :parent bounding-comp :style [SWT/PUSH] :text "Delete a Dependency"})]
+        del-button (new-widget {:keyname :del-button :widget-class Button :parent bounding-comp :style [SWT/PUSH] :text "Delete Jobs"})
+        del-dep-button (new-widget {:keyname :del-dep-button :widget-class Button :parent bounding-comp :style [SWT/PUSH] :text "Delete Dependencies"})]
     (swt-util/stack-full-width bounding-comp {:margin 10} [add-button del-button del-dep-button])
     (doto group
       (.setLayout (RowLayout. SWT/VERTICAL)))
@@ -886,14 +886,17 @@ This fn is meant to be used internally by other public-facing fns for users"
                                           (wflow/set-workflow new-wf)))})
     (update-button del-dep-button
                    {:widget-select-fn (fn [event]
-                                        (let [sel-dep (canvas/selected-dep)]
-                                          (when sel-dep
-                                            (let [flow-src (:source sel-dep)
-                                                  flow-dest (:dest sel-dep)
-                                                  dep-graph-src flow-dest
-                                                  dep-graph-dest flow-src
-                                                  wf (wflow/workflow)
-                                                  new-wf (wflow/delete-dep wf dep-graph-src dep-graph-dest)]
+                                        (let [sel-deps (canvas/selected-deps)]
+                                          (when sel-deps
+                                            (let [del-dep-fn (fn [wf dep]
+                                                               (let [flow-src (:source dep)
+                                                                     flow-dest (:dest dep)
+                                                                     dep-graph-src flow-dest
+                                                                     dep-graph-dest flow-src
+                                                                     new-wf (wflow/delete-dep wf dep-graph-src dep-graph-dest)]
+                                                                 new-wf))
+                                                  curr-wf (wflow/workflow)
+                                                  new-wf (reduce del-dep-fn curr-wf sel-deps)]
                                               (wflow/set-workflow new-wf)))))})
     group))
 
