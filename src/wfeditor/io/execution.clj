@@ -1,7 +1,7 @@
 (ns wfeditor.io.execution
   (:require [clojure.contrib.graph :as contrib-graph] 
             [clojure.string :as string]
-            [popen :as popen]
+            ;; [popen :as popen]
             [clj-commons-exec :as commons-exec]
             [wfeditor.io.relay.client :as wfeclient]
             [wfeditor.model.workflow :as wflow]
@@ -233,13 +233,15 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
          1 (str (job-command root-job) job-comm-sep (wf-command-no-branch wf (first downstream-jobs) root-job))
          (str (job-command root-job) job-comm-sep branch-split-begin (string/join branch-split-sep (map (fn [job] (str branch-split-job-prefix (wf-command-no-branch wf job root-job) branch-split-job-suffix)) downstream-jobs)) branch-split-end)))))
 
-(defn print-still-running
-  "run a function for the provided number of times in a row (reps), where the function prints whether the provided popen process (proc) is still running"
-  [proc reps]
-  (let [is-running-fn (fn [] (println "wf command(s) still running?=" (popen/running? proc)) (Thread/sleep 500))]
-    (dotimes [_ reps]
-      (.start
-       (Thread. is-running-fn)))))
+;; this fn is a testing fn anyways, but if needed, should be rewritten
+;; with clj-commons-exec instead of popen
+;; (defn print-still-running
+;;   "run a function for the provided number of times in a row (reps), where the function prints whether the provided popen process (proc) is still running"
+;;   [proc reps]
+;;   (let [is-running-fn (fn [] (println "wf command(s) still running?=" (popen/running? proc)) (Thread/sleep 500))]
+;;     (dotimes [_ reps]
+;;       (.start
+;;        (Thread. is-running-fn)))))
 
 (def wf-command wf-command-one-branch)
 
@@ -252,8 +254,11 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
   "run a workflow of jobs"
   [wf]
   (let [wf-comm (wf-command wf)]
-    (let [proc (popen/popen ["/bin/bash" "-c" wf-comm])
-          output (slurp (popen/stdout proc))]
+    (let [;; proc (popen/popen ["/bin/bash" "-c" wf-comm])
+          cmd (commons-exec/sh ["/bin/bash" "-c" wf-comm])
+          result @cmd
+          ;; output (slurp (popen/stdout proc))
+          output (:out result)]
       (println "output of wf command(s)=" output))))
 
 ;;

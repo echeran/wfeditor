@@ -869,10 +869,11 @@ This fn is meant to be used internally by other public-facing fns for users"
   [parent]
   (let [group (new-widget {:keyname :group :widget-class Group :parent parent :style [SWT/SHADOW_NONE] :text "Add/Delete Jobs"})
         bounding-comp (new-widget {:keyname :bounding-comp :widget-class Composite :parent group :style [SWT/NONE]})
-        add-button (new-widget {:keyname :add-button :widget-class Button :parent bounding-comp :style [SWT/PUSH] :text "Add a Job"})
+        add-button (new-widget {:keyname :add-button :widget-class Button :parent bounding-comp :style [SWT/PUSH] :text "Add a Job..."})
         del-button (new-widget {:keyname :del-button :widget-class Button :parent bounding-comp :style [SWT/PUSH] :text "Delete Jobs"})
+        add-dep-button (new-widget {:keyname :add-dep-button :widget-class Button :parent bounding-comp :style [SWT/PUSH] :text "Add a Dependency"})
         del-dep-button (new-widget {:keyname :del-dep-button :widget-class Button :parent bounding-comp :style [SWT/PUSH] :text "Delete Dependencies"})]
-    (swt-util/stack-full-width bounding-comp {:margin 10} [add-button del-button del-dep-button])
+    (swt-util/stack-full-width bounding-comp {:margin 10} [add-button del-button add-dep-button del-dep-button])
     (doto group
       (.setLayout (RowLayout. SWT/VERTICAL)))
     (update-button add-button
@@ -884,6 +885,17 @@ This fn is meant to be used internally by other public-facing fns for users"
                                               wf (wflow/workflow)
                                               new-wf (reduce wflow/delete-job wf sel-jobs)]
                                           (wflow/set-workflow new-wf)))})
+    (update-button add-dep-button
+                   {:widget-select-fn (fn [event]
+                                        (let [sel-jobs (canvas/selected-jobs)]
+                                          (when (= 2 (count sel-jobs))
+                                            (println "______")
+                                            (doseq [j sel-jobs]
+                                              (println "job = " j))
+                                            (let [src (first sel-jobs)
+                                                  dest (second sel-jobs)]
+                                              (println "need to create a dep between " (:name src) " and " (:name dest)))
+                                            (println "^^^^^^"))))})
     (update-button del-dep-button
                    {:widget-select-fn (fn [event]
                                         (let [sel-deps (canvas/selected-deps)]
