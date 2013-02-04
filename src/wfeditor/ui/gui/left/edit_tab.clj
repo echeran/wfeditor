@@ -889,13 +889,14 @@ This fn is meant to be used internally by other public-facing fns for users"
                    {:widget-select-fn (fn [event]
                                         (let [sel-jobs (canvas/selected-jobs)]
                                           (when (= 2 (count sel-jobs))
-                                            (println "______")
-                                            (doseq [j sel-jobs]
-                                              (println "job = " j))
-                                            (let [src (first sel-jobs)
-                                                  dest (second sel-jobs)]
-                                              (println "need to create a dep between " (:name src) " and " (:name dest)))
-                                            (println "^^^^^^"))))})
+                                            (let [flow-src (first sel-jobs)
+                                                  flow-dest (second sel-jobs)
+                                                  dep-graph-src flow-dest
+                                                  dep-graph-dest flow-src
+                                                  wf (wflow/workflow)
+                                                  new-wf (wflow/add-dep wf dep-graph-src dep-graph-dest)]
+                                              (when-not (wflow/wf-has-cycle new-wf) 
+                                                (wflow/set-workflow new-wf))))))})
     (update-button del-dep-button
                    {:widget-select-fn (fn [event]
                                         (let [sel-deps (canvas/selected-deps)]
