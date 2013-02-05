@@ -399,6 +399,16 @@ This fn is meant to be used internally by other public-facing fns for users"
                                (.showColumn (.. ttv getTree) (first (.. ttv getTree getColumns)))
                                (.redraw (.. ttv getTree))
                                (.update (.. ttv getTree)))
+        job-zip-vec-fn (fn [job]
+                         ;; for a job (esp. jobs that are provided as
+                         ;; input to the job editor tree table),
+                         ;; return a vector of it as the single
+                         ;; element in a vector, or if job is nil then provide a
+                         ;; vector of a zipper of a dummy job
+                         (let [new-job (or job (wflow/nil-job-fn))
+                               new-job-zip (fformat/zip-from-job new-job)
+                               new-job-zip-vec (vector new-job-zip)]
+                           new-job-zip-vec))
         tree-content-provider (proxy [ITreeContentProvider]
                                   []
                                 ;; the "content" that will be
@@ -430,11 +440,9 @@ This fn is meant to be used internally by other public-facing fns for users"
                                 (dispose [])
                                 (inputChanged [viewer old-input new-input]
                                   (when-not new-input
-                                    (let [empty-job (wflow/nil-job-fn)
-                                          empty-job-zip (fformat/zip-from-job empty-job)] 
-                                      (.setInput viewer [empty-job-zip])
-                                      (dosync
-                                       (ref-set job-to-edit-ref nil))))
+                                    (.setInput viewer (job-zip-vec-fn new-input))
+                                    (dosync
+                                     (ref-set job-to-edit-ref nil)))
                                   (refresh-table-gui-fn ttv)))
         arg-key-fn (fn [element]
                      (let [idx (count (zip/lefts element))
@@ -676,11 +684,10 @@ This fn is meant to be used internally by other public-facing fns for users"
 
 
 
-
     ;; basic display config
     (doto ttv
       (.setContentProvider tree-content-provider)
-      (.setInput [(fformat/zip-from-job @job-to-edit-ref)]))
+      (.setInput (job-zip-vec-fn @job-to-edit-ref)))
     
     ;; configs to format table display and align cols properly
     (doto (.. ttv getTree)
