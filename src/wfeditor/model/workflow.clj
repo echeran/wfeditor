@@ -14,12 +14,9 @@
 ;; records
 ;;
 
-;; refactored the defrecord types to this class so that there wouldn't
-;; be this catch 22 cyclic dependency for the compiler that happens (like in C++).
-
-;; proposed unique identifier for Job = id
 ;; for a listing of required and optional arguments, see new-job-fn
-;; the deps of a job is implicitly stored in the global Graph object g
+;; the deps of a job is implicitly stored in the neighbors map of the
+;; Graph object that contains this Job (along with other Jobs)
 ;; if an option flag takes multiple values, the flag will appear in
 ;; the XML once per value. if a flag takes no values, then in the
 ;; prog-opts map, its value can either be an empty vector or nil, it
@@ -33,7 +30,8 @@
 
 ;; replacement for the defstruct declaration of graphs in
 ;; clojure.contrib.graph
-;; the deps field of the Job type pulls info from the Graph obj upon request
+;; the deps of a Job (ex: deps element in XML representation) pulls
+;; info from the Graph's neighbors map upon request
 ;; set: nodes
 ;; map: neighbors (Job->vector of Jobs)
 (defrecord Graph [nodes neighbors])
@@ -195,7 +193,7 @@ note: this is the reverse of the dep-graph"
 
 (defn add-dep
   "return a new wf by adding a dep to the old wf
-source and dest are named according to the default graph - dependency graph (not flow graph), so source depends on dest"
+source and dest are named according to the default graph = dependency graph (not flow graph), so source depends on dest"
   [wf source-job dest-job]
   (let [dep-graph (dep-graph wf)
         job-set (:nodes dep-graph)]
@@ -254,16 +252,6 @@ source and dest are named according to the default graph = dependency graph (not
   (letfn [(update-fn [wf new-neighbors] (assoc (:graph wf) :neighbors new-neighbors))]
     (dosync
      (alter wf update-fn job-dep-map))))
-
-(defn- initial-jobs
-  "return a sequence of the initial jobs (sans dependent-upon info)"
-  []
-  (let [init-jobs (map #(eval (cons 'new-job-fn %))
-                       [["dir-contents" "ls" ["~echeran"] {"-l" nil}]
-                        ["filter-size" "awk" ["'{if (NF > 4) {print $5;}}'"] {}]
-                        ["build-sum-commands" "awk" ["'{print \"a = a + \" $1} END {print \"a\";}'"] {}]
-                        ["compute-sum" "bc" [] {}]] )]
-    init-jobs))
 
 (defn wf-job-seq
   "return a sequence of jobs in the workflow graph in a topological order, where if job B depends on job A, then B will follow A in the returned sequence"
