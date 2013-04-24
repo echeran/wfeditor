@@ -318,13 +318,25 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
                              (let [array-job-props (:array job)]
                                (let [{:keys [start end step]} array-job-props]
                                  ["-t" (str start "-" end (when step (str ":" step)))])))
+           sched-opts-wf-level (:sched-opts wf)
+           sched-opts-job-level (:sched-opts job)
+           sched-opts (merge sched-opts-wf-level sched-opts-job-level)
+           sched-opts-parts (->> sched-opts
+                                 opts-list
+                                 (map #(string/split % (re-pattern opt-val-sep)))
+                                 flatten)
            job-cmd-str (job-command job)
            internal-job-id (next-internal-id)
            qsub-cmd-parts []
-           qsub-cmd-parts (into qsub-cmd-parts (when (not= username (. System getProperty "user.name")) ["sudo" "-u" username "-i"]))
-           qsub-cmd-parts (into qsub-cmd-parts ["qsub"])
-           qsub-cmd-parts (into qsub-cmd-parts array-job-parts)
-           qsub-cmd-parts (into qsub-cmd-parts hold_jid_parts)
+           qsub-cmd-parts (into qsub-cmd-parts (when (not= username (. System getProperty "user.name")) ["sudo" "-u" username "-i"])) 
+           ;; qsub-cmd-parts (into qsub-cmd-parts ["qsub"])
+           ;; qsub-cmd-parts (into qsub-cmd-parts array-job-parts)
+           ;; qsub-cmd-parts (into qsub-cmd-parts hold_jid_parts)
+           qsub-cmd-parts (-> qsub-cmd-parts
+                              (into ["qsub"])
+                              (into array-job-parts)
+                              (into hold_jid_parts)
+                              (into sched-opts-parts))
            std-out-file (or (:std-out-file job) (str (fs/file (std-out-err-dir username internal-job-id) (str internal-job-id ".out"))))
            std-err-file (or (:std-err-file job) (str (fs/file (std-out-err-dir username internal-job-id) (str internal-job-id ".err"))))
            job-name (:name job)
@@ -335,6 +347,7 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
            commons-exec-sh-opts-map {:in qsub-script :flush-input? true}
            ;; TODO: add a timeout to the exec/sh call opts map
            result-map-prom (commons-exec/sh qsub-cmd-parts commons-exec-sh-opts-map)
+           _ (println "qsub enqueue cmd parts = " qsub-cmd-parts)
            qsub-output (:out @result-map-prom)
            qsub-job-id-str (nth (string/split qsub-output #"\s+") 2)
            qsub-job-id-int-str (first (string/split qsub-job-id-str #"\."))

@@ -13,9 +13,9 @@
 
 (def format-reqd-states {:workflow :reqd, :wfinstance :reqd
                          :username :req-when-parent, :exec-domain :req-when-parent, :wf-name :req-when-parent, :wf-ver :req-when-parent, :wf-format-ver :req-when-parent, :name :req-when-parent, :prog-exec-loc :req-when-parent, :prog-args :req-when-parent, :prog-opts :req-when-parent, :flag :req-when-parent, :val :req-when-parent, :dep :req-when-parent, :task-id :req-when-parent, :status :req-when-parent, :start :req-when-parent, :end :req-when-parent
-                         :meta nil, :parent nil, :parent-ver nil, :parent-file nil, :parent-hash nil, :jobs nil, :job nil, :id nil :desc nil, :prog-name nil, :prog-ver nil, :prog-exec-ver nil, :arg nil, :opt nil, :std-out-file nil, :std-err-file nil, :deps nil, :task-statuses nil, :task nil, :array nil, :step nil, :index-var nil})
+                         :meta nil, :parent nil, :parent-ver nil, :parent-file nil, :parent-hash nil, :jobs nil, :job nil, :id nil :desc nil, :prog-name nil, :prog-ver nil, :prog-exec-ver nil, :arg nil, :opt nil, :std-out-file nil, :std-err-file nil, :deps nil, :task-statuses nil, :task nil, :array nil, :step nil, :index-var nil, :scheduler nil, :sched-opts nil})
 
-(def format-hierarchy {:wfinstance [:username :exec-domain :workflow], :workflow [:meta :jobs], :meta [:wf-name :wf-ver :wf-format-ver :parent], :parent [:parent-ver :parent-file :parent-hash], :jobs :job, :job [:id :name :desc :prog-name :prog-ver :prog-exec-loc :prog-exec-ver :prog-args :prog-opts :std-out-file :std-err-file :job-deps :task-statuses :array], :prog-args :arg, :prog-opts :opt, :opt [:flag :val], :deps :dep, :task-statuses :task, :task [:task-id :status] :array [:start :end :step :index-var]})
+(def format-hierarchy {:wfinstance [:username :exec-domain :workflow], :workflow [:meta :scheduler :jobs], :meta [:wf-name :wf-ver :wf-format-ver :parent], :parent [:parent-ver :parent-file :parent-hash], :scheduler [:exec-domain :sched-opts], :sched-opts :opt, :jobs :job, :job [:id :name :desc :prog-name :prog-ver :prog-exec-loc :prog-exec-ver :prog-args :prog-opts :std-out-file :std-err-file :job-deps :task-statuses :array], :prog-args :arg, :prog-opts :opt, :opt [:flag :val], :deps :dep, :task-statuses :task, :task [:task-id :status] :array [:start :end :step :index-var]})
 
 ;;
 ;; functions to create XML from datatypes
@@ -95,6 +95,7 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
                                           (condp = key
                                             :prog-opts (map-coll-vals-xml-subtree key val {:prune-empty prune-empty})
                                             :array (job-array-xml-tree val {:prune-empty prune-empty})
+                                            :sched-opts (map-coll-vals-xml-subtree key val {:prune-empty prune-empty})
                                             (xml-subtree key val {:prune-empty prune-empty}))))
                                       (remove nil? [ (when wf
                                                        (let [job-deps (map #(get % :name) ((:neighbors (wf/dep-graph wf)) job))]
@@ -108,12 +109,18 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
         meta-wf-vals (map wf-get-fn meta-wf-tags)
         meta-parent-tags [:parent-ver :parent-file :parent-hash]
         meta-parent-vals (map wf-get-fn meta-parent-tags)
-        meta-tags (concat meta-wf-tags meta-parent-tags)
-        meta-vals (concat meta-wf-vals meta-parent-vals)
+        meta-scheduler-tags [:exec-domain :sched-opts]
+        meta-scheduler-vals (remove nil? [(wf-get-fn :exec-domain) (when (seq (wf-get-fn :sched-opts)) (wf-get-fn :sched-opts))])
+        meta-tags (concat meta-wf-tags meta-parent-tags meta-scheduler-tags)
+        meta-vals (concat meta-wf-vals meta-parent-vals meta-scheduler-vals)
         or-fn (fn ([a] a) ([a b] (or a b)))]
     (when (reduce or-fn meta-vals)
       (let [new-tag-fn (fn [tag] (xml-subtree tag (wf-get-fn tag)))]
-        {:tag :meta :attrs nil :content (remove nil?  [(new-tag-fn :wf-name) (new-tag-fn :wf-ver) (new-tag-fn :wf-format-ver) (when (reduce or-fn meta-parent-vals) {:tag :parent :attrs nil :content (remove nil? [(new-tag-fn :parent-ver) (new-tag-fn :parent-file) (new-tag-fn :parent-hash)])})])}))))
+        {:tag :meta :attrs nil :content (remove nil?  [(new-tag-fn :wf-name)
+                                                       (new-tag-fn :wf-ver)
+                                                       (new-tag-fn :wf-format-ver)
+                                                       (when (reduce or-fn meta-parent-vals) {:tag :parent :attrs nil :content (remove nil? [(new-tag-fn :parent-ver) (new-tag-fn :parent-file) (new-tag-fn :parent-hash)])})
+                                                       (when (reduce or-fn meta-scheduler-vals) {:tag :scheduler :attrs nil :content (remove nil? [(new-tag-fn :exec-domain) (when (seq (wf-get-fn :sched-opts)) (map-coll-vals-xml-subtree :sched-opts (wf-get-fn :sched-opts) {:prune-empty true}))])})])}))))
 
 (defn- wf-xml-tree
   "implementation of defmethod for xml-tree multimethod for the Workflow record class"
@@ -285,6 +292,7 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
                                      ;; each element of format hierarchy
                                      :task-statuses (task-statuses-from-zip (zfx/xml1-> z field) field)
                                      :array (job-array-from-zip z)
+                                     :sched-opts (map-of-coll-vals-from-zip (zfx/xml1-> z field) field)
                                      (scalar-from-zip z field)))]
                            (for [f fields :when (not (#{:deps} f))]
                              {f (field-val f)})))
@@ -303,11 +311,22 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
   "return the meta info of the workflow given an XML zipper of the workflow as a map of tags to values"
   [z]
   (when-let [meta-zip (first (zfx/xml-> z :meta))]
-    (let [meta-map (into {} (for [tag [:wf-name :wf-ver :wf-format-ver]] [tag (scalar-from-zip meta-zip tag)]))]
-      (if-let [parent-zip (first (zfx/xml-> meta-zip :parent))]
-        (let [parent-meta-map (into {} (for [tag [:parent-ver :parent-file :parent-hash]] [tag (scalar-from-zip parent-zip tag)]))]
-          (merge meta-map parent-meta-map))
-        meta-map))))
+    (let [meta-map (into {} (for [tag [:wf-name :wf-ver :wf-format-ver]] [tag (scalar-from-zip meta-zip tag)]))
+          meta-map (if-let [parent-zip (first (zfx/xml-> meta-zip :parent))]
+                     (let [parent-meta-map (into {} (for [tag [:parent-ver :parent-file :parent-hash]] [tag (scalar-from-zip parent-zip tag)]))]
+                       (merge meta-map parent-meta-map))
+                     meta-map)
+          meta-map (if-let [scheduler-zip (zfx/xml1-> meta-zip :scheduler)]
+                     (let [exec-domain (scalar-from-zip scheduler-zip :exec-domain)
+                           sched-opts (when-let [sched-opts-zip (zfx/xml1-> scheduler-zip :sched-opts)]
+                                        (map-of-coll-vals-from-zip sched-opts-zip :sched-opts))
+                           sched-map {:exec-domain exec-domain}
+                           sched-map (if sched-opts
+                                       (assoc sched-map :sched-opts sched-opts)
+                                       sched-map)]
+                       (merge meta-map sched-map))
+                     meta-map)]
+      meta-map)))
 
 (defn- workflow-from-zip
   "return a workflow given an XML zipper of the workflow"

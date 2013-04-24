@@ -26,7 +26,7 @@
 ;; map: prog-opts (string->vector of strings), task-statuses
 ;; (int->keyword), array (keys include: start, end, step, index-var; the keys and vals are not explicity named in
 ;; the XML format as with the other fields of Job)
-(defrecord Job [name prog-exec-loc prog-args prog-opts id task-statuses prog-name desc std-out-file std-err-file array prog-ver prog-exec-ver])
+(defrecord Job [name prog-exec-loc prog-args prog-opts id task-statuses prog-name desc std-out-file std-err-file array prog-ver prog-exec-ver sched-opts])
 
 ;; replacement for the defstruct declaration of graphs in
 ;; clojure.contrib.graph
@@ -39,7 +39,7 @@
 ;; a type encapsulating everything of interest to a workflow.  this is
 ;; currently the graph (encapsulates the jobs and job dependencies),
 ;; and all of the meta-info
-(defrecord Workflow [graph wf-name wf-ver wf-format-ver parent-ver parent-file parent-hash])
+(defrecord Workflow [graph wf-name wf-ver wf-format-ver parent-ver parent-file parent-hash exec-domain sched-opts])
 
 ;; a type representing the execution of a workflow on a server (e.g., on a cluster
 ;; using a Grid Engine).
@@ -57,8 +57,8 @@ when supplying arguments to the function, the following are required
 name, prog-exec-loc, prog-args prog-opts
 the following are optional:
 id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file deps"
-  [name prog-exec-loc prog-args prog-opts & {:keys [id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file task-statuses array] :or {id nil desc nil prog-name nil prog-ver nil prog-exec-ver nil std-out-file nil std-err-file nil task-statuses nil array nil}}]
-  (Job. name prog-exec-loc prog-args prog-opts id task-statuses prog-name desc std-out-file std-err-file array prog-ver prog-exec-ver))
+  [name prog-exec-loc prog-args prog-opts & {:keys [id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file task-statuses array sched-opts] :or {id nil desc nil prog-name nil prog-ver nil prog-exec-ver nil std-out-file nil std-err-file nil task-statuses nil array nil sched-opts nil}}]
+  (Job. name prog-exec-loc prog-args prog-opts id task-statuses prog-name desc std-out-file std-err-file array prog-ver prog-exec-ver sched-opts))
 
 (defn new-graph-fn
   "return a new graph type"
@@ -67,8 +67,8 @@ id desc prog-name prog-ver prog-exec-ver std-out-file std-err-file deps"
 
 (defn new-workflow-fn
   "return a new workflow type"
-  [& {:keys [graph wf-name wf-ver wf-format-ver parent-ver parent-file parent-hash] :or {graph (new-graph-fn) wf-name nil wf-ver nil wf-format-ver nil parent-ver nil parent-file nil parent-hash nil}}]
-  (Workflow. graph wf-name wf-ver wf-format-ver parent-ver parent-file parent-hash))
+  [& {:keys [graph wf-name wf-ver wf-format-ver parent-ver parent-file parent-hash exec-domain sched-opts] :or {graph (new-graph-fn) wf-name nil wf-ver nil wf-format-ver nil parent-ver nil parent-file nil parent-hash nil exec-domain nil sched-opts nil}}]
+  (Workflow. graph wf-name wf-ver wf-format-ver parent-ver parent-file parent-hash exec-domain sched-opts))
 
 (defn new-wfinstance-fn
   "return a new workflow instance type"
