@@ -37,9 +37,7 @@
                    [local/apache-batik-css "1.6.0.v201011041432"]
                    [local/apache-batik-dom-svg "1.6.0.v201011041432"]
                    [local/apache-batik-dom "1.6.0.v201011041432"]
-                   [local/apache-batik-dom-css "1.6.0.v201011041432"]
                    [local/apache-batik-dom-svg "1.6.0.v201011041432"] 
-                   [local/apache-batik-dom "1.6.0.v201011041432"]
                    [local/apache-batik-ext-awt "1.6.0.v201011041432"]
                    [local/apache-batik-svggen "1.6.0.v201011041432"]
                    [local/apache-batik-util "1.6.0.v201011041432"]
@@ -88,7 +86,7 @@
     ;;
     ;; another example:
     ;; mvn install:install-file -Durl=file:repo -DgroupId=local -DartifactId=commons-lang -Dversion=2.6 -Dpackaging=jar -Dfile=wfeditor/lib/commons-lang-2.6.jar
-    ;; mvn install:install-file -Durl=file:repo -DgroupId=local -DartifactId=apache-batik-dom-css -Dversion=1.6.0.v201011041432 -Dpackaging=jar -Dfile=wfeditor/lib/org.apache.batik.css_1.6.0.v201011041432.jar
+    ;; mvn install:install-file -Durl=file:repo -DgroupId=local -DartifactId=apache-batik-css -Dversion=1.6.0.v201011041432 -Dpackaging=jar -Dfile=wfeditor/lib/org.apache.batik.css_1.6.0.v201011041432.jar
     ;; mvn install:install-file -Durl=file:repo -DgroupId=local -DartifactId=apache-batik-dom-svg -Dversion=1.6.0.v201011041432 -Dpackaging=jar -Dfile=wfeditor/lib/org.apache.batik.dom.svg_1.6.0.v201011041432.jar
     ;; mvn install:install-file -Durl=file:repo -DgroupId=local -DartifactId=apache-batik-dom -Dversion=1.6.0.v201011041432 -Dpackaging=jar -Dfile=wfeditor/lib/org.apache.batik.dom_1.6.0.v201011041432.jar
     ;; mvn install:install-file -Durl=file:repo -DgroupId=local -DartifactId=apache-batik-ext-awt -Dversion=1.6.0.v201011041432 -Dpackaging=jar -Dfile=wfeditor/lib/org.apache.batik.ext.awt_1.6.0.v201011041432.jar
@@ -111,7 +109,7 @@
 
     ;; TODO: change this depending on the OS+chip architecture
 
-    ;; mvn install:install-file -Durl=file:repo -DgroupId=local -DartifactId=eclipse-swt-cocoa-macosx-x86_64 -Dversion=3.100.0.v4233d -Dpackaging=jar -Dfile=wfeditor/lib/org.eclipse.swt.cocoa.macosx.x86_64_3.100.0.v4233d.jar
+    ;; mvn install:install-file -Durl=file:repo -DgroupId=local -DartifactId=eclipse-swt -Dversion=3.100.0.v4233d -Dpackaging=jar -Dfile=wfeditor/lib/org.eclipse.swt.cocoa.macosx.x86_64_3.100.0.v4233d.jar
 
 
     ;; mvn install:install-file -Durl=file:repo -DgroupId=local -DartifactId=eclipse-swt -Dversion=3.100.0.v4233d -Dpackaging=jar -Dfile=wfeditor/lib/org.eclipse.swt_3.100.0.v4233d.jar
