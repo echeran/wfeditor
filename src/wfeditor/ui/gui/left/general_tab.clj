@@ -42,7 +42,9 @@
      (wfinstance (wflow/workflow)))
   ([wf]
      (let [{:keys [user exec-dom]} @exec-props
-           wf-inst (wflow/new-wfinstance-fn user exec-dom wf)]
+           exec-dom (or (:exec-domain wf) exec-dom)
+           new-wf (assoc wf :exec-domain exec-dom)
+           wf-inst (wflow/new-wfinstance-fn user exec-dom new-wf)]
        wf-inst)))
 
 ;;

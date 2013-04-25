@@ -329,9 +329,6 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
            internal-job-id (next-internal-id)
            qsub-cmd-parts []
            qsub-cmd-parts (into qsub-cmd-parts (when (not= username (. System getProperty "user.name")) ["sudo" "-u" username "-i"])) 
-           ;; qsub-cmd-parts (into qsub-cmd-parts ["qsub"])
-           ;; qsub-cmd-parts (into qsub-cmd-parts array-job-parts)
-           ;; qsub-cmd-parts (into qsub-cmd-parts hold_jid_parts)
            qsub-cmd-parts (-> qsub-cmd-parts
                               (into ["qsub"])
                               (into array-job-parts)
@@ -346,18 +343,26 @@ the vals vector is nil if the option is a flag (e.g. \"--verbose\"). the vals ve
            qsub-script (string/join "\n" (conj (into [] qsub-script-header-strings) job-cmd-str))
            commons-exec-sh-opts-map {:in qsub-script :flush-input? true}
            ;; TODO: add a timeout to the exec/sh call opts map
-           result-map-prom (commons-exec/sh qsub-cmd-parts commons-exec-sh-opts-map)
-           _ (println "qsub enqueue cmd parts = " qsub-cmd-parts)
-           qsub-output (:out @result-map-prom)
-           qsub-job-id-str (nth (string/split qsub-output #"\s+") 2)
-           qsub-job-id-int-str (first (string/split qsub-job-id-str #"\."))
-           qsub-job-id (Integer/parseInt qsub-job-id-int-str)]
-       (do
-         (assoc-internal-job-id qsub-job-id internal-job-id))
-       (assoc job
-         :id qsub-job-id
-         :std-out-file std-out-file
-         :std-err-file std-err-file))))
+           result-map-prom (commons-exec/sh qsub-cmd-parts commons-exec-sh-opts-map)]
+       (if-not (zero? (:exit @result-map-prom))
+         (let [qsub-cmd-err-msg (:err @result-map-prom)
+               qsub-cmd-string (string/join sep qsub-cmd-parts)
+               job-name (:name job)
+               wf-name (:name wf)
+               err-msg (str "Encountered error when enqueuing job [" job-name "]" (when wf-name (" in workflow [" wf-name "]")) " : " qsub-cmd-err-msg "\n\tEnqueued with command [" qsub-cmd-string "]")]
+           (do
+             (println err-msg))
+           job)
+         (let [qsub-output (:out @result-map-prom)
+               qsub-job-id-str (nth (string/split qsub-output #"\s+") 2)
+               qsub-job-id-int-str (first (string/split qsub-job-id-str #"\."))
+               qsub-job-id (Integer/parseInt qsub-job-id-int-str)]
+           (do
+             (assoc-internal-job-id qsub-job-id internal-job-id))
+           (assoc job
+             :id qsub-job-id
+             :std-out-file std-out-file
+             :std-err-file std-err-file))))))
 
 (defn enqueue-wfinst-sge
   "enqueue the WFInstance using SGE and return the workflow with the new job id's"
