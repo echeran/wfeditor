@@ -55,7 +55,7 @@
                    [local/eclipse-jface-text "3.8.0.v20120531-0600"]
                    [local/eclipse-jface "3.8.0.v20120521-2329"]
                    [local/eclipse-osgi "3.8.0.v20120529-1548"]
-                   [local/eclipse-swt-cocoa-macosx-x86_64 "3.100.0.v4233d"]
+                   [local/eclipse-swt-native "3.100.0.v4233d"]
                    [local/eclipse-swt "3.100.0.v4233d"]
                    [local/eclipse-ui-workbench "3.103.0.v20120530-1824"]
                    [local/eclipse-zest-cloudio "2.0.0.201207270002"]
@@ -109,7 +109,7 @@
 
     ;; TODO: change this depending on the OS+chip architecture
 
-    ;; mvn install:install-file -Durl=file:repo -DgroupId=local -DartifactId=eclipse-swt -Dversion=3.100.0.v4233d -Dpackaging=jar -Dfile=wfeditor/lib/org.eclipse.swt.cocoa.macosx.x86_64_3.100.0.v4233d.jar
+    ;; mvn install:install-file -Durl=file:repo -DgroupId=local -DartifactId=eclipse-swt-native -Dversion=3.100.0.v4233d -Dpackaging=jar -Dfile=wfeditor/lib/org.eclipse.swt.cocoa.macosx.x86_64_3.100.0.v4233d.jar
 
 
     ;; mvn install:install-file -Durl=file:repo -DgroupId=local -DartifactId=eclipse-swt -Dversion=3.100.0.v4233d -Dpackaging=jar -Dfile=wfeditor/lib/org.eclipse.swt_3.100.0.v4233d.jar
