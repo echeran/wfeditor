@@ -58,19 +58,20 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
 
 (defn- map-coll-vals-xml-subtree
   "helper method for maps which map keys to collections. this is for maps like the program options, where one option may occur multiple times with different values"
-  [tag map & [{:keys [prune-empty] :or {prune-empty true}}]]
+  [tag map & [{:keys [prune-empty nil-on-empty-map] :or {prune-empty true nil-on-empty-map false}}]]
   (let [keyval-tag (format-hierarchy tag)
         [key-tag val-tag] (format-hierarchy keyval-tag)]
-    {:tag tag :attrs nil :content
-     (into [] (remove nil? (flatten (for [[k coll] map]
-                                      (if (or (nil? coll) (empty? coll))
-                                       {:tag keyval-tag :attrs nil :content
-                                        [(xml-subtree key-tag k {:prune-empty prune-empty})
-                                         (xml-subtree val-tag coll {:prune-empty prune-empty})]}
-                                       (for [v coll]
-                                         {:tag keyval-tag :attrs nil :content
-                                          [(xml-subtree key-tag k {:prune-empty prune-empty})
-                                           (xml-subtree val-tag v {:prune-empty prune-empty})]}))))))}))
+    (when-not (and nil-on-empty-map (empty? map))
+      {:tag tag :attrs nil :content
+       (into [] (remove nil? (flatten (for [[k coll] map]
+                                        (if (or (nil? coll) (empty? coll))
+                                          {:tag keyval-tag :attrs nil :content
+                                           [(xml-subtree key-tag k {:prune-empty prune-empty})
+                                            (xml-subtree val-tag coll {:prune-empty prune-empty})]}
+                                          (for [v coll]
+                                            {:tag keyval-tag :attrs nil :content
+                                             [(xml-subtree key-tag k {:prune-empty prune-empty})
+                                              (xml-subtree val-tag v {:prune-empty prune-empty})]}))))))})))
 
 (defn- job-array-xml-tree
   "return the xml subtree for the array map (that is, a map under the field named 'array' in the Job object that represents a job array)"
@@ -95,7 +96,7 @@ assumes that no attributes are present in any of the tags. (this is acceptable f
                                           (condp = key
                                             :prog-opts (map-coll-vals-xml-subtree key val {:prune-empty prune-empty})
                                             :array (job-array-xml-tree val {:prune-empty prune-empty})
-                                            :sched-opts (map-coll-vals-xml-subtree key val {:prune-empty prune-empty})
+                                            :sched-opts (map-coll-vals-xml-subtree key val {:prune-empty prune-empty :nil-on-empty-map true})
                                             (xml-subtree key val {:prune-empty prune-empty}))))
                                       (remove nil? [ (when wf
                                                        (let [job-deps (map #(get % :name) ((:neighbors (wf/dep-graph wf)) job))]
