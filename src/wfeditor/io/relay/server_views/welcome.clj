@@ -51,7 +51,7 @@
 (defpage [:get "/wfinstance"] []
     (let [wfinst (wfinst-from-req)
         new-wfinst (exec/update-wfinst-sge wfinst)]
-    (println "updating jobs via SGE... (SGE hard-coded a.t.m.)")
+    (println "updating jobs via SGE...")
     ;; TODO: turn enqueuing into multi-method where SGE is just one poss.
     (println "finished updating jobs via SGE")
     (fformat/workflow-instance-to-string new-wfinst)))
@@ -59,7 +59,7 @@
 (defpage [:post "/wfinstance"] []
   (let [wfinst (wfinst-from-req)
         new-wfinst (exec/enqueue-wfinst-sge wfinst)]
-    (println "enqueuing jobs via SGE... (SGE hard-coded a.t.m.)")
+    (println "enqueuing jobs via SGE...")
     ;; TODO: turn enqueuing into multi-method where SGE is just one poss.
     (println "finished enqueuing jobs via SGE")
     (fformat/workflow-instance-to-string new-wfinst)))
