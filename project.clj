@@ -151,4 +151,12 @@
                          #"wfeditor.*\.clj$"
                          #"project.clj"
                          #"code_jam.*.clj$"
-                         #"sample.*xml$"]))
+                         #"sample.*xml$"]
+
+    ;; including the :omit-source keyword since this may be a new
+    ;; addition for Leiningen 2.x, and in a test project, the
+    ;; uberjar-exclusions wasn't enough to remove the single source
+    ;; file, but the omit-source key did work
+    :omit-source true
+    
+    ))
