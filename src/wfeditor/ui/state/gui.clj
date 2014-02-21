@@ -29,10 +29,6 @@
 
 (declare job-editor-cache)
 
-;; (declare job-to-edit-2)
-
-;; (declare job-editor-cache-2)
-
 (declare job-editor-expanded-fields)
 
 ;;
@@ -44,7 +40,7 @@
   [opts]
   (let [{:keys [keyname obj class children] :or {:children []}} opts
         ;; can't use the built-in :or construct for map destructuring
-        ;; for class and keyname ecause they depend on other
+        ;; for class and keyname because they depend on other
         ;; destructured fields
         class (or class (if obj
                           (class obj)
@@ -87,9 +83,7 @@ This process is repeated, passing the processed results of each
 predicate to the next predicate. xml-> returns the final sequence.
 The entire chain is evaluated lazily.
 
-There are also special predicates: keywords are converted to tag=,
-strings to text=, and vectors to sub-queries that return true if
-they match.
+There are also special predicates: keywords are converted to keyname=
 
 See the footer of zip-query.clj for examples."
   [loc & preds]
@@ -210,8 +204,5 @@ Note: when using this address with gui-> and gui1->, the first element of the ad
 
 
 ;; ;; the Job object that is edited in the table in the left nav pane
-;; (def job-to-edit-2 (ref (wflow/new-job-fn "<Job Name>" "<Prog. Exec. Loc.>" ["arg1"] {"--opt1" nil})))
-
-;; (def job-editor-cache-2 (ref @job-to-edit))
 
 (def job-editor-expanded-fields (ref #{}))

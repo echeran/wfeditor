@@ -68,9 +68,9 @@
           (recur (rest es) new-rows))))))
 
 (defn hshift-layout-proxy
-  "return a Clojure implementation of HorizontalShiftAlgorithm."
+  "return a Clojure implementation of HorizontalShiftAlgorithm, but also fix it to make it look pretty (use equal-size widths)."
   []
-  ;; recreated from source code at
+  ;; based off of the source code at
   ;; http://git.eclipse.org/c/gef/org.eclipse.zest.git/tree/org.eclipse.zest.layouts/src/org/eclipse/zest/layouts/algorithms/HorizontalShiftAlgorithm.java
   (let [
         vspacing (atom 32) 
@@ -122,6 +122,12 @@
                             midpoint (/ (. bounds width) 2)
                             old-x (entity-x-fn entity)
                             old-y (entity-y-fn entity)
+                            ;; adjusting original impl to properly
+                            ;; calculate width of each entity as the max
+                            ;; width seen in the row. also, proper
+                            ;; consideration for number of entities in
+                            ;; a row in calculating upper left corner
+                            ;; offset is added here
                             new-x (let [left-e (first sorted-row)
                                         right-e (last sorted-row)
                                         left-x (entity-x-fn left-e)
@@ -308,6 +314,8 @@
 ;; changes in the canvas
 (def canvas-selection (ref nil))
 
+;; watch for the user selection in canvas, and update the job editor
+;; when only 1 job selected
 (add-watch canvas-selection :re-bind (fn [key r old new]
                                        (let [selection ^StructuredSelection new
                                              selected-widgets (.toList selection)
